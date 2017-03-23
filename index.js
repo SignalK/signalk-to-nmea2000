@@ -37,7 +37,7 @@ module.exports = function(app) {
 
     function mapToNmea(encoder) {
       const selfStreams = encoder.keys.map(app.streambundle.getSelfStream, app.streambundle)
-      plugin.unsubscribes.push(Bacon.combineWith(encoder.f, selfStreams).changes().debounceImmediate(20).log().onValue(nmeaString => {
+      plugin.unsubscribes.push(Bacon.combineWith(encoder.f, selfStreams).changes().debounceImmediate(20).onValue(nmeaString => {
         if ( nmeaString )
         {
           debug("emit: " + nmeaString)
@@ -53,7 +53,7 @@ module.exports = function(app) {
       mapToNmea(GPS_LOCATION);
     }
     if ( options.SYSTEM_TIME ) {
-      setInterval(send_date, 1000)
+      setInterval(send_date, 1000, app)
     }
   }
 
@@ -81,11 +81,11 @@ var WIND = {
   f: function wind(angle, speed) {
     speed = speed * 100;
     angle = Math.trunc(angle * 10000)
-    return util.format(wind_format, (new Date()).toISOString(),
-                       padd((speed & 0xff).toString(16), 2),
-                       padd(((speed >> 8) & 0xff).toString(16), 2),
-                       padd((angle & 0xff).toString(16), 2),
-                       padd(((angle >> 8) & 0xff).toString(16), 2));
+    n2k = util.format(wind_format, (new Date()).toISOString(),
+                      padd((speed & 0xff).toString(16), 2),
+                      padd(((speed >> 8) & 0xff).toString(16), 2),
+                      padd((angle & 0xff).toString(16), 2),
+                      padd(((angle >> 8) & 0xff).toString(16), 2));
   }
 };
 
@@ -113,17 +113,19 @@ var GPS_LOCATION = {
 
 const system_time_format = "%s,3,126992,1,255,8,ff,ff,%s,%s,%s,%s,%s,%s"
 
-function send_date() {
+function send_date(app) {
   var dateObj = new Date()
   var date = Math.trunc((dateObj.getTime() / 86400)/1000);
   var time = (dateObj.getUTCHours() * (60*60)) + (dateObj.getUTCMinutes() * 60) + dateObj.getUTCSeconds();
   time = time * 10000;
-  return util.format(system_time_format, (new Date()).toISOString(),
-                     padd((date & 0xff).toString(16), 2),
-                     padd(((date >> 8) & 0xff).toString(16), 2),
-                     padd((time & 0xff).toString(16), 2),
-                     padd(((time >> 8) & 0xff).toString(16), 2),
-                     padd(((time >> 16) & 0xff).toString(16), 2),
-                     padd(((time >> 24) & 0xff).toString(16), 2))
+  msg = util.format(system_time_format, (new Date()).toISOString(),
+                    padd((date & 0xff).toString(16), 2),
+                    padd(((date >> 8) & 0xff).toString(16), 2),
+                    padd((time & 0xff).toString(16), 2),
+                    padd(((time >> 8) & 0xff).toString(16), 2),
+                    padd(((time >> 16) & 0xff).toString(16), 2),
+                    padd(((time >> 24) & 0xff).toString(16), 2))
+  debug("system time: " + msg)
+  app.emit('nmea2000out', msg)
 }
 
