@@ -20,30 +20,40 @@ module.exports = function(app) {
         type: "boolean",
         default: false
       },
-      GPS: {
+      GPS_LOCATION: {
+        type: "boolean",
+        default: false
+      },
+      SYSTEM_TIME: {
         type: "boolean",
         default: false
       }
     }
   }
   plugin.start = function(options) {
-    debug("signalk-to-nmea2000: start")
+    debug("signalk-to-nmea2000: start: " + app)
     const selfContext = 'vessels.' + app.selfId
     const selfMatcher = (delta) => delta.context && delta.context === selfContext
 
     function mapToNmea(encoder) {
       const selfStreams = encoder.keys.map(app.streambundle.getSelfStream, app.streambundle)
       plugin.unsubscribes.push(Bacon.combineWith(encoder.f, selfStreams).changes().debounceImmediate(20).log().onValue(nmeaString => {
-        debug("emit: " + nmeaString)
-        app.emit('nmea2000out', nmeaString)
+        if ( nmeaString )
+        {
+          debug("emit: " + nmeaString)
+          app.emit('nmea2000out', nmeaString)
+        }
       }))
     }
 
     if (options.WIND) {
       mapToNmea(WIND);
     }
-    if (options.GPS) {
-      mapToNmea(GPS);
+    if (options.GPS_LOCATION) {
+      mapToNmea(GPS_LOCATION);
+    }
+    if ( options.SYSTEM_TIME ) {
+      mapToNmea(SYSTEM_TIME)
     }
   }
 
@@ -79,9 +89,9 @@ var WIND = {
   }
 };
 
-const location_format = "%s,2,129025,1,255,8,%s,%s,%s,%s,%s,%s,%s,%s"
+const location_format = "%s,7,129025,1,255,8,%s,%s,%s,%s,%s,%s,%s,%s"
 
-var GPS = {
+var GPS_LOCATION = {
   keys: [
     'navigation.position'
   ],
@@ -99,3 +109,26 @@ var GPS = {
                        padd(((lon >> 24) & 0xff).toString(16), 2))
   }
 };
+
+
+const system_time_format = "%s,3,126992,1,255,8,ff,ff,%s,%s,%s,%s,%s,%s"
+
+var SYSTEM_TIME = {
+  keys: [
+    'navigation.datetime'
+  ],
+  f: function wind(datetime) {
+    var dateObj = new Date(datetime)
+    var date = Math.trunc((dateObj.getTime() / 86400)/1000);
+    var time = (dateObj.getUTCHours() * (60*60)) + (dateObj.getUTCMinutes() * 60) + dateObj.getUTCSeconds();
+    time = time * 10000;
+    return util.format(system_time_format, (new Date()).toISOString(),
+                       padd((date & 0xff).toString(16), 2),
+                       padd(((date >> 8) & 0xff).toString(16), 2),
+                       padd((time & 0xff).toString(16), 2),
+                       padd(((time >> 8) & 0xff).toString(16), 2),
+                       padd(((time >> 16) & 0xff).toString(16), 2),
+                       padd(((time >> 24) & 0xff).toString(16), 2))
+  }
+};
+
