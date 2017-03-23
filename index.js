@@ -114,17 +114,16 @@ var GPS_LOCATION = {
 const system_time_format = "%s,3,126992,1,255,8,ff,ff,%s,%s,%s,%s,%s,%s"
 
 function send_date() {
-    var dateObj = new Date()
-    var date = Math.trunc((dateObj.getTime() / 86400)/1000);
-    var time = (dateObj.getUTCHours() * (60*60)) + (dateObj.getUTCMinutes() * 60) + dateObj.getUTCSeconds();
-    time = time * 10000;
-    return util.format(system_time_format, (new Date()).toISOString(),
-                       padd((date & 0xff).toString(16), 2),
-                       padd(((date >> 8) & 0xff).toString(16), 2),
-                       padd((time & 0xff).toString(16), 2),
-                       padd(((time >> 8) & 0xff).toString(16), 2),
-                       padd(((time >> 16) & 0xff).toString(16), 2),
-                       padd(((time >> 24) & 0xff).toString(16), 2))
-  }
-};
+  var dateObj = new Date()
+  var date = Math.trunc((dateObj.getTime() / 86400)/1000);
+  var time = (dateObj.getUTCHours() * (60*60)) + (dateObj.getUTCMinutes() * 60) + dateObj.getUTCSeconds();
+  time = time * 10000;
+  return util.format(system_time_format, (new Date()).toISOString(),
+                     padd((date & 0xff).toString(16), 2),
+                     padd(((date >> 8) & 0xff).toString(16), 2),
+                     padd((time & 0xff).toString(16), 2),
+                     padd(((time >> 8) & 0xff).toString(16), 2),
+                     padd(((time >> 16) & 0xff).toString(16), 2),
+                     padd(((time >> 24) & 0xff).toString(16), 2))
+}
 
