@@ -53,7 +53,7 @@ module.exports = function(app) {
       mapToNmea(GPS_LOCATION);
     }
     if ( options.SYSTEM_TIME ) {
-      mapToNmea(SYSTEM_TIME)
+      setInterval(send_date, 1000)
     }
   }
 
@@ -95,7 +95,7 @@ var GPS_LOCATION = {
   keys: [
     'navigation.position'
   ],
-  f: function wind(pos) {
+  f: function location(pos) {
     var lat = pos.latitude * 10000000
     var lon = pos.longitude * 10000000
     return util.format(location_format, (new Date()).toISOString(),
@@ -113,12 +113,8 @@ var GPS_LOCATION = {
 
 const system_time_format = "%s,3,126992,1,255,8,ff,ff,%s,%s,%s,%s,%s,%s"
 
-var SYSTEM_TIME = {
-  keys: [
-    'navigation.datetime'
-  ],
-  f: function wind(datetime) {
-    var dateObj = new Date(datetime)
+function send_date() {
+    var dateObj = new Date()
     var date = Math.trunc((dateObj.getTime() / 86400)/1000);
     var time = (dateObj.getUTCHours() * (60*60)) + (dateObj.getUTCMinutes() * 60) + dateObj.getUTCSeconds();
     time = time * 10000;
