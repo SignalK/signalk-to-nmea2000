@@ -1,5 +1,4 @@
 const Bacon = require('baconjs');
-
 const debug = require('debug')('signalk-to-nmea2000')
 const util = require('util')
 
@@ -20,23 +19,31 @@ module.exports = function(app) {
       WIND: {
         type: "boolean",
         default: false
+      },
+      GPS: {
+        type: "boolean",
+        default: false
       }
     }
   }
   plugin.start = function(options) {
+    debug("signalk-to-nmea2000: start")
     const selfContext = 'vessels.' + app.selfId
     const selfMatcher = (delta) => delta.context && delta.context === selfContext
 
     function mapToNmea(encoder) {
       const selfStreams = encoder.keys.map(app.streambundle.getSelfStream, app.streambundle)
       plugin.unsubscribes.push(Bacon.combineWith(encoder.f, selfStreams).changes().debounceImmediate(20).log().onValue(nmeaString => {
-        //debug("emit: " + nmeaString)
+        debug("emit: " + nmeaString)
         app.emit('nmea2000out', nmeaString)
       }))
     }
 
     if (options.WIND) {
       mapToNmea(WIND);
+    }
+    if (options.GPS) {
+      mapToNmea(GPS);
     }
   }
 
@@ -69,5 +76,26 @@ var WIND = {
                        padd(((speed >> 8) & 0xff).toString(16), 2),
                        padd((angle & 0xff).toString(16), 2),
                        padd(((angle >> 8) & 0xff).toString(16), 2));
+  }
+};
+
+const location_format = "%s,2,129025,1,255,8,%s,%s,%s,%s,%s,%s,%s,%s"
+
+var GPS = {
+  keys: [
+    'navigation.position'
+  ],
+  f: function wind(pos) {
+    var lat = pos.latitude * 10000000
+    var lon = pos.longitude * 10000000
+    return util.format(location_format, (new Date()).toISOString(),
+                       padd((lat & 0xff).toString(16), 2),
+                       padd(((lat >> 8) & 0xff).toString(16), 2),
+                       padd(((lat >> 16) & 0xff).toString(16), 2),
+                       padd(((lat >> 24) & 0xff).toString(16), 2),
+                       padd((lon & 0xff).toString(16), 2),
+                       padd(((lon >> 8) & 0xff).toString(16), 2),
+                       padd(((lon >> 16) & 0xff).toString(16), 2),
+                       padd(((lon >> 24) & 0xff).toString(16), 2))
   }
 };
