@@ -3,10 +3,10 @@ const debug = require('debug')('signalk-to-nmea2000')
 const util = require('util')
 
 module.exports = function(app) {
-  var plugin = {
-    unsubscribes: []
-  };
-
+  var plugin = {};
+  var unsubscribes = []
+  var timer
+  
   plugin.id = "sk-to-nmea2000"
   plugin.name = "Convert Signal K to NMEA2000"
   plugin.description = "Plugin to convert Signal K to NMEA2000"
@@ -31,13 +31,13 @@ module.exports = function(app) {
     }
   }
   plugin.start = function(options) {
-    debug("signalk-to-nmea2000: start: " + app)
+    debug("signalk-to-nmea2000: start")
     const selfContext = 'vessels.' + app.selfId
     const selfMatcher = (delta) => delta.context && delta.context === selfContext
 
     function mapToNmea(encoder) {
       const selfStreams = encoder.keys.map(app.streambundle.getSelfStream, app.streambundle)
-      plugin.unsubscribes.push(Bacon.combineWith(encoder.f, selfStreams).changes().debounceImmediate(20).onValue(nmeaString => {
+      unsubscribes.push(Bacon.combineWith(encoder.f, selfStreams).changes().debounceImmediate(20).onValue(nmeaString => {
         if ( nmeaString )
         {
           debug("emit: " + nmeaString)
@@ -53,12 +53,18 @@ module.exports = function(app) {
       mapToNmea(GPS_LOCATION);
     }
     if ( options.SYSTEM_TIME ) {
-      setInterval(send_date, 1000, app)
+      timer = setInterval(send_date, 1000, app)
     }
   }
 
   plugin.stop = function() {
-    plugin.unsubscribes.forEach(f => f())
+    unsubscribes.forEach(f => f())
+    unsubscribes = []
+    if ( timer )
+    {
+      clearTimeout(timer)
+      timer = null
+    }
   }
 
   return plugin
@@ -81,11 +87,11 @@ var WIND = {
   f: function wind(angle, speed) {
     speed = speed * 100;
     angle = Math.trunc(angle * 10000)
-    n2k = util.format(wind_format, (new Date()).toISOString(),
-                      padd((speed & 0xff).toString(16), 2),
-                      padd(((speed >> 8) & 0xff).toString(16), 2),
-                      padd((angle & 0xff).toString(16), 2),
-                      padd(((angle >> 8) & 0xff).toString(16), 2));
+    return util.format(wind_format, (new Date()).toISOString(),
+                       padd((speed & 0xff).toString(16), 2),
+                       padd(((speed >> 8) & 0xff).toString(16), 2),
+                       padd((angle & 0xff).toString(16), 2),
+                       padd(((angle >> 8) & 0xff).toString(16), 2));
   }
 };
 
