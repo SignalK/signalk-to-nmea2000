@@ -1,6 +1,6 @@
 {
   "name": "signalk-to-nmea2000",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Signal K server plugin to convert Signal K to NMEA2000",
   "main": "index.js",
   "scripts": {
@@ -14,5 +14,9 @@
   "dependencies": {
     "baconjs": "^0.7.88",
     "debug": "^2.2.0"
+  },
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/sbender9/signalk-to-nmea2000"
   }
 }
