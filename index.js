@@ -101,7 +101,7 @@ module.exports = function(app) {
           if (pgnBuffer) {
             const msg = toActisenseSerialFormat(mapping.pgn, pgnBuffer);
             debug("emit:" + msg);
-            app.emit("pgnout", msg);
+            app.emit("nmea2000out", msg);
           }
         })
     );
