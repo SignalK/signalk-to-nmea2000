@@ -13,10 +13,11 @@
   "license": "ISC",
   "dependencies": {
     "baconjs": "^0.7.88",
-    "debug": "^2.2.0"
+    "debug": "^2.2.0",
+    "to-n2k": "github:tkurki/to-n2k"
   },
   "repository": {
-    "type" : "git",
-    "url" : "https://github.com/sbender9/signalk-to-nmea2000"
+    "type": "git",
+    "url": "https://github.com/sbender9/signalk-to-nmea2000"
   }
 }
