@@ -1,6 +1,7 @@
 const Bacon = require("baconjs");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
 const util = require("util");
+const toPgn = require("to-n2k").toPgn;
 
 module.exports = function(app) {
   var plugin = {};
@@ -29,6 +30,11 @@ module.exports = function(app) {
       },
       SYSTEM_TIME: {
         title: "126992 System Time",
+        type: "boolean",
+        default: false
+      },
+      HEADING: {
+        title: "127250 Heading",
         type: "boolean",
         default: false
       }
@@ -66,6 +72,9 @@ module.exports = function(app) {
     if (options.SYSTEM_TIME) {
       timer = setInterval(send_date, 1000, app);
     }
+    if (options.HEADING) {
+      mapToPgn(HEADING_127250);
+    }
   };
 
   plugin.stop = function() {
@@ -78,6 +87,25 @@ module.exports = function(app) {
   };
 
   return plugin;
+
+  function mapToPgn(mapping) {
+    unsubscribes.push(
+      Bacon.combineWith(
+        mapping.f,
+        mapping.keys.map(app.streambundle.getSelfStream, app.streambundle)
+      )
+        .changes()
+        .debounceImmediate(20)
+        .map(toPgn)
+        .onValue(pgnBuffer => {
+          if (pgnBuffer) {
+            const msg = toActisenseSerialFormat(mapping.pgn, pgnBuffer);
+            debug("emit:" + msg);
+            app.emit("pgnout", msg);
+          }
+        })
+    );
+  }
 };
 
 function padd(n, p, c) {
@@ -148,4 +176,38 @@ function send_date(app) {
   );
   debug("system time: " + msg);
   app.emit("nmea2000out", msg);
+}
+
+const HEADING_127250 = {
+  pgn: 127250,
+  keys: [
+    "navigation.headingMagnetic"
+    // ,'navigation.magneticVariation'
+  ],
+  f: (heading, variation) => {
+    return {
+      pgn: 127250,
+      SID: 87,
+      Heading: heading / 180 * Math.PI,
+      // "Variation": variation,
+      Reference: "Magnetic"
+    };
+  }
+};
+
+function toActisenseSerialFormat(pgn, data) {
+  return (
+    "1970-01-01T00:00:00.000,4," +
+    pgn +
+    ",43,255," +
+    data.length +
+    "," +
+    new Uint32Array(data)
+      .reduce(function(acc, i) {
+        acc.push(i.toString(16));
+        return acc;
+      }, [])
+      .map(x => (x.length === 1 ? "0" + x : x))
+      .join(",")
+  );
 }
