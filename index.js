@@ -18,14 +18,17 @@ module.exports = function(app) {
       "If there is SK data for the conversion generate the following NMEA2000 pgns from Signal K data:",
     properties: {
       WIND: {
+        title: "130306 Wind",
         type: "boolean",
         default: false
       },
       GPS_LOCATION: {
+        title: "129025 Location",
         type: "boolean",
         default: false
       },
       SYSTEM_TIME: {
+        title: "126992 System Time",
         type: "boolean",
         default: false
       }
