@@ -1,5 +1,5 @@
 const Bacon = require("baconjs");
-const debug = require("debug")("signalk-to-nmea2000");
+const debug = require("debug")("signalk:signalk-to-nmea2000");
 const util = require("util");
 
 module.exports = function(app) {
@@ -35,7 +35,7 @@ module.exports = function(app) {
     }
   };
   plugin.start = function(options) {
-    debug("signalk-to-nmea2000: start");
+    debug("start");
     const selfContext = "vessels." + app.selfId;
     const selfMatcher = delta => delta.context && delta.context === selfContext;
 
