@@ -42,60 +42,97 @@ module.exports = function (app) {
         title: "AIS",
         type: "boolean",
         default: false
-      }
-    }
-  };
-  plugin.start = function(options) {
-    debug("start");
-
-    function mapToNmea(encoder) {
-      const selfStreams = encoder.keys.map(
-        app.streambundle.getSelfStream,
-        app.streambundle
-      );
-      unsubscribes.push(
-        Bacon.combineWith(encoder.f, selfStreams)
-          .changes()
-          .debounceImmediate(20)
-          .onValue(nmeaString => {
-            if (nmeaString) {
-              debug("emit " + nmeaString);
-              app.emit("nmea2000out", nmeaString);
+      },
+      BATTERYSTATUS: {
+        title: '127508 Battery status',
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            signalkId: {
+              type: 'string',
+              title: 'Signal K battery id'
+            },
+            instanceId: {
+              type: 'number',
+              title: 'NMEA2000 Battery Instance Id'
             }
           }
         }
       }
     }
+  }
+
+  function activateFastformat (encoder) {
+    unsubscribes.push(
+      timeoutingArrayStream(
+        encoder.keys,
+        encoder.timeouts,
+        app.streambundle,
+        unsubscribes
+      )
+        .map(values => encoder.f.call(this, ...values))
+        .onValue(pgn => {
+          if (pgn) {
+            debug('emit: ' + pgn)
+            app.emit('nmea2000out', pgn)
+          }
+        })
+    )
+  }
+
+  function activatePgn (encoder) {
+    unsubscribes.push(
+      timeoutingArrayStream(
+        encoder.keys,
+        encoder.timeouts,
+        app.streambundle,
+        unsubscribes
+      )
+        .map(values => encoder.f.call(this, ...values))
+        .map(toPgn)
+        .onValue(pgnData => {
+          if (pgnData) {
+            const msg = toActisenseSerialFormat(encoder.pgn, pgnData)
+            debug('emit:' + msg)
+            app.emit('nmea2000out', msg)
+          }
+        })
+    )
+  }
+
+  plugin.start = function (options) {
+    debug('start')
+    const selfContext = 'vessels.' + app.selfId
+    const selfMatcher = delta => delta.context && delta.context === selfContext
 
     if (options.WIND) {
-      mapToNmea(WIND);
+      activateFastformat(WIND, app.streambundle)
     }
     if (options.GPS_LOCATION) {
-      mapToNmea(GPS_LOCATION);
+      activateFastformat(GPS_LOCATION, app.streambundle)
     }
     if (options.SYSTEM_TIME) {
-      timer = setInterval(send_date, 1000, app);
+      const timer = setInterval(send_date, 1000, app)
+      unsubscribes.push(() => {
+        clearTimeout(timer)
+      })
     }
     if (options.HEADING) {
-      mapToPgn(HEADING_127250);
+      activatePgn(HEADING_127250, app.streambundle)
     }
     if (options.AIS) {
       mapOnDelta(AIS_CLASSA_STATIC)
       mapOnDelta(AIS_CLASSA_POSITION)
     }
-    app.on('unknownN2K', unknownN2K)
-  };
-
-  plugin.stop = function() {
-    unsubscribes.forEach(f => f());
-    unsubscribes = [];
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
+    if (options.BATTERYSTATUS) {
+      options.BATTERYSTATUS.map(BATTERY_STATUS_127508).forEach(encoder => {
+        activatePgn(encoder, app.streambundle)
+      })
     }
-  };
 
-  return plugin;
+    app.on('unknownN2K', unknownN2K)
+  }
 
   function unknownN2K(chunk) {
     if ( chunk.pgn === 59904 && chunk.dst == 0 ) {
@@ -112,23 +149,9 @@ module.exports = function (app) {
     }
   }
 
-  function mapToPgn(mapping) {
-    unsubscribes.push(
-      Bacon.combineWith(
-        mapping.f,
-        mapping.keys.map(app.streambundle.getSelfStream, app.streambundle)
-      )
-        .changes()
-        .debounceImmediate(20)
-        .map(toPgn)
-        .onValue(pgnBuffer => {
-          if (pgnBuffer) {
-            const msg = toActisenseSerialFormat(mapping.pgn, pgnBuffer);
-            debug("emit " + msg);
-            app.emit("nmea2000out", msg);
-          }
-        })
-    );
+  plugin.stop = function () {
+    unsubscribes.forEach(f => f())
+    unsubscribes = []
   }
 
   function subscription_error(err)
@@ -173,10 +196,9 @@ module.exports = function (app) {
     });
   }
 
-};
-
   return plugin
 }
+
 
 function padd (n, p, c) {
   var pad_char = typeof c !== 'undefined' ? c : '0'
@@ -260,10 +282,34 @@ const HEADING_127250 = {
       SID: 87,
       Heading: heading / 180 * Math.PI,
       // "Variation": variation,
-      Reference: "Magnetic"
-    };
+      Reference: 'Magnetic'
+    }
   }
-};
+}
+
+const BATTERY_STATUS_127508_ARG_NAMES = ['Voltage', 'Current', 'Temperature']
+const BATTERY_STATUS_127508 = ({ signalkId, instanceId }) => ({
+  pgn: 127508,
+  keys: [
+    `electrical.batteries.${signalkId}.voltage`,
+    `electrical.batteries.${signalkId}.current`,
+    `electrical.batteries.${signalkId}.temperature`
+  ],
+  timeouts: [1000, 1000, 1000],
+  f: function () {
+    const result = {
+      pgn: 127508,
+      'Battery Instance': instanceId,
+      SID: 18
+    }
+    BATTERY_STATUS_127508_ARG_NAMES.forEach((argName, i) => {
+      if (isDefined(arguments[i])) {
+        result[argName] = arguments[i]
+      }
+    })
+    return result
+  }
+})
 
 function fillASCII(theString, len)
 {
@@ -560,21 +606,63 @@ const AIS_ATON = {
 }
 
 
-function toActisenseSerialFormat(pgn, data, dst) {
-  dst = _.isUndefined(dst) ? '255' : dst
+function toActisenseSerialFormat (pgn, data) {
   return (
-    new Date().toISOString() +
-      ",2," +
-      pgn +
-      `,0,${dst},` +
-      data.length +
-      "," +
-      new Uint32Array(data)
-      .reduce(function(acc, i) {
-        acc.push(i.toString(16));
-        return acc;
+    '1970-01-01T00:00:00.000,4,' +
+    pgn +
+    ',43,255,' +
+    data.length +
+    ',' +
+    new Uint32Array(data)
+      .reduce(function (acc, i) {
+        acc.push(i.toString(16))
+        return acc
       }, [])
-      .map(x => (x.length === 1 ? "0" + x : x))
-      .join(",")
-  );
+      .map(x => (x.length === 1 ? '0' + x : x))
+      .join(',')
+  )
 }
+
+function timeoutingArrayStream (
+  keys,
+  timeouts = [],
+  streambundle,
+  unsubscribes
+) {
+  debug(`keys:${keys}`)
+  debug(`timeouts:${timeouts}`)
+  const lastValues = keys.reduce((acc, key) => {
+    acc[key] = {
+      timestamp: new Date().getTime(),
+      value: null
+    }
+    return acc
+  }, {})
+  const combinedBus = new Bacon.Bus()
+  keys.map(skKey => {
+    streambundle.getSelfStream(skKey).onValue(value => {
+      lastValues[skKey] = {
+        timestamp: new Date().getTime(),
+        value
+      }
+      const now = new Date().getTime()
+
+      combinedBus.push(
+        keys.map((key, i) => {
+          return notDefined(timeouts[i]) ||
+            lastValues[key].timestamp + timeouts[i] > now
+            ? lastValues[key].value
+            : null
+        })
+      )
+    })
+  })
+  const result = combinedBus.debounce(10)
+  if (debug.enabled) {
+    unsubscribes.push(result.onValue(x => debug(`${keys}:${x}`)))
+  }
+  return result
+}
+
+const notDefined = x => typeof x === 'undefined'
+const isDefined = x => typeof x !== 'undefined'
