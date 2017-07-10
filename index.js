@@ -37,6 +37,11 @@ module.exports = function(app) {
         title: "127250 Heading",
         type: "boolean",
         default: false
+      },
+      BATTERYSTATUS: {
+        title: "127508 Battery status",
+        type: "boolean",
+        default: false
       }
     }
   };
@@ -74,6 +79,9 @@ module.exports = function(app) {
     }
     if (options.HEADING) {
       mapToPgn(HEADING_127250);
+    }
+    if (options.BATTERYSTATUS) {
+      mapToPgn(BATTERY_STATUS_127508)
     }
   };
 
@@ -193,6 +201,25 @@ const HEADING_127250 = {
       Heading: heading / 180 * Math.PI,
       // "Variation": variation,
       Reference: "Magnetic"
+    };
+  }
+};
+
+const BATTERY_STATUS_127508 = {
+  pgn: 127508,
+  keys: [
+    "electrical.batteries.house.voltage",
+    "electrical.batteries.house.current",
+    "electrical.batteries.house.temperature"
+  ],
+  f: (voltage, current, temperature) => {
+    return {
+      pgn: 127508,
+      "Battery Instance": 0,
+      Voltage: voltage,
+      Current: current,
+      Temperature: temperature,
+      SID: 18
     };
   }
 };
