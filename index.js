@@ -92,7 +92,9 @@ module.exports = function(app) {
     unsubscribes.push(
       Bacon.combineWith(
         mapping.f,
-        mapping.keys.map(app.streambundle.getSelfStream, app.streambundle)
+        mapping.keys
+          .map(app.streambundle.getSelfStream, app.streambundle)
+          .map(s => s.toProperty(undefined))
       )
         .changes()
         .debounceImmediate(20)
