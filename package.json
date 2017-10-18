@@ -18,7 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "baconjs": "^0.7.88",
-    "debug": "^2.2.0",
+    "debug": "^3.1.0",
     "to-n2k": "github:tkurki/to-n2k"
   },
   "repository": {
