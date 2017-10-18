@@ -1,4 +1,6 @@
 # signalk-to-nmea2000
+
+[![Greenkeeper badge](https://badges.greenkeeper.io/sbender9/signalk-to-nmea2000.svg)](https://greenkeeper.io/)
 Plugin to convert Signal K to NMEA2000
 
 Currently only support apparent wind, gps location and system time.
