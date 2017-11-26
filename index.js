@@ -245,7 +245,7 @@ const AIS_STATIC_A = {
   f: function(app, delta) {
     var selfContext = 'vessels.' + app.selfId
 
-    if ( delta.context == selfContext ) {
+    if ( delta.context == selfContext || isN2K(delta) ) {
       return
     }
 
@@ -301,6 +301,19 @@ function fillASCII(theString, len)
   return res;
 }
 
+function isN2K(delta) {
+  var res = false
+  if ( delta.updates ) {
+    delta.updates.forEach(update => {
+      var type = _.get(update, 'source.type')
+      if ( type && type == 'NMEA2000' ) {
+        res = true
+      }
+    });
+  }
+  return res
+}
+
 const AIS_STATIC_B = {
   pgn: 129810,
   context: "vessels.*",
@@ -313,9 +326,10 @@ const AIS_STATIC_B = {
   f: function(app, delta) {
     var selfContext = 'vessels.' + app.selfId
 
-    if ( delta.context == selfContext ) {
+    if ( delta.context == selfContext || isN2K(delta) ) {
       return
     }
+
 
     var vessel = _.get(app.signalk.root, delta.context)
     var mmsi = _.get(vessel, "mmsi");
@@ -390,7 +404,7 @@ const AIS_POSITION = {
   f: function(app, delta) {
     var selfContext = 'vessels.' + app.selfId
 
-    if ( delta.context == selfContext ) {
+    if ( delta.context == selfContext || isN2K(delta) ) {
       return
     }
 
