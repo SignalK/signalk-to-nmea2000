@@ -302,6 +302,7 @@ function fillASCII(theString, len)
 }
 
 function isN2K(delta) {
+  return false;
   var res = false
   if ( delta.updates ) {
     delta.updates.forEach(update => {
@@ -421,6 +422,9 @@ const AIS_POSITION = {
       cog = cog ? cog : 0xffff;
       sog = sog ? sog : 0xffff;
       heading = heading ? heading : 0xffff;
+
+      latitude = latitude * 10000000;
+      longitude = longitude * 10000000;
     
       mmsi = parseInt(mmsi, 10)
       var data = [
@@ -437,7 +441,7 @@ const AIS_POSITION = {
         (longitude >> 8) & 0xff,
         (longitude >> 16) & 0xff,
         (longitude >> 24) & 0xff,
-        0x3a,
+        0x17,
         cog & 0xff,
         (cog >> 8) & 0xff,
         (cog >> 16) & 0xff,
