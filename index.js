@@ -448,10 +448,10 @@ const AIS_POSITION = {
 
 const AIS_ATON = {
   pgn: 129041,
-  context: "atons.*"
+  context: "atons.*",
   keys: ["navigation.position",
          "mmsi",
-         "name"
+         "name",
          "atonType",
          "design.length",
          "design.beam",
