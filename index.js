@@ -1,7 +1,7 @@
 const Bacon = require("baconjs");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
 const util = require("util");
-const toPgn = require("to-n2k").toPgn;
+//const toPgn = require("to-n2k").toPgn;
 const _ = require('lodash')
 
 module.exports = function(app) {
@@ -341,17 +341,29 @@ const AIS_STATIC_B = {
     var fromCenter = _.get("sensors.ais.fromCenter.value")
     var fromBow = _.get('sensors.ais.fromBow.value')
 
-    type = type ? type : 0
+    /*
+    if ( mmsi == '367515850' ) {
+      debug(JSON.stringify(vessel))
+    }
+    
+    debug(`${mmsi} type: ${type} length: ${length} beam: ${beam} fromCenter: ${fromCenter} fromBow: ${fromBow}`)
+    */
+
+    if ( !mmsi ) {
+      return null;
+    }
+
+    type = _.isUndefined(type) ? 0 : type
     callsign = fillASCII(callsign ? callsign : '0')
-    length = length ? length : 0xffff;
-    beam = beam ? beam : 0xffff;
+    length = length ? length * 10 : 0xffff;
+    beam = beam ? beam * 10 : 0xffff;
 
     var fromStarboard = 0xffff
     if ( beam && fromCenter ) {
-      fromStarboard = beam / 2 + fromCenter
+      fromStarboard = (beam / 2 + fromCenter) * 10
     }
-    fromBow = fromBow ? fromBow : 0xffff
-    
+    fromBow = fromBow ? fromBow * 10 : 0xffff
+
     mmsi = parseInt(mmsi, 10)
     var data = [
       0x18,
@@ -417,44 +429,43 @@ const AIS_POSITION = {
     if ( latitude && longitude ) {
       var cog = _.get(vessel, 'navigation.courseOverGroundTrue.value')
       var sog = _.get(vessel, 'navigation.speedOverGround.value')
-      var heading = _.get(vessel, 'navigation.headingTrue');
+      var heading = _.get(vessel, 'navigation.headingTrue.value');
 
-      cog = cog ? cog : 0xffff;
-      sog = sog ? sog : 0xffff;
-      heading = heading ? heading : 0xffff;
+      debug(`${cog} ${sog} ${heading}`)
+      cog = cog ? (Math.trunc(cog * 10000)) : 0xffff;
+      sog = sog ? (sog*100) : 0xffff;
+      heading = heading ? (Math.trunc(heading * 10000)) : 0xffff;
 
       latitude = latitude * 10000000;
       longitude = longitude * 10000000;
     
       mmsi = parseInt(mmsi, 10)
       var data = [
-        0x78,
+        0x12,
         mmsi & 0xff,
         (mmsi >> 8) & 0xff,
         (mmsi >> 16) & 0xff,
         (mmsi >> 24) & 0xff,
-        latitude & 0xff,
-        (latitude >> 8) & 0xff,
-        (latitude >> 16) & 0xff,
-        (latitude >> 24) & 0xff,
         longitude & 0xff,
         (longitude >> 8) & 0xff,
         (longitude >> 16) & 0xff,
         (longitude >> 24) & 0xff,
-        0x17,
+        latitude & 0xff,
+        (latitude >> 8) & 0xff,
+        (latitude >> 16) & 0xff,
+        (latitude >> 24) & 0xff,
+        0x27,
         cog & 0xff,
         (cog >> 8) & 0xff,
-        (cog >> 16) & 0xff,
-        (cog >> 24) & 0xff,
         sog & 0xff,
         (sog >> 8) & 0xff,
-        (sog >> 16) & 0xff,
-        (sog >> 24) & 0xff,
-        0xff,
+        0x06,
         0x00,
+        0x26,
+        heading & 0xff,
+        (heading >> 8) & 0xff,
+        0x0,
         0x74,
-        0x01,
-      0xff
       ];
       
       return data
@@ -482,12 +493,13 @@ const AIS_ATON = {
 
 function toActisenseSerialFormat(pgn, data) {
   return (
-    "1970-01-01T00:00:00.000,4," +
-    pgn +
-    ",43,255," +
-    data.length +
-    "," +
-    new Uint32Array(data)
+    new Date().toISOString() +
+      ",2," +
+      pgn +
+      ",0,255," +
+      data.length +
+      "," +
+      new Uint32Array(data)
       .reduce(function(acc, i) {
         acc.push(i.toString(16));
         return acc;
