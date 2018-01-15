@@ -23,7 +23,8 @@
     "baconjs": "^0.7.88",
     "debug": "^3.1.0",
     "lodash": "^4.17.4",
-    "to-n2k": "^1.0.0"
+    "to-n2k": "^1.0.0",
+    "concentrate": "^0.2.3"
   },
   "repository": {
     "type": "git",
