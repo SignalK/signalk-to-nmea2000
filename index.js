@@ -383,7 +383,6 @@ const AIS_CLASSA_STATIC = {
       0xff
     ])
 
-    console.log('data: ' + data)
     return data
   }
 }
@@ -436,8 +435,6 @@ const AIS_CLASSA_POSITION = {
       ff reserved
       */
       
-      debug(`position ${vessel.name}`)
-
       mmsi = parseInt(mmsi, 10)
       var data = [
         0x01,
