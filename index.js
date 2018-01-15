@@ -1,7 +1,7 @@
 const Bacon = require("baconjs");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
 const util = require("util");
-//const toPgn = require("to-n2k").toPgn;
+const toPgn = require("to-n2k").toPgn;
 const _ = require('lodash')
 
 module.exports = function(app) {
@@ -60,7 +60,7 @@ module.exports = function(app) {
           .debounceImmediate(20)
           .onValue(nmeaString => {
             if (nmeaString) {
-              debug("emit: " + nmeaString);
+              debug("emit " + nmeaString);
               app.emit("nmea2000out", nmeaString);
             }
           })
@@ -80,10 +80,14 @@ module.exports = function(app) {
       mapToPgn(HEADING_127250);
     }
     if (options.AIS) {
-      mapSubscription(AIS_STATIC_A);
+      /*mapSubscription(AIS_STATIC_A);
       mapSubscription(AIS_STATIC_B);
-      mapSubscription(AIS_POSITION)
+      mapSubscription(AIS_POSITION)*/
+
+      mapSubscription(AIS_CLASSA_STATIC)
+      mapSubscription(AIS_CLASSA_POSITION)
     }
+    app.on('unknownN2K', unknownN2K)
   };
 
   plugin.stop = function() {
@@ -97,6 +101,21 @@ module.exports = function(app) {
 
   return plugin;
 
+  function unknownN2K(chunk) {
+    if ( chunk.pgn === 59904 && chunk.dst == 0 ) {
+      if ( chunk.fields.PGN == 126464 ) {
+        var pgn = 128267 //130306
+        var data = [
+          1,
+          pgn & 0xff,
+          (pgn >> 8) & 0xff,
+          (pgn >> 16) & 0xff
+        ]
+        app.emit("nmea2000out", toActisenseSerialFormat(126464, data, chunk.src))
+      }
+    }
+  }
+
   function mapToPgn(mapping) {
     unsubscribes.push(
       Bacon.combineWith(
@@ -109,7 +128,7 @@ module.exports = function(app) {
         .onValue(pgnBuffer => {
           if (pgnBuffer) {
             const msg = toActisenseSerialFormat(mapping.pgn, pgnBuffer);
-            debug("emit:" + msg);
+            debug("emit " + msg);
             app.emit("nmea2000out", msg);
           }
         })
@@ -140,9 +159,8 @@ module.exports = function(app) {
       delta => {
         var data = mapping.f(app, delta)
         if ( data ) {
-          debug(`data ${JSON.stringify(data)}`)
           const msg = toActisenseSerialFormat(mapping.pgn, data);
-          debug("emit:" + msg);
+          debug("emit " + msg);
           app.emit("nmea2000out", msg);
         }
       });
@@ -237,55 +255,6 @@ const HEADING_127250 = {
   }
 };
 
-const AIS_STATIC_A = {
-  pgn: 129809,
-  context: "vessels.*",
-  keys: [  "name",
-           "mmsi" ],
-  f: function(app, delta) {
-    var selfContext = 'vessels.' + app.selfId
-
-    if ( delta.context == selfContext || isN2K(delta) ) {
-      return
-    }
-
-    //debug("delta: " + JSON.stringify(delta))
-    
-    var vessel = _.get(app.signalk.root, delta.context)
-    var mmsi = _.get(vessel, "mmsi");
-    var name = _.get(vessel, "name");
-
-    if ( mmsi && name )
-    {
-      mmsi = parseInt(mmsi, 10)
-      var data = [
-        0x18,
-        mmsi & 0xff,
-        (mmsi >> 8) & 0xff,
-        (mmsi >> 16) & 0xff,
-        (mmsi >> 24) & 0xff
-      ]
-      
-      var i
-      for ( i = 0; i < name.length && i < 20; i++ )
-      {
-        data.push(name.charCodeAt(i))
-      }
-      
-      for ( ; i < 20; i++ )
-      {
-        data.push(0x40)
-      }
-      data.push(0x02)
-      data.push(0xff)
-
-      return data
-    } else {
-      return null
-    }
-  }
-}
-
 function fillASCII(theString, len)
 {
   var res = []
@@ -302,7 +271,6 @@ function fillASCII(theString, len)
 }
 
 function isN2K(delta) {
-  return false;
   var res = false
   if ( delta.updates ) {
     delta.updates.forEach(update => {
@@ -315,8 +283,8 @@ function isN2K(delta) {
   return res
 }
 
-const AIS_STATIC_B = {
-  pgn: 129810,
+const AIS_CLASSA_STATIC = {
+  pgn: 129794,
   context: "vessels.*",
   keys: [  "design.aisShipType",
            "design.draft",
@@ -334,29 +302,33 @@ const AIS_STATIC_B = {
 
     var vessel = _.get(app.signalk.root, delta.context)
     var mmsi = _.get(vessel, "mmsi");
+    var name = _.get(vessel, "name");
     var type = _.get(vessel, "design.aisShipType.value.id")
     var callsign = _.get(vessel, "communication.callsignVhf")
     var length = _.get(vessel, 'design.length.value.overall')
     var beam = _.get(vessel, 'design.beam.value')
-    var fromCenter = _.get("sensors.ais.fromCenter.value")
-    var fromBow = _.get('sensors.ais.fromBow.value')
-
-    /*
-    if ( mmsi == '367515850' ) {
-      debug(JSON.stringify(vessel))
-    }
+    var fromCenter = _.get(vessel, "sensors.ais.fromCenter.value")
+    var fromBow = _.get(vessel, 'sensors.ais.fromBow.value')
+    var draft = _.get(vessel, 'design.draft.value.maximum')
+    var imo = _.get('vessel', 'registrations.imo')
     
-    debug(`${mmsi} type: ${type} length: ${length} beam: ${beam} fromCenter: ${fromCenter} fromBow: ${fromBow}`)
-    */
-
     if ( !mmsi ) {
       return null;
     }
 
     type = _.isUndefined(type) ? 0 : type
-    callsign = fillASCII(callsign ? callsign : '0')
+    callsign = fillASCII(callsign ? callsign : '0', 7)
+    name = fillASCII(name ? name : '0', 20)
     length = length ? length * 10 : 0xffff;
     beam = beam ? beam * 10 : 0xffff;
+    draft = _.isUndefined(draft) ? 0xffff : draft * 100
+
+    if ( _.isUndefined(imo) ) {
+      imo = 0
+    } else {
+      var parts = imo.split(imo)
+      imo = Number(parts[parts.length-1])
+    }
 
     var fromStarboard = 0xffff
     if ( beam && fromCenter ) {
@@ -364,28 +336,26 @@ const AIS_STATIC_B = {
     }
     fromBow = fromBow ? fromBow * 10 : 0xffff
 
+    //2017-04-15T14:58:37.625Z,6,129794,43,255,76,05,28,e0,42,0f,0f,ee,8c,00,39,48,41,33,37,39,35,41,54,4c,41,4e,54,49,43,20,50,52,4f,4a,45,43,54,20,49,49,40,4f,8a,07,18,01,8c,00,fe,06,de,44,00,cc,bf,19,e8,03,52,55,20,4c,45,44,20,3e,20,55,53,20,42,41,4c,40,40,40,40,40,04,00,ff
+    
     mmsi = parseInt(mmsi, 10)
     var data = [
-      0x18,
+      0x05,
       mmsi & 0xff,
       (mmsi >> 8) & 0xff,
       (mmsi >> 16) & 0xff,
       (mmsi >> 24) & 0xff,
+      imo & 0xff,
+      (imo >> 8) & 0xff,
+      (imo >> 16) & 0xff,
+      (imo >> 24) & 0xff
+    ]
+
+    data = data.concat(callsign)
+    data = data.concat(name)
+    
+    data = data.concat([
       type & 0xff,
-      'S'.charCodeAt(0),
-      'K'.charCodeAt(0),
-      0x40,
-      0x40,
-      0x40,
-      0x40,
-      0x40,
-      callsign[0],
-      callsign[1],
-      callsign[2],
-      callsign[3],
-      callsign[4],
-      callsign[5],
-      callsign[6],
       length & 0xff,
       (length >> 8) & 0xff,
       beam & 0xff,
@@ -398,22 +368,30 @@ const AIS_STATIC_B = {
       0xff,
       0xff,
       0xff,
-      00,
+      0xff,
+      0xff,
+      draft & 0xff,
+      (draft >> 8 ) & 0xff
+    ])
+
+    var dest = fillASCII('0', 20)
+    data = data.concat(dest)
+    
+    data = data.concat([
+      0x05,
+      0x00,
       0xff
-    ];
-      
+    ])
+
+    console.log('data: ' + data)
     return data
   }
 }
 
-const AIS_POSITION = {
-  pgn: 129039,
+const AIS_CLASSA_POSITION = {
+  pgn: 129038,
   context: "vessels.*",
-  keys: ["navigation.position",
-         "navigation.courseOverGroundTrue",
-         "navigation.speedOverGround",
-         "navigation.headingTrue"
-        ],
+  keys: ["navigation.position" ],
   f: function(app, delta) {
     var selfContext = 'vessels.' + app.selfId
 
@@ -430,18 +408,39 @@ const AIS_POSITION = {
       var cog = _.get(vessel, 'navigation.courseOverGroundTrue.value')
       var sog = _.get(vessel, 'navigation.speedOverGround.value')
       var heading = _.get(vessel, 'navigation.headingTrue.value');
+      var rot = _.get(vessel, 'navigation.rateOfTurn.value')
 
-      debug(`${cog} ${sog} ${heading}`)
-      cog = cog ? (Math.trunc(cog * 10000)) : 0xffff;
-      sog = sog ? (sog*100) : 0xffff;
-      heading = heading ? (Math.trunc(heading * 10000)) : 0xffff;
+      cog = _.isUndefined(cog) ? 0xffff : (Math.trunc(cog * 10000))
+      sog = _.isUndefined(sog) ? 0xffff : (sog*100);
+      heading = _.isUndefined(heading) ? 0xffff : (Math.trunc(heading * 10000))
+      rot = _.isUndefined(rot) ? 0xffff : rot
 
       latitude = latitude * 10000000;
       longitude = longitude * 10000000;
-    
+
+      /*
+      2017-04-15T15:06:37.589Z,4,129038,43,255,28,
+
+      01,
+      ae,e7,e0,15, mmsi
+      36,5c,76,d2, lon
+      93,0b,52,17, lat
+      94, RAIM/TS
+      4d,e9, COG
+      39,01, SOG
+      7e,05,01,
+      ff,ff, heading
+      ff,7f, rat
+      01,
+      00, Nav Status, reserved
+      ff reserved
+      */
+      
+      debug(`position ${vessel.name}`)
+
       mmsi = parseInt(mmsi, 10)
       var data = [
-        0x12,
+        0x01,
         mmsi & 0xff,
         (mmsi >> 8) & 0xff,
         (mmsi >> 16) & 0xff,
@@ -454,18 +453,20 @@ const AIS_POSITION = {
         (latitude >> 8) & 0xff,
         (latitude >> 16) & 0xff,
         (latitude >> 24) & 0xff,
-        0x27,
+        0x94, 
         cog & 0xff,
         (cog >> 8) & 0xff,
         sog & 0xff,
         (sog >> 8) & 0xff,
-        0x06,
-        0x00,
-        0x26,
+        0x7e,
+        0x05,
+        0x01,
         heading & 0xff,
         (heading >> 8) & 0xff,
-        0x0,
-        0x74,
+        rot & 0xff,
+        (rot >> 8 ) & 0xff, 
+        0xff,
+        0xff
       ];
       
       return data
@@ -474,6 +475,7 @@ const AIS_POSITION = {
     }
   }
 }
+
 
 const AIS_ATON = {
   pgn: 129041,
@@ -491,12 +493,13 @@ const AIS_ATON = {
 }
 
 
-function toActisenseSerialFormat(pgn, data) {
+function toActisenseSerialFormat(pgn, data, dst) {
+  dst = _.isUndefined(dst) ? '255' : dst
   return (
     new Date().toISOString() +
       ",2," +
       pgn +
-      ",0,255," +
+      `,0,${dst},` +
       data.length +
       "," +
       new Uint32Array(data)
