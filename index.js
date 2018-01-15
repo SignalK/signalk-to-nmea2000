@@ -80,12 +80,8 @@ module.exports = function(app) {
       mapToPgn(HEADING_127250);
     }
     if (options.AIS) {
-      /*mapSubscription(AIS_STATIC_A);
-      mapSubscription(AIS_STATIC_B);
-      mapSubscription(AIS_POSITION)*/
-
-      mapSubscription(AIS_CLASSA_STATIC)
-      mapSubscription(AIS_CLASSA_POSITION)
+      mapOnDelta(AIS_CLASSA_STATIC)
+      mapOnDelta(AIS_CLASSA_POSITION)
     }
     app.on('unknownN2K', unknownN2K)
   };
@@ -164,6 +160,17 @@ module.exports = function(app) {
           app.emit("nmea2000out", msg);
         }
       });
+  }
+
+  function mapOnDelta(mapping) {
+    app.signalk.on('delta', (delta) => {
+      var data = mapping.f(app, delta)
+      if ( data ) {
+        const msg = toActisenseSerialFormat(mapping.pgn, data);
+        debug("emit " + msg);
+        app.emit("nmea2000out", msg);
+      }
+    });
   }
 
 };
@@ -283,39 +290,89 @@ function isN2K(delta) {
   return res
 }
 
+function hasAnyKeys(delta, keys) {
+  if ( delta.updates ) {
+    for ( var i = 0; i < delta.updates.length; i++ ) {
+      for ( var j = 0; j < delta.updates[i].values.length; j++ ) {
+        var valuePath = delta.updates[i].values[j].path
+        var value = delta.updates[i].values[j].value
+
+        if ( valuePath == '' ) {
+          if ( _.intersection(_.keys(value), keys).length > 0 ) {
+            return true
+          }
+        } else if ( keys.includes(valuePath) ) {
+          return true
+        }
+      }
+    }
+  }
+  return false
+}
+
+function findDeltaValue(delta, path) {
+  if ( delta.updates ) {
+    for ( var i = 0; i < delta.updates.length; i++ ) {
+      for ( var j = 0; j < delta.updates[i].values.length; j++ ) {
+        var valuePath = delta.updates[i].values[j].path
+        var value = delta.updates[i].values[j].value
+        if ( valuePath == '' && path.indexOf('.') == -1 ) {
+          value =  _.get(value, path)
+          if ( value ) {
+            return value
+          }
+        } else if ( path == valuePath ) {
+          return value
+        }
+      }
+    }
+  }
+  return undefined
+}
+
 const AIS_CLASSA_STATIC = {
   pgn: 129794,
   context: "vessels.*",
-  keys: [  "design.aisShipType",
-           "design.draft",
-           "design.length",
-           "design.beam",
-           "sensors.ais.fromCenter",
-           "sensors.ais.fromBow" ],
+  keys: [
+    "name",
+    "design.aisShipType",
+    "design.draft",
+    "design.length",
+    "design.beam",
+    "sensors.ais.fromCenter",
+    "sensors.ais.fromBow" ,
+    "design.draft",
+    "registrations.imo"
+  ],
   f: function(app, delta) {
     var selfContext = 'vessels.' + app.selfId
 
     if ( delta.context == selfContext || isN2K(delta) ) {
-      return
+      return null
     }
 
-
-    var vessel = _.get(app.signalk.root, delta.context)
-    var mmsi = _.get(vessel, "mmsi");
-    var name = _.get(vessel, "name");
-    var type = _.get(vessel, "design.aisShipType.value.id")
-    var callsign = _.get(vessel, "communication.callsignVhf")
-    var length = _.get(vessel, 'design.length.value.overall')
-    var beam = _.get(vessel, 'design.beam.value')
-    var fromCenter = _.get(vessel, "sensors.ais.fromCenter.value")
-    var fromBow = _.get(vessel, 'sensors.ais.fromBow.value')
-    var draft = _.get(vessel, 'design.draft.value.maximum')
-    var imo = _.get('vessel', 'registrations.imo')
+    if ( !hasAnyKeys(delta, AIS_CLASSA_STATIC.keys) ) {
+      return null
+    }
     
+    var vessel = _.get(app.signalk.root, delta.context)
+    var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
+
     if ( !mmsi ) {
       return null;
     }
-
+    
+    var name = _.get(vessel, "name") || findDeltaValue(delta, 'name');
+    
+    var type = _.get(findDeltaValue(delta, "design.aisShipType"), "id")
+    var callsign = findDeltaValue(delta, "communication.callsignVhf")
+    var length = _.get(findDeltaValue(delta, 'design.length'), 'overall')
+    var beam = findDeltaValue(delta, 'design.beam')
+    var fromCenter = findDeltaValue(delta, 'sensors.ais.fromCenter')
+    var fromBow = findDeltaValue(delta, 'sensors.ais.fromBow')
+    var draft = _.get(findDeltaValue(delta, 'design.draft'), 'maximum')
+    var imo = findDeltaValue(delta, 'registrations.imo')
+    
     type = _.isUndefined(type) ? 0 : type
     callsign = fillASCII(callsign ? callsign : '0', 7)
     name = fillASCII(name ? name : '0', 20)
@@ -395,27 +452,36 @@ const AIS_CLASSA_POSITION = {
     var selfContext = 'vessels.' + app.selfId
 
     if ( delta.context == selfContext || isN2K(delta) ) {
-      return
+      return null
+    }
+
+    if ( !hasAnyKeys(delta, AIS_CLASSA_POSITION.keys) ) {
+      return null
     }
 
     var vessel = _.get(app.signalk.root, delta.context)
-    var mmsi = _.get(vessel, "mmsi");
-    var latitude = _.get(vessel, 'navigation.position.value.latitude')
-    var longitude = _.get(vessel, 'navigation.position.value.longitude')
+    var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
+    
+    if ( !mmsi ) {
+      debug(`no mmsi:${JSON.stringify(delta)}`)
+      return null
+    }
+    
+    var position = findDeltaValue(delta, 'navigation.position')
 
-    if ( latitude && longitude ) {
-      var cog = _.get(vessel, 'navigation.courseOverGroundTrue.value')
-      var sog = _.get(vessel, 'navigation.speedOverGround.value')
-      var heading = _.get(vessel, 'navigation.headingTrue.value');
-      var rot = _.get(vessel, 'navigation.rateOfTurn.value')
+    if ( position && position.latitude && position.longitude ) {
+      var cog = findDeltaValue(delta, 'navigation.courseOverGroundTrue')
+      var sog = findDeltaValue(delta, 'navigation.speedOverGround')
+      var heading = findDeltaValue(delta, 'navigation.headingTrue');
+      var rot = findDeltaValue(delta, 'navigation.rateOfTurn')
 
       cog = _.isUndefined(cog) ? 0xffff : (Math.trunc(cog * 10000))
       sog = _.isUndefined(sog) ? 0xffff : (sog*100);
       heading = _.isUndefined(heading) ? 0xffff : (Math.trunc(heading * 10000))
       rot = _.isUndefined(rot) ? 0xffff : rot
 
-      latitude = latitude * 10000000;
-      longitude = longitude * 10000000;
+      var latitude = position.latitude * 10000000;
+      var longitude = position.longitude * 10000000;
 
       /*
       2017-04-15T15:06:37.589Z,4,129038,43,255,28,
@@ -468,6 +534,7 @@ const AIS_CLASSA_POSITION = {
       
       return data
     } else {
+      debug('no position')
       return null
     }
   }
