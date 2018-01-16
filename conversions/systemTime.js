@@ -19,6 +19,8 @@ module.exports = (app, plugin) => {
         {
           pgn: 126992,
           buffer: Concentrate()
+            .uint8(0xff)
+            .uint8(0xff)
             .uint16(date)
             .uint32(time)
             .result()
