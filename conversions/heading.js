@@ -10,7 +10,6 @@ module.exports = (app, plugin) => {
       // ,'navigation.magneticVariation'
     ],
     callback: (heading, variation) => {
-      console.log(`heading ${heading}`)
       return {
         pgn: 127250,
         SID: 87,
