@@ -14,7 +14,7 @@ module.exports = (app, plugin) => {
       return {
         pgn: 127250,
         SID: 87,
-        Heading: heading / 180 * Math.PI,
+        Heading: heading,
         // "Variation": variation,
         Reference: "Magnetic"
       }
