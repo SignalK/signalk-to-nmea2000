@@ -11,11 +11,13 @@ module.exports = function(app) {
   var unsubscribes = [];
   var timers = []
   var conversions = load_conversions(app, plugin)
+  conversions = [].concat.apply([], conversions)
 
   var types = {
     'onDelta': mapOnDelta,
     'toPgn': mapToPgn,
     'toN2K': mapToNmea,
+    'toSubscription': mapSubscription,
     'timer': mapTimer
   }
 
@@ -23,33 +25,55 @@ module.exports = function(app) {
   plugin.name = "Convert Signal K to NMEA2000";
   plugin.description = "Plugin to convert Signal K to NMEA2000";
 
-  plugin.schema = {
+  var schema = {
     type: "object",
     title: "Conversions to NMEA2000",
     description:
     "If there is SignalK data for the conversion generate the following NMEA2000 pgns from Signal K data:",
     properties: {}
   };
+  
+  updateSchema()
+  
+  function updateSchema() {
+    conversions.forEach(conversion => {
+      var obj =  {
+        type: 'object',
+        title: conversion.title,
+        properties: {
+          enabled: {
+            title: 'Enabled',
+            type: 'boolean',
+            default: false
+          }
+        }
+      }
+      
+      schema.properties[conversion.optionKey] = obj
+      
+      if ( conversion.properties ) {
+        var props = typeof conversion.properties === 'function' ? conversion.properties() : conversion.properties
+        _.extend(obj.properties, props)
+      }
+    })
+  }
 
-  conversions.forEach(conversion => {
-    plugin.schema.properties[conversion.optionKey] =  {
-      title: conversion.title,
-      type: 'boolean',
-      default: false
-    }
-  })
+  plugin.schema = function() {
+    updateSchema()
+    return schema
+  }
   
   plugin.start = function(options) {
     debug("start");
 
     conversions.forEach(conversion => {
-      if ( options[conversion.optionKey] ) {
+      if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
         debug(`${conversion.title} is enabled`)
         var mapper = types[conversion.type]
         if ( _.isUndefined(mapper) ) {
           console.error(`Unknown conversion type: ${conversion.type}`)
         } else {
-          mapper(conversion)
+          mapper(conversion, options)
         }
       }
     })
@@ -121,8 +145,9 @@ module.exports = function(app) {
     );
   }
   
-  function mapToNmea(conversion) {
-    const selfStreams = conversion.keys.map(
+  function mapToNmea(conversion, options) {
+    var keys = _.isFunction(conversion.keys) ? conversion.keys(options) : conversion.keys
+    const selfStreams = keys.map(
       app.streambundle.getSelfStream,
       app.streambundle
     );
@@ -148,6 +173,37 @@ module.exports = function(app) {
     timers.push(setInterval(() => {
       processPGNs(conversion.callback(app))
     }, conversion.interval));
+  }
+
+  function subscription_error(err)
+  {
+    console.log("error: " + err)
+  }
+  
+  function mapSubscription(mapping, options) {
+    var subscription = {
+      "context": mapping.context,
+      subscribe: []
+    }
+
+    var keys = _.isFunction(mapping.keys) ? mapping.keys(options) : keys
+    keys.forEach(key => {
+      subscription.subscribe.push({ path: key})
+    });
+
+    debug("subscription: " + JSON.stringify(subscription))
+
+    app.subscriptionmanager.subscribe(
+      subscription,
+      unsubscribes,
+      subscription_error,
+      delta => {
+        try {
+          processPGNs(mapping.callback(delta, options))
+        } catch ( err ) {
+          console.log(err)
+        }
+      });
   }
 };
 
