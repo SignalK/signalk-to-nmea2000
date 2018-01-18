@@ -1,5 +1,5 @@
 const _ = require('lodash')
-const Concentrate = require("concentrate");
+const Concentrate2 = require("concentrate2");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
 
 module.exports = (app, plugin) => {
@@ -15,7 +15,7 @@ module.exports = (app, plugin) => {
         return [
           {
             pgn: 129026,
-            buffer: Concentrate()
+            buffer: Concentrate2()
               .uint8(0xff)
               .uint8(0xfc)
               .uint16((course * 10000).toFixed(0))

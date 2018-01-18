@@ -1,4 +1,4 @@
-const Concentrate = require("concentrate");
+const Concentrate2 = require("concentrate2");
 const _ = require('lodash')
 
 module.exports = (app, plugin, options) => {
@@ -80,7 +80,7 @@ module.exports = (app, plugin, options) => {
             current = _.isUndefined(current) ? 0x7fff : current * 10
             res.push({
               pgn: 127508,
-              buffer: Concentrate()
+              buffer: Concentrate2()
                 .uint8(instance)
                 .uint16(voltage)
                 .uint16(current)
@@ -100,7 +100,7 @@ module.exports = (app, plugin, options) => {
             ripple = _.isUndefined(ripple) ? 0xffff : ripple * 100
             res.push({
               pgn: 127506,
-              buffer: Concentrate()
+              buffer: Concentrate2()
                 .uint8(0xff)
                 .uint8(instance)
                 .uint8(0x00)

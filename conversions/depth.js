@@ -1,4 +1,4 @@
-const Concentrate = require("concentrate");
+const Concentrate2 = require("concentrate2");
 const _ = require('lodash')
 
 module.exports = (app, plugin) => {
@@ -17,7 +17,7 @@ module.exports = (app, plugin) => {
         return [
           {
             pgn: 128267,
-            buffer: Concentrate()
+            buffer: Concentrate2()
               .uint8(0xff)
               .uint32(belowTransducer * 100)
               .uint16(offset * 1000)

@@ -1,4 +1,4 @@
-const Concentrate = require("concentrate");
+const Concentrate2 = require("concentrate2");
 
 module.exports = (app, plugin) => {
   return {
@@ -18,7 +18,7 @@ module.exports = (app, plugin) => {
       return [
         {
           pgn: 126992,
-          buffer: Concentrate()
+          buffer: Concentrate2()
             .uint8(0xff)
             .uint8(0xff)
             .uint16(date)

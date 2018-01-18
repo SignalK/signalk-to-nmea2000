@@ -1,8 +1,6 @@
 const _ = require('lodash')
-const Concentrate = require("concentrate");
+const Concentrate2 = require("concentrate2");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
-//const bignum = require('bignum')
-const Int64LE = require('int64-buffer').Int64LE
 
 module.exports = (app, plugin) => {
   var lastUpdate = null
@@ -24,7 +22,7 @@ module.exports = (app, plugin) => {
       var res = [
         {
           pgn: 129025,
-          buffer: Concentrate()
+          buffer: Concentrate2()
             .int32(position.latitude * 10000000)
             .int32(position.longitude * 10000000)
             .result()
@@ -40,17 +38,19 @@ module.exports = (app, plugin) => {
         var lat = (position.latitude * 10000000 * 10000000 * 100)
         var lon = (position.longitude * 10000000 * 10000000 * 100)
 
+        //console.log(`${lat} ${lon}`)
         var rest = new Buffer(new Uint8Array([0xff,0xff,0xff,0xff,0xff,0xff,0xff,0x7f,0x23,0xfc,0x10,0x40,0x00,0xff,0x7f,0xff,0xff,0xff,0x7f,0x00]))
         
         res = res.concat([
           {
             pgn: 129029,
-            buffer: Concentrate()
+            buffer: Concentrate2()
               .uint8(0xf3)
               .uint16(date)
               .uint32(time)
-              .buffer(new Int64LE(lat).toBuffer())
-              .buffer(new Int64LE(lon).toBuffer())
+
+              .uint64(lat)
+              .uint64(lon)
               .buffer(rest)
               .result()
           }

@@ -1,5 +1,5 @@
 const _ = require('lodash')
-const Concentrate = require("concentrate");
+const Concentrate2 = require("concentrate2");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
 
 const static_keys = [
@@ -18,42 +18,54 @@ const position_keys = [ 'navigation.position' ]
 
 const static_pgn = 129794
 const position_pgn = 129038
+const aton_pgn = 129041
 
 module.exports = (app, plugin) => {
   return {
-    title: `AIS (${static_pgn}, ${position_pgn})`,
+    title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
     type: 'onDelta',
     optionKey: 'AIS',
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId
-      
+
       if ( delta.context == selfContext || isN2K(delta) ) {
         return null
       }
 
-      var hasStatic = hasAnyKeys(delta, static_keys);
-      var hasPosition = hasAnyKeys(delta, position_keys)
-
-      if ( !hasStatic && !hasPosition ) {
-        return null
-      }
+      if ( delta.context.startsWith('vessels.') ) {
+        var hasStatic = hasAnyKeys(delta, static_keys);
+        var hasPosition = hasAnyKeys(delta, position_keys)
+        
+        if ( !hasStatic && !hasPosition ) {
+          return null
+        }
     
-      var vessel = _.get(app.signalk.root, delta.context)
-      var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
-      
-      if ( !mmsi ) {
-        return null;
-      }
-
+        var vessel = _.get(app.signalk.root, delta.context)
+        var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
+        
+        if ( !mmsi ) {
+          return null;
+        }
+        
       var res = []
-      if ( hasPosition ) {
-        res.push(generatePosition(vessel, mmsi, delta))
+        if ( hasPosition ) {
+          res.push(generatePosition(vessel, mmsi, delta))
+        }
+        
+        if ( hasStatic ) {
+          res.push(generateStatic(vessel, mmsi, delta))
+        }
+        return res
+      } else if ( delta.context.startsWith('atons.') ) {
+        var vessel = _.get(app.signalk.root, delta.context)
+        var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
+
+        if ( !mmsi ) {
+          return
+        }
+        
+        return [ generateAtoN(vessel, mmsi, delta) ]
       }
-      
-      if ( hasStatic ) {
-        res.push(generateStatic(vessel, mmsi, delta))
-      }
-      return res
     }
   }
 }
@@ -95,7 +107,7 @@ function generateStatic(vessel, mmsi, delta) {
   var dest = fillASCII('0', 20)
 
   mmsi = parseInt(mmsi, 10)
-  var data = Concentrate()
+  var data = Concentrate2()
       .uint8(0x05)
       .uint32(mmsi)
       .uint32(imo)
@@ -151,7 +163,7 @@ function generatePosition(vessel, mmsi, delta) {
     */
 
     mmsi = parseInt(mmsi, 10)
-    var data = Concentrate()
+    var data = Concentrate2()
         .uint8(0x01)
         .uint32(mmsi)
         .int32(longitude)
@@ -172,6 +184,80 @@ function generatePosition(vessel, mmsi, delta) {
   } else {
     return null
   }
+}
+
+function generateAtoN(vessel, mmsi, delta) {
+  var position = findDeltaValue(delta, 'navigation.position')
+
+  if ( position && position.latitude && position.longitude ) {
+    var name = _.get(vessel, "name") || findDeltaValue(delta, 'name');
+    var type = _.get(findDeltaValue(delta, "atonType"), "id")
+    var length = _.get(findDeltaValue(delta, 'design.length'), 'overall')
+    var beam = findDeltaValue(delta, 'design.beam')
+    var fromCenter = findDeltaValue(delta, 'sensors.ais.fromCenter')
+    var fromBow = findDeltaValue(delta, 'sensors.ais.fromBow')
+    var latitude = position.latitude * 10000000;
+    var longitude = position.longitude * 10000000;
+
+    type = _.isUndefined(type) ? 0 : type
+    name = fillASCII(name ? name : '0', 20)
+    length = length ? length * 10 : 0xffff;
+    beam = beam ? beam * 10 : 0xffff;
+
+    var fromStarboard = 0xffff
+    if ( beam && fromCenter ) {
+      fromStarboard = (beam / 2 + fromCenter) * 10
+    }
+    fromBow = fromBow ? fromBow * 10 : 0xffff
+
+      /*
+  2017-04-15T15:15:08.461Z,4,129041,43,255,49,15,
+
+  77,3c,3a,3b,
+  0d,bf,62,d2,
+  b3,5e,60,17,
+  f5,
+  ff,ff,
+  ff,ff,
+  ff,ff,
+  ff,ff, /from True north egde
+  4e,
+  0e, 
+  00,
+  01,
+  17,01,
+  4e,57,
+  20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,40
+  */
+    
+    mmsi = parseInt(mmsi, 10)
+    var data = Concentrate2()
+        .uint8(0x15)
+        .uint32(mmsi)
+        .int32(longitude)
+        .int32(latitude)
+        .uint8(0xf5)
+        .uint16(length)
+        .uint16(beam)
+        .uint16(fromStarboard)
+        .uint16(fromBow)
+        .tinyInt(type,5)
+        .tinyInt(0, 1)
+        .tinyInt(0, 1)
+        .tinyInt(0, 1)
+        .uint8(0x0e)
+        .uint8(0x00)
+        .uint8(0x01)
+        .uint8(0x17)
+        .uint8(0x01)
+        .buffer(name)
+        .uint8(0x40)
+        .result()
+    return { pgn: aton_pgn, buffer: data }
+  } else {
+    return null
+  }
+    
 }
 
 function int8buff(array) {
@@ -234,6 +320,7 @@ function fillASCII(theString, len)
 }
 
 function isN2K(delta) {
+  return false
   var res = false
   if ( delta.updates ) {
     delta.updates.forEach(update => {

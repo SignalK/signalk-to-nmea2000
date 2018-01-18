@@ -24,7 +24,7 @@
     "debug": "^3.1.0",
     "lodash": "^4.17.4",
     "to-n2k": "^1.0.0",
-    "concentrate": "^0.2.3"
+    "concentrate2": "^0.0.1"
   },
   "repository": {
     "type": "git",
