@@ -1,42 +1,41 @@
-const Bacon = require("baconjs");
-const debug = require("debug")("signalk:signalk-to-nmea2000");
-const util = require("util");
-const toPgn = require("to-n2k").toPgn;
+const Bacon = require('baconjs')
+const debug = require('debug')('signalk:signalk-to-nmea2000')
+const util = require('util')
+const toPgn = require('to-n2k').toPgn
 const _ = require('lodash')
 
-module.exports = function(app) {
-  var plugin = {};
-  var unsubscribes = [];
-  var timer;
+module.exports = function (app) {
+  var plugin = {}
+  var unsubscribes = []
+  var timer
 
-  plugin.id = "sk-to-nmea2000";
-  plugin.name = "Convert Signal K to NMEA2000";
-  plugin.description = "Plugin to convert Signal K to NMEA2000";
+  plugin.id = 'sk-to-nmea2000'
+  plugin.name = 'Convert Signal K to NMEA2000'
+  plugin.description = 'Plugin to convert Signal K to NMEA2000'
 
   plugin.schema = {
-    type: "object",
-    title: "Conversions to NMEA2000",
-    description:
-      "If there is SK data for the conversion generate the following NMEA2000 pgns from Signal K data:",
+    type: 'object',
+    title: 'Conversions to NMEA2000',
+    description: 'If there is SK data for the conversion generate the following NMEA2000 pgns from Signal K data:',
     properties: {
       WIND: {
-        title: "130306 Wind",
-        type: "boolean",
+        title: '130306 Wind',
+        type: 'boolean',
         default: false
       },
       GPS_LOCATION: {
-        title: "129025 Location",
-        type: "boolean",
+        title: '129025 Location',
+        type: 'boolean',
         default: false
       },
       SYSTEM_TIME: {
-        title: "126992 System Time",
-        type: "boolean",
+        title: '126992 System Time',
+        type: 'boolean',
         default: false
       },
       HEADING: {
-        title: "127250 Heading",
-        type: "boolean",
+        title: '127250 Heading',
+        type: 'boolean',
         default: false
       },
       AIS: {
@@ -63,8 +62,9 @@ module.exports = function(app) {
               debug("emit " + nmeaString);
               app.emit("nmea2000out", nmeaString);
             }
-          })
-      );
+          }
+        }
+      }
     }
 
     if (options.WIND) {
@@ -175,19 +175,22 @@ module.exports = function(app) {
 
 };
 
-function padd(n, p, c) {
-  var pad_char = typeof c !== "undefined" ? c : "0";
-  var pad = new Array(1 + p).join(pad_char);
-  return (pad + n).slice(-pad.length);
+  return plugin
 }
 
-const wind_format = "%s,2,130306,1,255,8,ff,%s,%s,%s,%s,fa,ff,ff";
+function padd (n, p, c) {
+  var pad_char = typeof c !== 'undefined' ? c : '0'
+  var pad = new Array(1 + p).join(pad_char)
+  return (pad + n).slice(-pad.length)
+}
 
-const WIND = {
-  keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
-  f: function wind(angle, speed) {
-    speed = speed * 100;
-    angle = Math.trunc(angle * 10000);
+const wind_format = '%s,2,130306,1,255,8,ff,%s,%s,%s,%s,fa,ff,ff'
+
+var WIND = {
+  keys: ['environment.wind.angleApparent', 'environment.wind.speedApparent'],
+  f: function wind (angle, speed) {
+    speed = speed * 100
+    angle = Math.trunc(angle * 10000)
     return util.format(
       wind_format,
       new Date().toISOString(),
@@ -195,17 +198,17 @@ const WIND = {
       padd(((speed >> 8) & 0xff).toString(16), 2),
       padd((angle & 0xff).toString(16), 2),
       padd(((angle >> 8) & 0xff).toString(16), 2)
-    );
+    )
   }
-};
+}
 
-const location_format = "%s,7,129025,1,255,8,%s,%s,%s,%s,%s,%s,%s,%s";
+const location_format = '%s,7,129025,1,255,8,%s,%s,%s,%s,%s,%s,%s,%s'
 
-const GPS_LOCATION = {
-  keys: ["navigation.position"],
-  f: function location(pos) {
-    var lat = pos.latitude * 10000000;
-    var lon = pos.longitude * 10000000;
+var GPS_LOCATION = {
+  keys: ['navigation.position'],
+  f: function location (pos) {
+    var lat = pos.latitude * 10000000
+    var lon = pos.longitude * 10000000
     return util.format(
       location_format,
       new Date().toISOString(),
@@ -217,20 +220,20 @@ const GPS_LOCATION = {
       padd(((lon >> 8) & 0xff).toString(16), 2),
       padd(((lon >> 16) & 0xff).toString(16), 2),
       padd(((lon >> 24) & 0xff).toString(16), 2)
-    );
+    )
   }
-};
+}
 
-const system_time_format = "%s,3,126992,1,255,8,ff,ff,%s,%s,%s,%s,%s,%s";
+const system_time_format = '%s,3,126992,1,255,8,ff,ff,%s,%s,%s,%s,%s,%s'
 
-function send_date(app) {
-  var dateObj = new Date();
-  var date = Math.trunc(dateObj.getTime() / 86400 / 1000);
+function send_date (app) {
+  var dateObj = new Date()
+  var date = Math.trunc(dateObj.getTime() / 86400 / 1000)
   var time =
     dateObj.getUTCHours() * (60 * 60) +
     dateObj.getUTCMinutes() * 60 +
-    dateObj.getUTCSeconds();
-  time = time * 10000;
+    dateObj.getUTCSeconds()
+  time = time * 10000
   msg = util.format(
     system_time_format,
     new Date().toISOString(),
@@ -240,15 +243,15 @@ function send_date(app) {
     padd(((time >> 8) & 0xff).toString(16), 2),
     padd(((time >> 16) & 0xff).toString(16), 2),
     padd(((time >> 24) & 0xff).toString(16), 2)
-  );
-  debug("system time: " + msg);
-  app.emit("nmea2000out", msg);
+  )
+  debug('system time: ' + msg)
+  app.emit('nmea2000out', msg)
 }
 
 const HEADING_127250 = {
   pgn: 127250,
   keys: [
-    "navigation.headingMagnetic"
+    'navigation.headingMagnetic'
     // ,'navigation.magneticVariation'
   ],
   f: (heading, variation) => {
