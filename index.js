@@ -91,19 +91,24 @@ module.exports = function(app) {
     debug("start");
 
     conversions.forEach(conversion => {
-      if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
-        debug(`${conversion.title} is enabled`)
-        var type = _.isUndefined(conversion.sourceType) ? 'baconjs' : conversion.sourceType
-        var mapper = sourceTypes[type]
-        if ( _.isUndefined(mapper) ) {
-          console.error(`Unknown conversion type: ${type}`)
-        } else {
-          if ( _.isUndefined(conversion.outputType) ) {
-            conversion.outputType = 'to-n2k'
-          }
-          mapper(conversion, options)
-        }
+      if ( !_.isArray(conversion) ) {
+        conversion = [ conversion ]
       }
+      conversion.forEach(conversion => {
+        if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
+          debug(`${conversion.title} is enabled`)
+          var type = _.isUndefined(conversion.sourceType) ? 'baconjs' : conversion.sourceType
+          var mapper = sourceTypes[type]
+          if ( _.isUndefined(mapper) ) {
+            console.error(`Unknown conversion type: ${type}`)
+          } else {
+            if ( _.isUndefined(conversion.outputType) ) {
+              conversion.outputType = 'to-n2k'
+          }
+            mapper(conversion, options)
+          }
+        }
+      })
     })
   };
 
