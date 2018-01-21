@@ -13,17 +13,12 @@ module.exports = (app, plugin) => {
           dateObj.getUTCHours() * (60 * 60) +
           dateObj.getUTCMinutes() * 60 +
           dateObj.getUTCSeconds();
-      time = time * 10000;
       
       return [
         {
           pgn: 126992,
-          buffer: Concentrate2()
-            .uint8(0xff)
-            .uint8(0xff)
-            .uint16(date)
-            .uint32(time)
-            .result()
+          Date: date,
+          Time: time
         }
       ]
     }

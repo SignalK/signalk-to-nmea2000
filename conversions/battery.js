@@ -75,18 +75,13 @@ module.exports = (app, plugin, options) => {
           if ( !_.isUndefined(voltage)
                || !_.isUndefined(current)
                || !_.isUndefined(temperature) ) {
-            voltage = _.isUndefined(voltage) ? 0x7fff : voltage * 100
-            temperature = _.isUndefined(temperature) ? 0xffff : temperature * 100
-            current = _.isUndefined(current) ? 0x7fff : current * 10
+
             res.push({
               pgn: 127508,
-              buffer: Concentrate2()
-                .uint8(instance)
-                .uint16(voltage)
-                .uint16(current)
-                .uint16(temperature)
-                .uint8(0xff)
-                .result()
+              "Battery Instance": instance,
+              Voltage: voltage,
+              Current: current,
+              Temperature: temperature
             })
           }
 
@@ -95,20 +90,15 @@ module.exports = (app, plugin, options) => {
                || !_.isUndefined(stateOfHealth)
                || !_.isUndefined(ripple) ) {
             stateOfCharge = _.isUndefined(stateOfCharge) ? 0xff : stateOfCharge*100
-            timeRemaining = _.isUndefined(timeRemaining) ? 0xffff : timeRemaining
             stateOfHealth = _.isUndefined(stateOfHealth) ? 0xff : stateOfHealth*100
-            ripple = _.isUndefined(ripple) ? 0xffff : ripple * 100
+
             res.push({
               pgn: 127506,
-              buffer: Concentrate2()
-                .uint8(0xff)
-                .uint8(instance)
-                .uint8(0x00)
-                .uint8(stateOfCharge)
-                .uint8(stateOfHealth)
-                .uint16(timeRemaining)
-                .uint16(ripple)
-                .result()
+              "DC Instance": instance,
+              'State of Charge': stateOfCharge,
+              'State of Health': stateOfHealth,
+              'Time Remaining': timeRemaining,
+              'Ripple Voltage': ripple
             })
           }
         }

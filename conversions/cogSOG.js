@@ -7,7 +7,6 @@ module.exports = (app, plugin) => {
   
   return {
     title: 'COG & SOG (129026)',
-    type: 'toN2K',
     optionKey: 'COG_SOG',
     keys: ["navigation.courseOverGroundTrue", "navigation.speedOverGround"],
     callback: (course, speed) => {
@@ -15,13 +14,9 @@ module.exports = (app, plugin) => {
         return [
           {
             pgn: 129026,
-            buffer: Concentrate2()
-              .uint8(0xff)
-              .uint8(0xfc)
-              .uint16((course * 10000).toFixed(0))
-              .uint16((speed*100).toFixed(0))
-              .uint16(0xffff)
-              .result()
+            'COG Reference': 0,
+            COG: course,
+            SOG: speed
           }
         ]
       } catch ( err ) {

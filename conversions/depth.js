@@ -4,7 +4,6 @@ const _ = require('lodash')
 module.exports = (app, plugin) => {
   return {
     title: 'Depth (128267)',
-    type: 'toN2K',
     optionKey: 'DEPTH',
     keys: ["environment.depth.belowTransducer"],
     callback: (belowTransducer) => {
@@ -17,11 +16,9 @@ module.exports = (app, plugin) => {
         return [
           {
             pgn: 128267,
-            buffer: Concentrate2()
-              .uint8(0xff)
-              .uint32(belowTransducer * 100)
-              .uint16(offset * 1000)
-              .result()
+            SID: 0xff,
+            Depth: belowTransducer,
+            Offset: offset
           }
         ]
       } catch ( err ) {

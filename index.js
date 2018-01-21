@@ -69,9 +69,10 @@ module.exports = function(app) {
     conversions.forEach(conversion => {
       if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
         debug(`${conversion.title} is enabled`)
-        var mapper = types[conversion.type]
+        var type = _.isUndefined(conversion.type) ? 'toPgn' : conversion.type
+        var mapper = types[type]
         if ( _.isUndefined(mapper) ) {
-          console.error(`Unknown conversion type: ${conversion.type}`)
+          console.error(`Unknown conversion type: ${type}`)
         } else {
           mapper(conversion, options)
         }
@@ -119,9 +120,30 @@ module.exports = function(app) {
   function processPGNs(pgns) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
-        const msg = toActisenseSerialFormat(pgn.pgn, pgn.buffer);
-        debug("emit " + msg);
-        app.emit("nmea2000out", msg);
+        try {
+          const msg = toActisenseSerialFormat(pgn.pgn, pgn.buffer);
+          debug("emit " + msg);
+          app.emit("nmea2000out", msg);
+        } catch ( err ) {
+          console.error(`error writing pgn ${JSON.stringify(pgn)}`)
+          console.error(err.stack)
+        }
+      })
+    }
+  }
+
+  function processToPGNs(pgns) {
+    if ( pgns ) {
+      pgns.filter(pgn => pgn != null).forEach(pgn => {
+        try {
+          const msg = toActisenseSerialFormat(pgn.pgn, toPgn(pgn));
+          debug("emit " + msg);
+          app.emit("nmea2000out", msg);
+        }
+        catch ( err ) {
+          console.error(`error writing pgn ${JSON.stringify(pgn)}`)
+          console.error(err.stack)
+        }
       })
     }
   }
@@ -134,13 +156,8 @@ module.exports = function(app) {
       )
         .changes()
         .debounceImmediate(20)
-        .map(toPgn)
-        .onValue(pgnBuffer => {
-          if (pgnBuffer) {
-            const msg = toActisenseSerialFormat(conversion.pgn, pgnBuffer);
-            debug("emit " + msg);
-            app.emit("nmea2000out", msg);
-          }
+        .onValue(pgns => {
+          processToPGNs(pgns)
         })
     );
   }
@@ -171,7 +188,7 @@ module.exports = function(app) {
 
   function mapTimer(conversion) {
     timers.push(setInterval(() => {
-      processPGNs(conversion.callback(app))
+      processToPGNs(conversion.callback(app))
     }, conversion.interval));
   }
 
@@ -199,7 +216,7 @@ module.exports = function(app) {
       subscription_error,
       delta => {
         try {
-          processPGNs(mapping.callback(delta, options))
+          processToPGNs(mapping.callback(delta, options))
         } catch ( err ) {
           console.log(err)
         }
