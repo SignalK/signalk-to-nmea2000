@@ -23,7 +23,8 @@ const aton_pgn = 129041
 module.exports = (app, plugin) => {
   return {
     title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
-    type: 'onDelta',
+    sourceType: 'onDelta',
+    outputType: 'buffer',
     optionKey: 'AIS',
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId

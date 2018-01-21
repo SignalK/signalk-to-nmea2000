@@ -13,12 +13,36 @@ module.exports = function(app) {
   var conversions = load_conversions(app, plugin)
   conversions = [].concat.apply([], conversions)
 
-  var types = {
+  /*
+    Each conversion can specify the sourceType and outputType.
+
+    Source type can be:
+
+      onDelta - You will get all deltas via app.signalk.on('delta', ...). Please do no use this unless absolutely necessary.
+      
+      bacanjs - The conversion should specify a variable called 'keys' which is an array of the Signal K paths that the convesion needs
+
+      timer - The conversions callback will get called per the givien 'interval' variable
+
+    Output type can be:
+
+      'to-n2k' - The outut will be sent through the to-n2k package (https://github.com/tkurki/to-n2k)
+
+      'buffer' - The output should be a buffer that is sent directly to nmea2000out
+
+    sourceType defaults to 'bacanjs'
+    outputType defaults to 'to-n2k'
+   */
+
+  var sourceTypes = {
     'onDelta': mapOnDelta,
-    'toPgn': mapToPgn,
-    'toN2K': mapToNmea,
-    'toSubscription': mapSubscription,
+    'baconjs': mapBaconjs,
     'timer': mapTimer
+  }
+
+  var outputTypes = {
+    'to-n2k': processToN2K,
+    'buffer': processBufferOutput
   }
 
   plugin.id = "sk-to-nmea2000";
@@ -69,11 +93,14 @@ module.exports = function(app) {
     conversions.forEach(conversion => {
       if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
         debug(`${conversion.title} is enabled`)
-        var type = _.isUndefined(conversion.type) ? 'toPgn' : conversion.type
-        var mapper = types[type]
+        var type = _.isUndefined(conversion.sourceType) ? 'baconjs' : conversion.sourceType
+        var mapper = sourceTypes[type]
         if ( _.isUndefined(mapper) ) {
           console.error(`Unknown conversion type: ${type}`)
         } else {
+          if ( _.isUndefined(conversion.outputType) ) {
+            conversion.outputType = 'to-n2k'
+          }
           mapper(conversion, options)
         }
       }
@@ -117,7 +144,7 @@ module.exports = function(app) {
     }).filter(converter => { return typeof converter !== 'undefined'; });
   }
 
-  function processPGNs(pgns) {
+  function processBufferOutput(pgns) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
@@ -132,7 +159,7 @@ module.exports = function(app) {
     }
   }
 
-  function processToPGNs(pgns) {
+  function processToN2K(pgns) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
@@ -148,7 +175,11 @@ module.exports = function(app) {
     }
   }
 
-  function mapToPgn(conversion) {
+  function processOutput(conversion, output) {
+    outputTypes[conversion.outputType](output)
+  }
+
+  function mapBaconjs(conversion) {
     unsubscribes.push(
       Bacon.combineWith(
         conversion.callback,
@@ -157,29 +188,15 @@ module.exports = function(app) {
         .changes()
         .debounceImmediate(20)
         .onValue(pgns => {
-          processToPGNs(pgns)
+          processOutput(conversion, pgns)
         })
     );
-  }
-  
-  function mapToNmea(conversion, options) {
-    var keys = _.isFunction(conversion.keys) ? conversion.keys(options) : conversion.keys
-    const selfStreams = keys.map(
-      app.streambundle.getSelfStream,
-      app.streambundle
-    );
-    unsubscribes.push(
-      Bacon.combineWith(conversion.callback, selfStreams)
-        .changes()
-        .debounceImmediate(20)
-        .onValue(pgns => processPGNs(pgns))
-    )
   }
   
   function mapOnDelta(conversion) {
     app.signalk.on('delta', (delta) => {
       try {
-        processPGNs(conversion.callback(delta))
+        processOutput(conversion, conversion.callback(delta))
       } catch ( err ) {
         console.log(err)
       }
@@ -188,7 +205,7 @@ module.exports = function(app) {
 
   function mapTimer(conversion) {
     timers.push(setInterval(() => {
-      processToPGNs(conversion.callback(app))
+      processOutput(conversion, conversion.callback(app))
     }, conversion.interval));
   }
 

@@ -24,7 +24,7 @@ module.exports = (app, plugin, options) => {
   
   return {
     title: 'Battery (127506 & 127508)',
-    type: 'toSubscription',
+    sourceType: 'subscription',
     optionKey: 'BATTERY',
     context: 'vessels.self',
     keys: (options) => {
