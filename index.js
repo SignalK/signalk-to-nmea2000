@@ -97,16 +97,25 @@ module.exports = function(app) {
       conversion.forEach(conversion => {
         if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
           debug(`${conversion.title} is enabled`)
-          var type = _.isUndefined(conversion.sourceType) ? 'baconjs' : conversion.sourceType
-          var mapper = sourceTypes[type]
-          if ( _.isUndefined(mapper) ) {
-            console.error(`Unknown conversion type: ${type}`)
-          } else {
-            if ( _.isUndefined(conversion.outputType) ) {
-              conversion.outputType = 'to-n2k'
+
+          var subConversions = conversion.conversions
+          if ( _.isUndefined(subConversions) ) {
+            subConversions = [ conversion ]
+          } else if ( _.isFunction(subConversions) ) {
+            subConversions = subConversions(options)
           }
-            mapper(conversion, options)
-          }
+          subConversions.forEach(subConversion => {
+            var type = _.isUndefined(subConversion.sourceType) ? 'baconjs' : subConversion.sourceType
+            var mapper = sourceTypes[type]
+            if ( _.isUndefined(mapper) ) {
+              console.error(`Unknown conversion type: ${type}`)
+            } else {
+              if ( _.isUndefined(subConversion.outputType) ) {
+                subConversion.outputType = 'to-n2k'
+              }
+              mapper(subConversion, options)
+            }
+          })
         }
       })
     })
@@ -186,12 +195,13 @@ module.exports = function(app) {
 
   function mapBaconjs(conversion) {
     unsubscribes.push(
-      Bacon.combineWith(
-        conversion.callback,
-        conversion.keys.map(app.streambundle.getSelfStream, app.streambundle)
+      timeoutingArrayStream(
+        conversion.keys,
+        conversion.timeouts,
+        app.streambundle,
+        unsubscribes
       )
-        .changes()
-        .debounceImmediate(20)
+        .map(values => conversion.callback.call(this, ...values))
         .onValue(pgns => {
           processOutput(conversion, pgns)
         })
@@ -246,3 +256,46 @@ module.exports = function(app) {
   }
 };
 
+function timeoutingArrayStream (
+  keys,
+  timeouts = [],
+  streambundle,
+  unsubscribes
+) {
+  debug(`keys:${keys}`)
+  debug(`timeouts:${timeouts}`)
+  const lastValues = keys.reduce((acc, key) => {
+    acc[key] = {
+      timestamp: new Date().getTime(),
+      value: null
+    }
+    return acc
+  }, {})
+  const combinedBus = new Bacon.Bus()
+  keys.map(skKey => {
+    streambundle.getSelfStream(skKey).onValue(value => {
+      lastValues[skKey] = {
+        timestamp: new Date().getTime(),
+        value
+      }
+      const now = new Date().getTime()
+
+      combinedBus.push(
+        keys.map((key, i) => {
+          return notDefined(timeouts[i]) ||
+            lastValues[key].timestamp + timeouts[i] > now
+            ? lastValues[key].value
+            : null
+        })
+      )
+    })
+  })
+  const result = combinedBus.debounce(10)
+  if (debug.enabled) {
+    unsubscribes.push(result.onValue(x => debug(`${keys}:${x}`)))
+  }
+  return result
+}
+
+const notDefined = x => typeof x === 'undefined'
+const isDefined = x => typeof x !== 'undefined'
