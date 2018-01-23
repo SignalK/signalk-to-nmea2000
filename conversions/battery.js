@@ -80,13 +80,4 @@ module.exports = (app, plugin) => {
   }
 }
 
-function flattenDelta(delta) {
-  var res = {}
-  delta.updates.forEach(update => {
-    update.values.forEach(pathValue => {
-      res[pathValue.path] = pathValue.value
-    })
-  })
-  return res
-}
 
