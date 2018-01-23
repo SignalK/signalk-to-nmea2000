@@ -5,15 +5,15 @@ module.exports = (app, plugin) => {
     title: 'Heading (127250)',
     optionKey: 'HEADING',
     keys: [
-      "navigation.headingMagnetic"
-      // ,'navigation.magneticVariation'
+      "navigation.headingMagnetic",
+      'navigation.magneticVariation'
     ],
     callback: (heading, variation) => {
       return [{
         pgn: 127250,
         SID: 87,
         Heading: heading,
-        // "Variation": variation,
+        "Variation": variation,
         Reference: "Magnetic"
       }]
     }
