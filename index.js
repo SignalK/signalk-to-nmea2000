@@ -1,7 +1,7 @@
 const Bacon = require("baconjs");
 const debug = require("debug")("signalk:signalk-to-nmea2000");
 const util = require("util");
-const toPgn = require("to-n2k").toPgn;
+const { toPgn, toActisenseSerialFormat } = require("canboatjs");
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
@@ -130,25 +130,6 @@ module.exports = function(app) {
 
   return plugin;
 
-  function toActisenseSerialFormat(pgn, data, dst) {
-    dst = _.isUndefined(dst) ? '255' : dst
-    return (
-      new Date().toISOString() +
-        ",2," +
-        pgn +
-        `,0,${dst},` +
-        data.length +
-        "," +
-        new Uint32Array(data)
-        .reduce(function(acc, i) {
-          acc.push(i.toString(16));
-          return acc;
-        }, [])
-        .map(x => (x.length === 1 ? "0" + x : x))
-        .join(",")
-    );
-  }
-
   function load_conversions (app, plugin) {
     fpath = path.join(__dirname, 'conversions')
     files = fs.readdirSync(fpath)
@@ -177,9 +158,12 @@ module.exports = function(app) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
-          const msg = toActisenseSerialFormat(pgn.pgn, toPgn(pgn));
-          debug("emit " + msg);
-          app.emit("nmea2000out", msg);
+          const data = toPgn(pgn)
+          if ( !_.isUndefined(data) ) {
+            const msg = toActisenseSerialFormat(pgn.pgn, data);
+            debug("emit " + msg);
+            app.emit("nmea2000out", msg);
+          }
         }
         catch ( err ) {
           console.error(`error writing pgn ${JSON.stringify(pgn)}`)

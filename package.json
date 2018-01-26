@@ -21,10 +21,10 @@
   "license": "ISC",
   "dependencies": {
     "baconjs": "^0.7.88",
+    "canboatjs": "0.0.1",
+    "concentrate2": "^1.0.0",
     "debug": "^3.1.0",
-    "lodash": "^4.17.4",
-    "to-n2k": "^1.0.0",
-    "concentrate2": "^1.0.0"
+    "lodash": "^4.17.4"
   },
   "repository": {
     "type": "git",
