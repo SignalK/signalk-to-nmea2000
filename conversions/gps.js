@@ -6,7 +6,7 @@ module.exports = (app, plugin) => {
   var lastUpdate = null
   
   return {
-    title: 'Location (129025)',
+    title: 'Location (129025,129029)',
     optionKey: 'GPS_LOCATION',
     keys: ["navigation.position"],
     callback: (position) => {
@@ -38,7 +38,17 @@ module.exports = (app, plugin) => {
           Date: date,
           Time: time,
           Latitude: position.latitude,
-          Longitude: position.longitude
+          Longitude: position.longitude,
+          'GNSS type': 'GPS+SBAS/WAAS',
+          Method: 'DGNSS fix',
+          Integrity: 'No integrity checking',
+          'Number of SVs': 16,
+          HDOP:0.64,
+          'Geoidal Separation': -0.01,
+          'Reference Stations': 1,
+          'Reference Station Type': 'GPS+SBAS/WAAS',
+          'Reference Station ID': 7
+          //'Age of DGNSS Corrections': 
         })
       }
       return res
