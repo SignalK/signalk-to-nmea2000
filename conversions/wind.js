@@ -6,7 +6,6 @@ module.exports = (app, plugin) => {
     optionKey: 'WIND',
     keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
     callback: (angle, speed) => {
-      console.log(`${angle} ${speed}`)
       try {
         return [
           {
