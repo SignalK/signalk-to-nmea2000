@@ -20,7 +20,7 @@ module.exports = function(app) {
 
       onDelta - You will get all deltas via app.signalk.on('delta', ...). Please do no use this unless absolutely necessary.
       
-      bacanjs - The conversion should specify a variable called 'keys' which is an array of the Signal K paths that the convesion needs
+      onValueChange - The conversion should specify a variable called 'keys' which is an array of the Signal K paths that the convesion needs
 
       timer - The conversions callback will get called per the givien 'interval' variable
 
@@ -30,13 +30,13 @@ module.exports = function(app) {
 
       'buffer' - The output should be a buffer that is sent directly to nmea2000out
 
-    sourceType defaults to 'bacanjs'
+    sourceType defaults to 'onValueChange'
     outputType defaults to 'to-n2k'
    */
 
   var sourceTypes = {
     'onDelta': mapOnDelta,
-    'baconjs': mapBaconjs,
+    'onValueChange': mapBaconjs,
     'timer': mapTimer
   }
 
@@ -106,7 +106,7 @@ module.exports = function(app) {
           }
           if ( subConversions != null ) {
             subConversions.forEach(subConversion => {
-              var type = _.isUndefined(subConversion.sourceType) ? 'baconjs' : subConversion.sourceType
+              var type = _.isUndefined(subConversion.sourceType) ? 'onValueChange' : subConversion.sourceType
               var mapper = sourceTypes[type]
               if ( _.isUndefined(mapper) ) {
                 console.error(`Unknown conversion type: ${type}`)
