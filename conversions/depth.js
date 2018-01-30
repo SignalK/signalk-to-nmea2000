@@ -4,7 +4,7 @@ const _ = require('lodash')
 module.exports = (app, plugin) => {
   return {
     title: 'Depth (128267)',
-    optionKey: 'DEPTH',
+    optionKey: 'DEPTHv2',
     keys: ["environment.depth.belowTransducer"],
     callback: (belowTransducer) => {
       var surfaceToTransducer = _.get(app.signalk.self,

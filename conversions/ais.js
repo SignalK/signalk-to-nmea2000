@@ -25,7 +25,7 @@ module.exports = (app, plugin) => {
     title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
     sourceType: 'onDelta',
     outputType: 'buffer',
-    optionKey: 'AIS',
+    optionKey: 'AISv2',
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId
 

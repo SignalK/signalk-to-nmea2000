@@ -7,7 +7,7 @@ module.exports = (app, plugin) => {
   
   return {
     title: 'Location (129025,129029)',
-    optionKey: 'GPS_LOCATION',
+    optionKey: 'GPS_LOCATIONv2',
     keys: ["navigation.position"],
     callback: (position) => {
       //debug(`position: ${JSON.stringify(position)}`)

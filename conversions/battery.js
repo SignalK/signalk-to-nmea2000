@@ -15,7 +15,7 @@ module.exports = (app, plugin) => {
   
   return {
     title: 'Battery (127506 & 127508)',
-    optionKey: 'BATTERY',
+    optionKey: 'BATTERYv2',
     context: 'vessels.self',
     properties: {
       batteries: {
@@ -38,6 +38,9 @@ module.exports = (app, plugin) => {
     },
 
     conversions: (options) => {
+      if ( !_.get(options, 'BATTERY.batteries') ) {
+        return null
+      }
       return options.BATTERY.batteries.map(battery => {
         return {
           keys: batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`),

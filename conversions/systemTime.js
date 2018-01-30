@@ -5,7 +5,7 @@ module.exports = (app, plugin) => {
     title: 'System Time (126992)',
     sourceType: 'timer',
     interval: 1000,
-    optionKey: 'SYSTEM_TIME',
+    optionKey: 'SYSTEM_TIMEv2',
     callback: (app) => {
       var dateObj = new Date();
       var date = Math.trunc(dateObj.getTime() / 86400 / 1000);
