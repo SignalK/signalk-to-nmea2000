@@ -4,7 +4,6 @@
   "description": "Signal K server plugin to convert Signal K to NMEA2000",
   "main": "index.js",
   "scripts": {
-    "test": "$NODE $npm_package_main"
   },
   "keywords": [
     "signalk-node-server-plugin"
@@ -21,12 +20,19 @@
   "license": "ISC",
   "dependencies": {
     "baconjs": "^0.7.88",
+    "canboatjs": "0.0.2",
+    "concentrate2": "^1.0.0",
     "debug": "^3.1.0",
-    "lodash": "^4.17.4",
-    "to-n2k": "^1.0.0"
+    "lodash": "^4.17.4"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sbender9/signalk-to-nmea2000"
+    "url": "https://github.com/SignalK/signalk-to-nmea2000"
+  },
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.0.0",
+    "signalk-server": "^1.0.0-0",
+    "sinon": "^4.1.6"
   }
 }
