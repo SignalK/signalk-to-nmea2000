@@ -104,18 +104,20 @@ module.exports = function(app) {
           } else if ( _.isFunction(subConversions) ) {
             subConversions = subConversions(options)
           }
-          subConversions.forEach(subConversion => {
-            var type = _.isUndefined(subConversion.sourceType) ? 'baconjs' : subConversion.sourceType
-            var mapper = sourceTypes[type]
-            if ( _.isUndefined(mapper) ) {
-              console.error(`Unknown conversion type: ${type}`)
-            } else {
-              if ( _.isUndefined(subConversion.outputType) ) {
-                subConversion.outputType = 'to-n2k'
+          if ( subConversions != null ) {
+            subConversions.forEach(subConversion => {
+              var type = _.isUndefined(subConversion.sourceType) ? 'baconjs' : subConversion.sourceType
+              var mapper = sourceTypes[type]
+              if ( _.isUndefined(mapper) ) {
+                console.error(`Unknown conversion type: ${type}`)
+              } else {
+                if ( _.isUndefined(subConversion.outputType) ) {
+                  subConversion.outputType = 'to-n2k'
+                }
+                mapper(subConversion, options)
               }
-              mapper(subConversion, options)
-            }
-          })
+            })
+          }
         }
       })
     })
