@@ -1,6 +1,6 @@
 ## Change Log
 
-### v2.0.1 (2018/02/05 23:44 +00:00)
+### v2.0.2 (2018/02/05 23:48 +00:00)
 - [#10](https://github.com/SignalK/signalk-to-nmea2000/pull/10) fix: battery conversion not working (@sbender9)
 
 ### v2.0.0 (2018/01/30 00:42 +00:00)
