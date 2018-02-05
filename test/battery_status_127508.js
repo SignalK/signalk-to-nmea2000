@@ -37,19 +37,21 @@ describe('Battery status 127508', function () {
     const n2kSpy = sinon.spy()
     app.on('nmea2000out', n2kSpy)
     setTimeout(() => {
-      console.log(`n2kSpy ${n2kSpy}`)
       n2kSpy.callCount.should.equal(2)
       // TODO assert proper fastformat output here
       done()
     }, 1500)
     const sk2n2k = new Sk2n2K(app)
     sk2n2k.start({
-      BATTERYSTATUS: [
-        {
-          signalkId: 'house',
-          instanceId: 1
-        }
-      ]
+      "BATTERYv2": {
+        "enabled": true,
+        "batteries": [
+          {
+            "signalkId": "house",
+            "instanceId": 1
+          }
+        ]
+      }
     })
     sendDeltas(app, deltas)
   })

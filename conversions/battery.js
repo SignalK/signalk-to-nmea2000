@@ -38,10 +38,10 @@ module.exports = (app, plugin) => {
     },
 
     conversions: (options) => {
-      if ( !_.get(options, 'BATTERY.batteries') ) {
+      if ( !_.get(options, 'BATTERYv2.batteries') ) {
         return null
       }
-      return options.BATTERY.batteries.map(battery => {
+      return options.BATTERYv2.batteries.map(battery => {
         return {
           keys: batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`),
           timeouts: batteryKeys.map(key => 60000),
