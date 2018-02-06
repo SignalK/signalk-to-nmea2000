@@ -1,6 +1,4 @@
 const _ = require('lodash')
-const Concentrate2 = require("concentrate2");
-const debug = require("debug")("signalk:signalk-to-nmea2000");
 
 module.exports = (app, plugin) => {
   var lastUpdate = null
@@ -10,7 +8,7 @@ module.exports = (app, plugin) => {
     optionKey: 'GPS_LOCATIONv2',
     keys: ["navigation.position"],
     callback: (position) => {
-      //debug(`position: ${JSON.stringify(position)}`)
+      //app.debug(`position: ${JSON.stringify(position)}`)
       var res = [
         {
           pgn: 129025,

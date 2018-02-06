@@ -1,6 +1,4 @@
 const _ = require('lodash')
-const Concentrate2 = require("concentrate2");
-const debug = require("debug")("signalk:signalk-to-nmea2000");
 
 module.exports = (app, plugin) => {
   var lastUpdate = null

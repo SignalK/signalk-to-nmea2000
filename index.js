@@ -1,5 +1,4 @@
 const Bacon = require("baconjs");
-const debug = require("debug")("signalk:signalk-to-nmea2000");
 const util = require("util");
 const { toPgn, toActisenseSerialFormat } = require("canboatjs");
 const _ = require('lodash')
@@ -88,15 +87,13 @@ module.exports = function(app) {
   }
   
   plugin.start = function(options) {
-    debug("start");
-
     conversions.forEach(conversion => {
       if ( !_.isArray(conversion) ) {
         conversion = [ conversion ]
       }
       conversion.forEach(conversion => {
         if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
-          debug(`${conversion.title} is enabled`)
+          app.debug(`${conversion.title} is enabled`)
 
           var subConversions = conversion.conversions
           if ( _.isUndefined(subConversions) ) {
@@ -146,7 +143,7 @@ module.exports = function(app) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
           const msg = toActisenseSerialFormat(pgn.pgn, pgn.buffer);
-          debug("emit " + msg);
+          app.debug("emit " + msg);
           app.emit("nmea2000out", msg);
         } catch ( err ) {
           console.error(`error writing pgn ${JSON.stringify(pgn)}`)
@@ -160,12 +157,8 @@ module.exports = function(app) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
-          const data = toPgn(pgn)
-          if ( !_.isUndefined(data) ) {
-            const msg = toActisenseSerialFormat(pgn.pgn, data);
-            debug("emit " + msg);
-            app.emit("nmea2000out", msg);
-          }
+          app.debug("emit %j", pgn)
+          app.emit("nmea2000JsonOut", pgn);
         }
         catch ( err ) {
           console.error(`error writing pgn ${JSON.stringify(pgn)}`)
@@ -199,7 +192,7 @@ module.exports = function(app) {
       try {
         processOutput(conversion, conversion.callback(delta))
       } catch ( err ) {
-        console.log(err)
+        app.error(err)
       }
     })
   }
@@ -212,7 +205,7 @@ module.exports = function(app) {
 
   function subscription_error(err)
   {
-    console.log("error: " + err)
+    app.error(err.toString())
   }
   
   function mapSubscription(mapping, options) {
@@ -226,7 +219,7 @@ module.exports = function(app) {
       subscription.subscribe.push({ path: key})
     });
 
-    debug("subscription: " + JSON.stringify(subscription))
+    app.debug("subscription: " + JSON.stringify(subscription))
 
     app.subscriptionmanager.subscribe(
       subscription,
@@ -236,52 +229,54 @@ module.exports = function(app) {
         try {
           processToPGNs(mapping.callback(delta, options))
         } catch ( err ) {
-          console.log(err)
+          app.error(err)
         }
       });
   }
+
+  function timeoutingArrayStream (
+    keys,
+    timeouts = [],
+    streambundle,
+    unsubscribes
+  ) {
+    app.debug(`keys:${keys}`)
+    app.debug(`timeouts:${timeouts}`)
+    const lastValues = keys.reduce((acc, key) => {
+      acc[key] = {
+        timestamp: new Date().getTime(),
+        value: null
+      }
+      return acc
+    }, {})
+    const combinedBus = new Bacon.Bus()
+    keys.map(skKey => {
+      streambundle.getSelfStream(skKey).onValue(value => {
+        lastValues[skKey] = {
+          timestamp: new Date().getTime(),
+          value
+        }
+        const now = new Date().getTime()
+
+        combinedBus.push(
+          keys.map((key, i) => {
+            return notDefined(timeouts[i]) ||
+              lastValues[key].timestamp + timeouts[i] > now
+              ? lastValues[key].value
+              : null
+          })
+        )
+      })
+    })
+    const result = combinedBus.debounce(10)
+    if (app.debug.enabled) {
+      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${x}`)))
+    }
+    return result
+  }
+
 };
 
-function timeoutingArrayStream (
-  keys,
-  timeouts = [],
-  streambundle,
-  unsubscribes
-) {
-  debug(`keys:${keys}`)
-  debug(`timeouts:${timeouts}`)
-  const lastValues = keys.reduce((acc, key) => {
-    acc[key] = {
-      timestamp: new Date().getTime(),
-      value: null
-    }
-    return acc
-  }, {})
-  const combinedBus = new Bacon.Bus()
-  keys.map(skKey => {
-    streambundle.getSelfStream(skKey).onValue(value => {
-      lastValues[skKey] = {
-        timestamp: new Date().getTime(),
-        value
-      }
-      const now = new Date().getTime()
-
-      combinedBus.push(
-        keys.map((key, i) => {
-          return notDefined(timeouts[i]) ||
-            lastValues[key].timestamp + timeouts[i] > now
-            ? lastValues[key].value
-            : null
-        })
-      )
-    })
-  })
-  const result = combinedBus.debounce(10)
-  if (debug.enabled) {
-    unsubscribes.push(result.onValue(x => debug(`${keys}:${x}`)))
-  }
-  return result
-}
 
 const notDefined = x => typeof x === 'undefined'
 const isDefined = x => typeof x !== 'undefined'
