@@ -12,8 +12,8 @@ let tempMessage = (temp, inst, src) => {
 module.exports = (app, plugin) => {
   return [{
     pgn: 130312,
-    title: 'Temperature (130312)',
-    optionKey: 'TEMPERATURE',
+    title: 'Outside Temperature (130312)',
+    optionKey: 'TEMPERATURE_OUTSIDE',
     keys: [
       "environment.outside.temperature"
     ],
@@ -23,8 +23,8 @@ module.exports = (app, plugin) => {
   },
   {
     pgn: 130312,
-    title: 'Temperature (130312)',
-    optionKey: 'TEMPERATURE',
+    title: 'Inside Temperature (130312)',
+    optionKey: 'TEMPERATURE_INSIDE',
     keys: [
       "environment.inside.temperature"
     ],
@@ -34,8 +34,8 @@ module.exports = (app, plugin) => {
   },
   {
     pgn: 130312,
-    title: 'Temperature (130312)',
-    optionKey: 'TEMPERATURE',
+    title: 'Engine Room Temperature (130312)',
+    optionKey: 'TEMPERATURE_ENGINEROOM',
     keys: [
       "environment.inside.engineRoom.temperature"
     ],
@@ -45,8 +45,8 @@ module.exports = (app, plugin) => {
   },
   {
     pgn: 130312,
-    title: 'Temperature (130312)',
-    optionKey: 'TEMPERATURE',
+    title: 'Refridgerator Temperature (130312)',
+    optionKey: 'TEMPERATURE_refridgerator',
     keys: [
       "environment.inside.refridgerator.temperature"
     ],
