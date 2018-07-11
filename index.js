@@ -19,7 +19,7 @@ module.exports = function(app) {
     Source type can be:
 
       onDelta - You will get all deltas via app.signalk.on('delta', ...). Please do no use this unless absolutely necessary.
-      
+
       onValueChange - The conversion should specify a variable called 'keys' which is an array of the Signal K paths that the convesion needs
 
       timer - The conversions callback will get called per the givien 'interval' variable
@@ -56,9 +56,9 @@ module.exports = function(app) {
     "If there is SignalK data for the conversion generate the following NMEA2000 pgns from Signal K data:",
     properties: {}
   };
-  
+
   updateSchema()
-  
+
   function updateSchema() {
     conversions.forEach(conversion => {
       var obj =  {
@@ -72,9 +72,9 @@ module.exports = function(app) {
           }
         }
       }
-      
+
       schema.properties[conversion.optionKey] = obj
-      
+
       if ( conversion.properties ) {
         var props = typeof conversion.properties === 'function' ? conversion.properties() : conversion.properties
         _.extend(obj.properties, props)
@@ -86,7 +86,7 @@ module.exports = function(app) {
     updateSchema()
     return schema
   }
-  
+
   plugin.start = function(options) {
     debug("start");
 
@@ -193,7 +193,7 @@ module.exports = function(app) {
         })
     );
   }
-  
+
   function mapOnDelta(conversion) {
     app.signalk.on('delta', (delta) => {
       try {
@@ -214,7 +214,7 @@ module.exports = function(app) {
   {
     console.log("error: " + err)
   }
-  
+
   function mapSubscription(mapping, options) {
     var subscription = {
       "context": mapping.context,
