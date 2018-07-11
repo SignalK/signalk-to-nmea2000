@@ -1,4 +1,3 @@
-const debug = require("debug")("signalk:signalk-to-nmea2000");
 const _ = require('lodash')
 
 const DEFAULT_TIMEOUT = 10000  // ms
