@@ -1,5 +1,11 @@
 ## Change Log
 
+### v2.2.0 (2018/07/14 17:35 +00:00)
+- [#12](https://github.com/SignalK/signalk-to-nmea2000/pull/12) [WIP] chore: update to use the latest plugin api (@sbender9)
+- [#16](https://github.com/SignalK/signalk-to-nmea2000/pull/16) feature: implement temperature and dynamic engine parameter sending (@mairas)
+- [#15](https://github.com/SignalK/signalk-to-nmea2000/pull/15) doc: add reference to canboatjs & admin ui (@tkurki)
+- [#13](https://github.com/SignalK/signalk-to-nmea2000/pull/13) doc: note adding pgns to allowed tx list of ntg-1 (@webmasterkai)
+
 ### v2.1.0 (2018/02/06 04:03 +00:00)
 - [#11](https://github.com/SignalK/signalk-to-nmea2000/pull/11) feature: add conversion for tank level and capacity (@sbender9)
 
