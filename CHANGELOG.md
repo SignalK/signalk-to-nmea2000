@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.2.1 (2018/08/10 01:18 +00:00)
+- [#18](https://github.com/SignalK/signalk-to-nmea2000/pull/18) fix: saving configuration fails when there is no tank data in signalk (@sbender9)
+
 ### v2.2.0 (2018/07/14 17:35 +00:00)
 - [#12](https://github.com/SignalK/signalk-to-nmea2000/pull/12) [WIP] chore: update to use the latest plugin api (@sbender9)
 - [#16](https://github.com/SignalK/signalk-to-nmea2000/pull/16) feature: implement temperature and dynamic engine parameter sending (@mairas)
