@@ -27,7 +27,7 @@ module.exports = (app, plugin) => {
         })
       }
       
-      return {
+      return tankPaths.length == 0 ? undefined : {
         tanks: {
           title: 'Tank Mapping',
           type: 'array',
