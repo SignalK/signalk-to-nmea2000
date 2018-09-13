@@ -101,19 +101,18 @@ module.exports = (app, plugin) => {
             return [{
                 pgn: 127489,
                 "Engine Instance": engine.instanceId,
-                "Oil Pressure": _.isUndefined(oilPres) ? undefined : oilPres / 100,
-                "Oil Temperature": oilTemp,
-                "Temperature": temp,
-                "Alternator Potential": altVolt,
-                "Fuel Rate": _.isUndefined(fuelRate) ? undefined : fuelRate / 3600 * 1000,
-                "Total Engine Hours": _.isUndefined(runTime) ? undefined : runTime / 3600,
-                "Coolant Pressure": _.isUndefined(coolPres) ? undefined : coolPres / 100,
-                "Fuel Pressure": _.isUndefined(fuelPres) ? undefined : fuelPres / 100,
-                "Reserved": 0,
-                "Discrete Status 1": undefined,
-                "Discrete Status 2": undefined,
-                "Percent Engine Load": _.isUndefined(engLoad) ? undefined : engLoad * 100,
-                "Percent Engine Torque": _.isUndefined(engTorque) ? undefined : engTorque * 100
+                "Oil pressure": oilPres === null ? undefined : oilPres / 100,
+                "Oil temperature": oilTemp === null ? undefined : oilTemp,
+                "Temperature": temp === null ? undefined : temp,
+                "Alternator Potential": altVolt === null ? undefined : temp,
+                "Fuel Rate": fuelRate ===null ? undefined : fuelRate / 3600 * 1000,
+                "Total Engine hours": runTime === null ? undefined : runTime,
+                "Coolant Pressure": coolPres === null ? undefined : coolPres / 100,
+                "Fuel Pressure": fuelPres === null ? undefined : fuelPres / 100,
+                "Discrete Status 1": [],
+                "Discrete Status 2": [],
+                "Percent Engine Load": engLoad === null ? undefined : engLoad * 100,
+                "Percent Engine Torque": engTorque === null ? undefined : engTorque * 100
             }]
           }
         }
