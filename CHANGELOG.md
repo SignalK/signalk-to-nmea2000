@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.2.3 (2018/09/13 23:30 +00:00)
+- [#22](https://github.com/SignalK/signalk-to-nmea2000/pull/22) fix: alternator voltage is getting set to the wrong value (@sbender9)
+
 ### v2.2.2 (2018/09/13 16:31 +00:00)
 - [#19](https://github.com/SignalK/signalk-to-nmea2000/pull/19) fix: Engine Parameters, Dynamic not getting generated correctly (@sbender9)
 
