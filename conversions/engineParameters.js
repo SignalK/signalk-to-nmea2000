@@ -104,7 +104,7 @@ module.exports = (app, plugin) => {
                 "Oil pressure": oilPres === null ? undefined : oilPres / 100,
                 "Oil temperature": oilTemp === null ? undefined : oilTemp,
                 "Temperature": temp === null ? undefined : temp,
-                "Alternator Potential": altVolt === null ? undefined : temp,
+                "Alternator Potential": altVolt === null ? undefined : altVolt,
                 "Fuel Rate": fuelRate ===null ? undefined : fuelRate / 3600 * 1000,
                 "Total Engine hours": runTime === null ? undefined : runTime,
                 "Coolant Pressure": coolPres === null ? undefined : coolPres / 100,
