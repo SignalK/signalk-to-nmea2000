@@ -3,6 +3,7 @@ const Concentrate2 = require("concentrate2");
 module.exports = (app, plugin) => {
   return {
     title: 'Wind (130306)',
+    pgns: [ 130306 ],
     optionKey: 'WINDv2',
     keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
     callback: (angle, speed) => {

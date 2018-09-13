@@ -87,12 +87,19 @@ module.exports = function(app) {
   }
 
   plugin.start = function(options) {
+    let pgns = []
     conversions.forEach(conversion => {
       if ( !_.isArray(conversion) ) {
         conversion = [ conversion ]
       }
       conversion.forEach(conversion => {
         if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
+          if ( !conversion.pgns ) {
+            app.error(`${conversion.title} does not list the pgns`)
+          } else {
+            pgns.push(...conversion.pgns)
+          }
+          
           app.debug(`${conversion.title} is enabled`)
 
           var subConversions = conversion.conversions
@@ -118,6 +125,9 @@ module.exports = function(app) {
         }
       })
     })
+    if ( app.registerToTransmitPGNs ) {
+      app.registerToTransmitPGNs(plugin.id, pgns)
+    }
   };
 
   plugin.stop = function() {

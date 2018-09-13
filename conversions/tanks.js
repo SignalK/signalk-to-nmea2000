@@ -14,6 +14,7 @@ module.exports = (app, plugin) => {
   
   return {
     title: 'Tank Levels (127505)',
+    pgns: [ 127505 ],
     optionKey: 'TANKS',
     context: 'vessels.self',
     properties: () => {

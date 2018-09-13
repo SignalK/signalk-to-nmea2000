@@ -15,6 +15,7 @@ module.exports = (app, plugin) => {
   
   return {
     title: 'Battery (127506 & 127508)',
+    pgns: [127506, 127508],
     optionKey: 'BATTERYv2',
     context: 'vessels.self',
     properties: {

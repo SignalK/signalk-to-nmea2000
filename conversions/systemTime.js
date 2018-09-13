@@ -3,6 +3,7 @@ const Concentrate2 = require("concentrate2");
 module.exports = (app, plugin) => {
   return {
     title: 'System Time (126992)',
+    pgns: [ 126992 ],
     sourceType: 'timer',
     interval: 1000,
     optionKey: 'SYSTEM_TIMEv2',

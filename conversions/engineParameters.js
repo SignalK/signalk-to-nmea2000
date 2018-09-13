@@ -20,6 +20,7 @@ module.exports = (app, plugin) => {
 
   return [{
     title: 'Temperature, exhaust (130312)',
+    pgns: [ 130312 ],
     optionKey: 'EXHAUST_TEMPERATURE',
     context: 'vessels.self',
     properties: {
@@ -67,6 +68,7 @@ module.exports = (app, plugin) => {
   {
     //pgn: 127489,
     title: 'Engine Parameters, Dynamic (127489)',
+    pgns: [ 127489 ],
     optionKey: 'ENGINE_PARAMETERS',
     context: 'vessels.self',
     properties: {

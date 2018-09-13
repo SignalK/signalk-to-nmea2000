@@ -4,6 +4,7 @@ const _ = require('lodash')
 module.exports = (app, plugin) => {
   return {
     title: 'Depth (128267)',
+    pgns: [ 128267 ],
     optionKey: 'DEPTHv2',
     keys: ["environment.depth.belowTransducer"],
     callback: (belowTransducer) => {
