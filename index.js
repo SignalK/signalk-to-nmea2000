@@ -9,6 +9,7 @@ module.exports = function(app) {
   var plugin = {};
   var unsubscribes = [];
   var timers = []
+  var pgns = []
   var conversions = load_conversions(app, plugin)
   conversions = [].concat.apply([], conversions)
 
@@ -87,7 +88,7 @@ module.exports = function(app) {
   }
 
   plugin.start = function(options) {
-    let pgns = []
+    pgns = []
     conversions.forEach(conversion => {
       if ( !_.isArray(conversion) ) {
         conversion = [ conversion ]
@@ -125,9 +126,11 @@ module.exports = function(app) {
         }
       })
     })
-    if ( app.registerToTransmitPGNs ) {
-      app.registerToTransmitPGNs(plugin.id, pgns)
-    }
+    app.on('nmea2000OutAvailable', () => {
+      if ( pgns.length > 0 ) {
+        app.emit('nmea2000PgnList', pgns)
+      }
+    })
   };
 
   plugin.stop = function() {
