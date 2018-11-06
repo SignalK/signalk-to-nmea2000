@@ -56,6 +56,7 @@ module.exports = (app, plugin) => {
               pgn: 130312,
               SID: 0xff,
               "Temperature Instance": engine.tempInstanceId,
+              "Instance": engine.tempInstanceId,
               "Temperature Source": 14,
               "Actual Temperature": temperature,
             }]
@@ -101,6 +102,7 @@ module.exports = (app, plugin) => {
             return [{
                 pgn: 127489,
                 "Engine Instance": engine.instanceId,
+                "Instance": engine.instanceId,
                 "Oil pressure": oilPres === null ? undefined : oilPres / 100,
                 "Oil temperature": oilTemp === null ? undefined : oilTemp,
                 "Temperature": temp === null ? undefined : temp,

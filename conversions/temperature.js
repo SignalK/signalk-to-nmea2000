@@ -4,6 +4,7 @@ let tempMessage = (temp, inst, src) => {
     pgn: 130312,
     SID: 0xff,
     "Temperature Instance": inst,
+    "Instance": inst,
     "Temperature Source": src,
     "Actual Temperature": temp,
   }]
