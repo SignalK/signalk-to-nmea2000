@@ -18,6 +18,12 @@ module.exports = (app, plugin) => {
       'engineTorque'
   ]
 
+  const engRapidKeys = [
+    'revolutions',
+    'boostPressure',
+    'drive.trimState'
+  ]
+
   return [{
     title: 'Temperature, exhaust (130312)',
     optionKey: 'EXHAUST_TEMPERATURE',
@@ -66,8 +72,7 @@ module.exports = (app, plugin) => {
     }
   },
   {
-    //pgn: 127489,
-    title: 'Engine Parameters, Dynamic (127489)',
+    title: 'Engine Parameters (127489,127488)',
     optionKey: 'ENGINE_PARAMETERS',
     context: 'vessels.self',
     properties: {
@@ -94,7 +99,7 @@ module.exports = (app, plugin) => {
       if ( !_.get(options, 'ENGINE_PARAMETERS.engines') ) {
         return null
       }
-      return options.ENGINE_PARAMETERS.engines.map(engine => {
+      const dyn = options.ENGINE_PARAMETERS.engines.map(engine => {
         return {
           keys: engParKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engParKeys.map(key => DEFAULT_TIMEOUT),
@@ -119,6 +124,25 @@ module.exports = (app, plugin) => {
           }
         }
       })
+
+      const rapid = options.ENGINE_PARAMETERS.engines.map(engine => {
+        return {
+          keys: engRapidKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
+          timeouts: engRapidKeys.map(key => DEFAULT_TIMEOUT),
+          callback: (revolutions, boostPressure, trimState) => {
+            return [{
+                pgn: 127488,
+                "Engine Instance": engine.instanceId,
+                "Instance": engine.instanceId,
+                "Speed": revolutions === null ? undefined : revolutions * 60,
+                "Boost Presure": boostPressure === null ? undefined : boostPressure / 100,
+                "Tilt/Trim": trimState === null ? undefined : trimState * 100
+            }]
+          }
+        }
+      })
+
+      return dyn.concat(rapid)
     }
   }]
 }
