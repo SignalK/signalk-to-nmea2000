@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.3.0 (2019/05/02 12:13 +00:00)
+- [#24](https://github.com/SignalK/signalk-to-nmea2000/pull/24) feature: add engine parameters rapid update 127488 (@sbender9)
+
 ### v2.2.4 (2018/11/06 20:01 +00:00)
 - [#23](https://github.com/SignalK/signalk-to-nmea2000/pull/23) fix; update to support changes to the Instance field names in canboat (@sbender9)
 
