@@ -1,7 +1,7 @@
 
 module.exports = (app, plugin) => {
   return {
-    pgns: [ 129026 ],
+    pgns: [ 128259 ],
     title: 'Speed (128259)',
     optionKey: 'SPEED',
     keys: ["navigation.speedThroughWater"],
