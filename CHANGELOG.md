@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.4.0 (2019/05/29 12:48 +00:00)
+- [#25](https://github.com/SignalK/signalk-to-nmea2000/pull/25)  feature: add Speed Through Water PGN (@jtroyer76)
+
 ### v2.3.0 (2019/05/02 12:13 +00:00)
 - [#24](https://github.com/SignalK/signalk-to-nmea2000/pull/24) feature: add engine parameters rapid update 127488 (@sbender9)
 
