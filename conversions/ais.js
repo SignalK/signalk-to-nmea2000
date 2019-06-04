@@ -1,5 +1,4 @@
 const _ = require('lodash')
-const Concentrate2 = require("concentrate2");
 
 const static_keys = [
   "name",
@@ -19,11 +18,37 @@ const static_pgn = 129794
 const position_pgn = 129038
 const aton_pgn = 129041
 
+const navStatusMapping = {
+  'not under command': 2,
+  'anchored': 1,
+  'moored': 5,
+  'sailing': 8,
+  'motoring': 0,
+  'towing < 200m': 3,
+  'towing > 200m': 3,
+  'pushing': 3,
+  'fishing': 7,
+  'fishing-hampered': 7,
+  'trawling': 7,
+  'trawling-shooting': 7,
+  'trawling-hauling': 7,
+  'not-under-way': 2,
+  'aground': 6,
+  'restricted manouverability':3,
+  'restricted manouverability towing < 200m': 3,
+  'restricted manouverability towing > 200m': 3,
+  'restricted manouverability underwater operations': 3,
+  'constrained by draft': 4,
+  'ais-sart': 14,
+  'hazardous material high speed': 9,
+  'hazardous material wing in ground': 10
+}
+
 module.exports = (app, plugin) => {
   return {
     title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
     sourceType: 'onDelta',
-    outputType: 'buffer',
+    //outputType: 'buffer',
     optionKey: 'AISv2',
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId
@@ -81,13 +106,15 @@ function generateStatic(vessel, mmsi, delta) {
   var fromBow = findDeltaValue(delta, 'sensors.ais.fromBow')
   var draft = _.get(findDeltaValue(delta, 'design.draft'), 'maximum')
   var imo = findDeltaValue(delta, 'registrations.imo')
-  
+  var dest = findDeltaValue(delta, 'navigation.destination.commonName')
+  /*
   type = _.isUndefined(type) ? 0 : type
   callsign = fillASCII(callsign ? callsign : '0', 7)
   name = fillASCII(name ? name : '0', 20)
   length = length ? length * 10 : 0xffff;
   beam = beam ? beam * 10 : 0xffff;
   draft = _.isUndefined(draft) ? 0xffff : draft * 100
+  */
 
   if ( _.isUndefined(imo) ) {
     imo = 0
@@ -96,17 +123,36 @@ function generateStatic(vessel, mmsi, delta) {
     imo = Number(parts[parts.length-1])
   }
 
-  var fromStarboard = 0xffff
+  var fromStarboard
   if ( beam && fromCenter ) {
-    fromStarboard = (beam / 2 + fromCenter) * 10
+    fromStarboard = (beam / 2 + fromCenter)
   }
-  fromBow = fromBow ? fromBow * 10 : 0xffff
+  fromBow = fromBow ? fromBow : undefined
 
   //2017-04-15T14:58:37.625Z,6,129794,43,255,76,05,28,e0,42,0f,0f,ee,8c,00,39,48,41,33,37,39,35,41,54,4c,41,4e,54,49,43,20,50,52,4f,4a,45,43,54,20,49,49,40,4f,8a,07,18,01,8c,00,fe,06,de,44,00,cc,bf,19,e8,03,52,55,20,4c,45,44,20,3e,20,55,53,20,42,41,4c,40,40,40,40,40,04,00,ff
 
-  var dest = fillASCII('0', 20)
-
   mmsi = parseInt(mmsi, 10)
+
+  return {
+    pgn: static_pgn,
+    'Message ID': 5,
+    //'Repeat indicator': 0,
+    'User ID': mmsi,
+    'Callsign': callsign,
+    'Name': name,
+    'Type of ship': type,
+    'Length': length,
+    'Beam': beam,
+    'Position reference from Starboard': fromStarboard,
+    'Position reference from Bow': fromBow,
+    'Draft': draft,
+    'Destination': dest,
+    'AIS version indicator': 0,
+    'DTE': 0,
+    'AIS Transceiver information': 0
+  }
+
+  /*
   var data = Concentrate2()
       .uint8(0x05)
       .uint32(mmsi)
@@ -125,6 +171,7 @@ function generateStatic(vessel, mmsi, delta) {
       .result()
   
   return { pgn: static_pgn, buffer:data }
+*/
 }
 
 function generatePosition(vessel, mmsi, delta) {
@@ -135,7 +182,24 @@ function generatePosition(vessel, mmsi, delta) {
     var sog = findDeltaValue(delta, 'navigation.speedOverGround')
     var heading = findDeltaValue(delta, 'navigation.headingTrue');
     var rot = findDeltaValue(delta, 'navigation.rateOfTurn')
+    var status = findDeltaValue(delta, 'navigation.state')
 
+    if ( !_.isUndefined(status) ) {
+      status = navStatusMapping[status]
+    }
+    if ( _.isUndefined(status) ) {
+      status = 0
+    }
+
+    if ( cog > Math.PI*2 ) {
+      cog = undefined
+    }
+
+    if ( heading > Math.PI*2 ) {
+      heading = undefined
+    }
+    
+    /*
     cog = _.isUndefined(cog) ? 0xffff : (Math.trunc(cog * 10000))
     sog = _.isUndefined(sog) ? 0xffff : (sog*100);
     heading = _.isUndefined(heading) ? 0xffff : (Math.trunc(heading * 10000))
@@ -143,6 +207,7 @@ function generatePosition(vessel, mmsi, delta) {
 
     var latitude = position.latitude * 10000000;
     var longitude = position.longitude * 10000000;
+    */
 
     /*
       2017-04-15T15:06:37.589Z,4,129038,43,255,28,
@@ -162,6 +227,27 @@ function generatePosition(vessel, mmsi, delta) {
       ff reserved
     */
 
+    //console.log(`${mmsi} ${position.longitude} ${position.latitude} ${cog} ${sog} ${heading} ${rot}`)
+
+    return {
+      pgn: position_pgn,
+      'Message ID': 1,
+      //'Repeat Indicator': 0,
+      'User ID': mmsi,
+      'Longitude': position.longitude,
+      'Latitude': position.latitude,
+      'Position Accuracy': 0,
+      'RAIM': 0,
+      'Time Stamp': 0,
+      'COG': cog,
+      'SOG': sog,
+      'AIS Transceiver information': 0,
+      'Heading': heading,
+      'Rate of Turn': rot,
+      'Nav Status': status
+    }
+
+    /*
     mmsi = parseInt(mmsi, 10)
     var data = Concentrate2()
         .uint8(0x01)
@@ -181,6 +267,7 @@ function generatePosition(vessel, mmsi, delta) {
         .result()
     
     return { pgn: position_pgn, buffer: data }
+    */
   } else {
     return null
   }
@@ -199,16 +286,18 @@ function generateAtoN(vessel, mmsi, delta) {
     var latitude = position.latitude * 10000000;
     var longitude = position.longitude * 10000000;
 
+    /*
     type = _.isUndefined(type) ? 0 : type
     name = fillASCII(name ? name : '0', 20)
     length = length ? length * 10 : 0xffff;
     beam = beam ? beam * 10 : 0xffff;
+    */
 
-    var fromStarboard = 0xffff
+    var fromStarboard
     if ( beam && fromCenter ) {
-      fromStarboard = (beam / 2 + fromCenter) * 10
+      fromStarboard = (beam / 2 + fromCenter)
     }
-    fromBow = fromBow ? fromBow * 10 : 0xffff
+    fromBow = fromBow ? fromBow * 10 : undefined
 
       /*
   2017-04-15T15:15:08.461Z,4,129041,43,255,49,15,
@@ -231,6 +320,25 @@ function generateAtoN(vessel, mmsi, delta) {
   */
     
     mmsi = parseInt(mmsi, 10)
+
+    return {
+      pgn: aton_pgn,
+      'Message ID': 0,
+      'Repeat Indicator': 0,
+      'User ID': mmsi,
+      'Longitude': position.longitude,
+      'Latitude': position.latitude,
+      'Position Accuracy': 0,
+      'RAIM': 0,
+      'Time Stamp': 0,
+      'Length/Diameter': length,
+      'Beam/Diameter': beam,
+      'Position Reference from Starboard Edge': fromStarboard,
+      'Position Reference from True North Facing Edge': fromBow,
+      'AtoN Type': type,
+      'AtoN Name': name
+    }
+    /*
     var data = Concentrate2()
         .uint8(0x15)
         .uint32(mmsi)
@@ -254,6 +362,7 @@ function generateAtoN(vessel, mmsi, delta) {
         .uint8(0x40)
         .result()
     return { pgn: aton_pgn, buffer: data }
+    */
   } else {
     return null
   }

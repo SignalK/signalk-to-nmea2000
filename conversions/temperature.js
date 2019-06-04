@@ -49,7 +49,7 @@ module.exports = (app, plugin) => {
     title: 'Refridgerator Temperature (130312)',
     optionKey: 'TEMPERATURE_refridgerator',
     keys: [
-      "environment.inside.refridgerator.temperature"
+      "environment.inside.refrigerator.temperature"
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 7)

@@ -193,6 +193,7 @@ module.exports = function(app) {
         processOutput(conversion, conversion.callback(delta))
       } catch ( err ) {
         app.error(err)
+        console.error(err.stack)
       }
     })
   }
