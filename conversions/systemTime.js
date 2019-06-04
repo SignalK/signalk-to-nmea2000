@@ -1,4 +1,3 @@
-const Concentrate2 = require("concentrate2");
 
 module.exports = (app, plugin) => {
   return {

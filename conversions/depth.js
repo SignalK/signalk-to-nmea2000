@@ -1,4 +1,3 @@
-const Concentrate2 = require("concentrate2");
 const _ = require('lodash')
 
 module.exports = (app, plugin) => {
