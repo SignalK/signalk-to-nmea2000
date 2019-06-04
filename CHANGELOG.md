@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.4.1 (2019/06/04 17:32 +00:00)
+- [#26](https://github.com/SignalK/signalk-to-nmea2000/pull/26) fix: bad heading values causing ais encoding to fail (@sbender9)
+
 ### v2.4.0 (2019/05/29 12:48 +00:00)
 - [#25](https://github.com/SignalK/signalk-to-nmea2000/pull/25)  feature: add Speed Through Water PGN (@jtroyer76)
 
