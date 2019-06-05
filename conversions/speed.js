@@ -4,6 +4,7 @@ module.exports = (app, plugin) => {
     pgns: [ 128259 ],
     title: 'Speed (128259)',
     optionKey: 'SPEED',
+    pgns: 128259,
     keys: ["navigation.speedThroughWater"],
 
     callback: (speed) => {

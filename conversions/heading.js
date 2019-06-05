@@ -4,6 +4,7 @@ module.exports = (app, plugin) => {
     pgn: 127250,
     title: 'Heading (127250)',
     optionKey: 'HEADINGv2',
+    pgns: [ 127250 ],
     keys: [
       "navigation.headingMagnetic",
       'navigation.magneticVariation'

@@ -6,6 +6,7 @@ module.exports = (app, plugin) => {
   return {
     title: 'COG & SOG (129026)',
     optionKey: 'COG_SOGv2',
+    pgns: [ 129026 ],
     keys: ["navigation.courseOverGroundTrue", "navigation.speedOverGround"],
     callback: (course, speed) => {
       try {

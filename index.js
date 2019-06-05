@@ -6,7 +6,9 @@ const path = require('path')
 const fs = require('fs')
 
 module.exports = function(app) {
-  var plugin = {};
+  var plugin = {
+    lastUpdates: {}
+  };
   var unsubscribes = [];
   var timers = []
   var conversions = load_conversions(app, plugin)
@@ -104,6 +106,7 @@ module.exports = function(app) {
           if ( subConversions != null ) {
             subConversions.forEach(subConversion => {
               var type = _.isUndefined(subConversion.sourceType) ? 'onValueChange' : subConversion.sourceType
+
               var mapper = sourceTypes[type]
               if ( _.isUndefined(mapper) ) {
                 console.error(`Unknown conversion type: ${type}`)
@@ -156,13 +159,22 @@ module.exports = function(app) {
   function processToN2K(pgns) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
-        try {
-          app.debug("emit %j", pgn)
-          app.emit("nmea2000JsonOut", pgn);
-        }
-        catch ( err ) {
-          console.error(`error writing pgn ${JSON.stringify(pgn)}`)
-          console.error(err.stack)
+
+        const key = `${pgn.pgn}.${pgn.Instance}`
+        const lastUpdate = plugin.lastUpdates[key]
+        const rate = updateRates[pgn.pgn]
+        if ( !_.isUndefined(rate) && !_.isUndefined(lastUpdate) && Date.now() - lastUpdate < rate ) {
+          return
+        } else {
+          plugin.lastUpdates[key] = Date.now()
+          try {
+            app.debug("emit %j", pgn)
+            app.emit("nmea2000JsonOut", pgn);
+          }
+          catch ( err ) {
+            console.error(`error writing pgn ${JSON.stringify(pgn)}`)
+            console.error(err.stack)
+          }
         }
       })
     }
@@ -172,7 +184,9 @@ module.exports = function(app) {
     outputTypes[conversion.outputType](output)
   }
 
-  function mapBaconjs(conversion) {
+  function mapBaconjs(conversion, options) {
+    let lastUpdate
+
     unsubscribes.push(
       timeoutingArrayStream(
         conversion.keys,
@@ -187,7 +201,7 @@ module.exports = function(app) {
     );
   }
 
-  function mapOnDelta(conversion) {
+  function mapOnDelta(conversion, options) {
     app.signalk.on('delta', (delta) => {
       try {
         processOutput(conversion, conversion.callback(delta))
@@ -271,13 +285,28 @@ module.exports = function(app) {
     })
     const result = combinedBus.debounce(10)
     if (app.debug.enabled) {
-      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${x}`)))
+      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${JSON.stringify(x)}`)))
     }
     return result
   }
-
-};
+}
 
 
 const notDefined = x => typeof x === 'undefined'
 const isDefined = x => typeof x !== 'undefined'
+
+const updateRates = {
+  127506: 1500,
+  127508: 1500,
+  129026: 250,
+  128267: 1000,
+  130312: 2000,
+  127489: 500,
+  129025: 100,
+  129029: 1000,
+  127250: 100,
+  126992: 1000,
+  127505: 2500,
+  130306: 100
+}
+
