@@ -14,7 +14,7 @@ const { DateTime } = require('luxon')
 module.exports = (app, plugin) => {
   return {
     title: 'Autopilot Routing Data',
-    optionKey: 'AUTOPILOTv1',
+    optionKey: 'AUTOPILOTv2',
     keys: [
       'navigation.headingMagnetic',
       'navigation.magneticVariation',
