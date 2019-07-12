@@ -20,83 +20,56 @@ module.exports = (app, plugin) => {
       'navigation.headingMagnetic',
       'navigation.headingTrue',
       'navigation.magneticVariation',
+      'navigation.magneticVariationAgeOfService',
       'navigation.courseRhumbline.crossTrackError',
       'navigation.courseRhumbline.nextPoint',
       'navigation.courseRhumbline.nextPoint.bearingTrue',
       'navigation.courseRhumbline.nextPoint.velocityMadeGood',
       'navigation.courseRhumbline.nextPoint.distance'
     ],
-    callback: (headingMagnetic, headingTrue, variation, XTE, nextPointPosition, bearingTrue, velocityMadeGood, distance) => {
-      const now = DateTime.local()
-      const days = Math.floor(now.toMillis() / 86400000) // Days since January 1, 1970
-
-      console.log('[navigation.courseRhumbline]', JSON.stringify({
-        headingMagnetic,
-        headingTrue,
-        variation,
-        XTE,
-        nextPointPosition,
-        bearingTrue,
-        velocityMadeGood,
-        distance
-      }, null, 2))
+    callback: (headingMagnetic, headingTrue, magneticVariation, magneticVariationAgeOfService, XTE, nextPointPosition, bearingTrue, velocityMadeGood, distance) => {
+      const validNextPointPosition = (nextPointPosition && typeof nextPointPosition === 'object' && nextPointPosition.hasOwnProperty('latitude') && nextPointPosition.hasOwnProperty('longitude'))
 
       return [
-        /*
-        {
+        (!distance || !bearingTrue || !validNextPointPosition) ? null : {
           pgn: 129284,
           SID: 87,
-          'Distance to Waypoint': -1,
-          'Course/Bearing reference': headingMagnetic ? 1 : 0, // magnetic
-          'Perpendicular Crossed': 0, // no
-          'Arrival Circle Entered': 0, // no
+          'Distance to Waypoint': distance,
+          'Course/Bearing reference': 0, // true
           'Calculation Type': 1, // rhumbline
           'ETA Time': -1, // seconds since midnight
           'ETA Date': -1, // days since epoch
-          'Bearing, Origin to Destination Waypoint': -1,
-          'Bearing, Position to Destination Waypoint': -1,
-          'Origin Waypoint Number': -1,
+          // 'Bearing, Origin to Destination Waypoint': -1,
+          'Bearing, Position to Destination Waypoint': bearingTrue,
+          // 'Origin Waypoint Number': -1,
           'Destination Waypoint Number': -1,
-          'Destination Latitude': -1,
-          'Destination Longitude': -1,
-          'Waypoint Closing Velocity': -1
+          'Destination Latitude': nextPointPosition.latitude,
+          'Destination Longitude': nextPointPosition.longitude
         },
-        {
+        (!bearingTrue || !headingTrue) ? null : {
           pgn: 127237,
-          'Rudder Limit Exceeded': -1,
-          'Off-Heading Limit Exceeded': -1,
-          'Off-Track Limit Exceeded': -1,
-          Override: -1,
-          'Steering Mode': -1,
-          'Turn Mode': -1,
-          'Heading Reference': -1,
-          'Commanded Rudder Direction': -1,
-          'Commanded Rudder Angle': -1,
-          'Heading-To-Steer (Course)': -1,
-          'Track': -1,
-          'Rudder Limit': -1,
-          'Off-Heading Limit': -1,
-          'Radius of Turn Order': -1,
-          'Rate of Turn Order': -1,
-          'Off-Track Limit': -1,
-          'Vessel Heading': headingMagnetic || headingTrue
+          'Heading-To-Steer (Course)': bearingTrue,
+          // 'Track': -1,
+          'Vessel Heading': headingTrue
         },
-        // */
-        {
+        !XTE ? null : {
           pgn: 129283, // XTE
           SID: 87,
           'XTE mode': 2, // Estimated
           'Navigation Terminated': 0, // No
           XTE
         },
-        {
+        (!magneticVariation || !magneticVariationAgeOfService) ? null : {
           pgn: 127258, // Magnetic variation
           SID: 87,
           Source: 1, // Automatic Chart
-          Variation: variation, // Variation with resolution 0.0001 in rad,
-          'Age of service': days // Days since epoch
+          Variation: magneticVariation, // Variation with resolution 0.0001 in rad,
+          'Age of service': Math.floor(magneticVariationAgeOfService / 86400000) // Days since epoch
         }
-      ]
+      ].filter(pgn => (pgn !== null)).map(pgn => {
+        console.log(`Sending PGN ${pgn.pgn}: ${JSON.stringify(pgn, null, 2)}`)
+        return pgn
+      })
     }
   }
 }
