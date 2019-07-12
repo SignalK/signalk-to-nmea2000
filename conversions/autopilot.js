@@ -21,9 +21,12 @@ module.exports = (app, plugin) => {
       'navigation.headingTrue',
       'navigation.magneticVariation',
       'navigation.courseRhumbline.crossTrackError',
-      'navigation.courseRhumbline.nextPoint'
+      'navigation.courseRhumbline.nextPoint',
+      'navigation.courseRhumbline.nextPoint.bearingTrue',
+      'navigation.courseRhumbline.nextPoint.velocityMadeGood',
+      'navigation.courseRhumbline.nextPoint.distance'
     ],
-    callback: (headingMagnetic, headingTrue, variation, XTE, nextPoint) => {
+    callback: (headingMagnetic, headingTrue, variation, XTE, nextPointPosition, bearingTrue, velocityMadeGood, distance) => {
       const now = DateTime.local()
       const days = Math.floor(now.toMillis() / 86400000) // Days since January 1, 1970
 
@@ -32,7 +35,10 @@ module.exports = (app, plugin) => {
         headingTrue,
         variation,
         XTE,
-        nextPoint
+        nextPointPosition,
+        bearingTrue,
+        velocityMadeGood,
+        distance
       }, null, 2))
 
       return [
