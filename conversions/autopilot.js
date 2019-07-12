@@ -18,25 +18,30 @@ module.exports = (app, plugin) => {
     optionKey: 'AUTOPILOTv2',
     keys: [
       'navigation.headingMagnetic',
+      'navigation.headingTrue',
       'navigation.magneticVariation',
       'navigation.courseRhumbline.crossTrackError',
-      'navigation.courseRhumbline'
+      'navigation.courseRhumbline.nextPoint'
     ],
-    callback: (heading, variation, XTE, courseRhumbline) => {
+    callback: (headingMagnetic, headingTrue, variation, XTE, nextPoint) => {
       const now = DateTime.local()
       const days = Math.floor(now.toMillis() / 86400000) // Days since January 1, 1970
 
       console.log('[navigation.courseRhumbline]', JSON.stringify({
-        heading, variation, XTE, courseRhumbline
+        headingMagnetic,
+        headingTrue,
+        variation,
+        XTE,
+        nextPoint
       }, null, 2))
-      
+
       return [
         /*
         {
           pgn: 129284,
           SID: 87,
           'Distance to Waypoint': -1,
-          'Course/Bearing reference': 1, // magnetic
+          'Course/Bearing reference': headingMagnetic ? 1 : 0, // magnetic
           'Perpendicular Crossed': 0, // no
           'Arrival Circle Entered': 0, // no
           'Calculation Type': 1, // rhumbline
@@ -68,7 +73,7 @@ module.exports = (app, plugin) => {
           'Radius of Turn Order': -1,
           'Rate of Turn Order': -1,
           'Off-Track Limit': -1,
-          'Vessel Heading': heading
+          'Vessel Heading': headingMagnetic || headingTrue
         },
         // */
         {
