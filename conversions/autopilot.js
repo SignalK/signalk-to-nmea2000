@@ -3,7 +3,7 @@ const { DateTime } = require('luxon')
 /**
  * APB: 127237 (Heading/Track control) X, 129283 (Cross Track Error) X, 129284 (Navigation Data) X
  * RMC: 127258 (Magnetic Variation) X
- * 
+ *
  * One also should enable conversions for (if not present on network):
  * - systemTime
  * - cogSOG
@@ -13,6 +13,7 @@ const { DateTime } = require('luxon')
 
 module.exports = (app, plugin) => {
   return {
+    pgns: [ 127237, 129283, 129284, 127258 ],
     title: 'Autopilot Routing Data',
     optionKey: 'AUTOPILOTv2',
     keys: [
@@ -25,7 +26,10 @@ module.exports = (app, plugin) => {
       const now = DateTime.local()
       const days = Math.floor(now.toMillis() / 86400000) // Days since January 1, 1970
 
-      console.log('[navigation.courseRhumbline]', JSON.stringify(courseRhumbline, null, 2))
+      console.log('[navigation.courseRhumbline]', JSON.stringify({
+        heading, variation, XTE, courseRhumbline
+      }, null, 2))
+      
       return [
         /*
         {
@@ -79,7 +83,7 @@ module.exports = (app, plugin) => {
           SID: 87,
           Source: 1, // Automatic Chart
           Variation: variation, // Variation with resolution 0.0001 in rad,
-          'Age of service': days, // Days since epoch
+          'Age of service': days // Days since epoch
         }
       ]
     }
