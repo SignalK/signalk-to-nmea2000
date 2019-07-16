@@ -24,45 +24,55 @@ module.exports = (app, plugin) => {
       'navigation.magneticVariation',
       'navigation.magneticVariationAgeOfService',
       'navigation.courseRhumbline.crossTrackError',
-      'navigation.courseRhumbline.nextPoint',
+      'navigation.courseRhumbline.bearingTrackTrue',
+      'navigation.courseRhumbline.bearingTrackMagnetic',
+      'navigation.courseRhumbline.nextPoint.ID',
+      'navigation.courseRhumbline.nextPoint.position',
       'navigation.courseRhumbline.nextPoint.bearingTrue',
-      'navigation.courseRhumbline.nextPoint.velocityMadeGood',
-      'navigation.courseRhumbline.nextPoint.distance'
+      'navigation.courseRhumbline.nextPoint.distance',
+      'navigation.courseRhumbline.previousPoint.ID',
+      'steering.autopilot.target.headingTrue',
+      'notifications.arrivalCircleEntered',
+      'notifications.perpendicularPassed'
     ],
-    callback: (headingMagnetic, headingTrue, magneticVariation, magneticVariationAgeOfService, XTE, nextPointPosition, bearingTrue, velocityMadeGood, distance) => {
+    callback: (headingMagnetic, headingTrue, magneticVariation, magneticVariationAgeOfService, XTE, bearingTrackTrue, bearingTrackMagnetic, nextPointID, nextPointPosition, nextPointBearingTrue, distance, previousPointID, apHeadingTrue, arrivalCircleEntered, perpendicularPassed) => {
       const validNextPointPosition = (nextPointPosition && typeof nextPointPosition === 'object' && nextPointPosition.hasOwnProperty('latitude') && nextPointPosition.hasOwnProperty('longitude'))
+      const SID = 87
+      const bearingTrack = bearingTrackTrue || bearingTrackMagnetic
 
       return [
-        (!distance || !bearingTrue || !validNextPointPosition) ? null : {
+        (!distance || !nextPointBearingTrue || !validNextPointPosition) ? null : {
           pgn: 129284,
-          SID: 87,
+          SID,
           'Distance to Waypoint': distance,
           'Course/Bearing reference': 0, // true
+          'Perpendicular Crossed': perpendicularPassed === null ? 0 : 1, // 0 = No, 1 = Yes
+          'Arrival Circle Entered': arrivalCircleEntered === null ? 0 : 1, // 0 = No, 1 = Yes
           'Calculation Type': 1, // rhumbline
-          // 'ETA Time': -1, // seconds since midnight
-          // 'ETA Date': -1, // days since epoch
-          // 'Bearing, Origin to Destination Waypoint': -1,
-          'Bearing, Position to Destination Waypoint': bearingTrue,
-          // 'Origin Waypoint Number': -1,
-          // 'Destination Waypoint Number': -1,
+          // 'ETA Time': -1, // Seconds since midnight
+          // 'ETA Date': -1, // Days since January 1, 1970
+          'Bearing, Origin to Destination Waypoint': bearingTrack,
+          'Bearing, Position to Destination Waypoint': nextPointBearingTrue,
+          'Origin Waypoint Number': previousPointID,
+          'Destination Waypoint Number': nextPointID,
           'Destination Latitude': nextPointPosition.latitude,
           'Destination Longitude': nextPointPosition.longitude
+          // 'Waypoint Closing Velocity': -1
         },
-        (!bearingTrue || !headingTrue) ? null : {
+        (!apHeadingTrue || !headingTrue) ? null : {
           pgn: 127237,
-          'Heading-To-Steer (Course)': bearingTrue,
-          // 'Track': -1,
+          'Heading-To-Steer (Course)': apHeadingTrue,
           'Vessel Heading': headingTrue
         },
         !XTE ? null : {
           pgn: 129283, // XTE
-          SID: 87,
-          'XTE mode': 2, // Estimated
+          'XTE mode': 0, // Autonomous
+          SID,
           XTE
         },
         (!magneticVariation || !magneticVariationAgeOfService) ? null : {
           pgn: 127258, // Magnetic variation
-          SID: 87,
+          SID,
           Source: 1, // Automatic Chart
           Variation: magneticVariation, // Variation with resolution 0.0001 in rad,
           'Age of service': Math.floor(magneticVariationAgeOfService / 86400000) // Days since epoch
