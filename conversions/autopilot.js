@@ -56,13 +56,18 @@ module.exports = (app, plugin) => {
     ) => {
       const validNextPointPosition = (nextPointPosition && typeof nextPointPosition === 'object' && nextPointPosition.hasOwnProperty('latitude') && nextPointPosition.hasOwnProperty('longitude'))
       const SID = 87
-      const bearingTrack = bearingTrackTrue || bearingTrackMagnetic
+      const bearingTrack = bearingTrackTrue === null ? bearingTrackMagnetic : bearingTrackTrue
+      let bearingRef = 0
+
+      if (bearingTrackTrue === null && bearingTrackMagnetic !== null) {
+        bearingRef = 1
+      }
 
       const navigationDataPGN = {
         pgn: 129284,
         SID,
         'Distance to Waypoint': distance || 0,
-        'Course/Bearing reference': 0, // true
+        'Course/Bearing reference': bearingRef,
         'Perpendicular Crossed': perpendicularPassed === null ? 0 : 1, // 0 = No, 1 = Yes
         'Arrival Circle Entered': arrivalCircleEntered === null ? 0 : 1, // 0 = No, 1 = Yes
         'Calculation Type': 1 // rhumbline
@@ -71,23 +76,23 @@ module.exports = (app, plugin) => {
         // 'Waypoint Closing Velocity': -1
       }
 
-      if (nextPointBearingTrue || nextPointBearingMagnetic) {
-        navigationDataPGN['Bearing, Position to Destination Waypoint'] = nextPointBearingTrue || nextPointBearingMagnetic
+      if (nextPointBearingTrue !== null || nextPointBearingMagnetic !== null) {
+        navigationDataPGN['Bearing, Position to Destination Waypoint'] = nextPointBearingTrue === null ? nextPointBearingMagnetic : nextPointBearingTrue
       }
 
-      if (bearingTrack) {
+      if (bearingTrack !== null) {
         navigationDataPGN['Bearing, Origin to Destination Waypoint'] = bearingTrack
       }
 
-      if (previousPointID) {
+      if (previousPointID !== null) {
         navigationDataPGN['Origin Waypoint Number'] = previousPointID
       }
 
-      if (nextPointID) {
+      if (nextPointID !== null) {
         navigationDataPGN['Destination Waypoint Number'] = nextPointID
       }
 
-      if (validNextPointPosition) {
+      if (validNextPointPosition === true) {
         navigationDataPGN['Destination Latitude'] = nextPointPosition.latitude
         navigationDataPGN['Destination Longitude'] = nextPointPosition.longitude
       }
@@ -97,8 +102,8 @@ module.exports = (app, plugin) => {
         'Heading-To-Steer (Course)': apHeadingTrue
       }
 
-      if (headingTrue || headingMagnetic) {
-        headingToSteerPGN['Vessel Heading'] = headingTrue || headingMagnetic
+      if (headingTrue !== null || headingMagnetic !== null) {
+        headingToSteerPGN['Vessel Heading'] = headingTrue === null ? headingMagnetic : headingTrue
       }
 
       return [
@@ -115,7 +120,7 @@ module.exports = (app, plugin) => {
           SID,
           Source: 1, // Automatic Chart
           Variation: magneticVariation, // Variation with resolution 0.0001 in rad,
-          'Age of service': Math.floor(magneticVariationAgeOfService || 0 / 86400000) // Days since epoch
+          'Age of service': Math.floor((magneticVariationAgeOfService !== null ? magneticVariationAgeOfService : 0) / 86400000) // Days since epoch
         }
       ].filter(pgn => (pgn !== null)).map(pgn => {
         debug(`Sending PGN ${pgn.pgn}: ${JSON.stringify(pgn, null, 2)}`)
