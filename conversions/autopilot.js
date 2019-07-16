@@ -29,53 +29,93 @@ module.exports = (app, plugin) => {
       'navigation.courseRhumbline.nextPoint.ID',
       'navigation.courseRhumbline.nextPoint.position',
       'navigation.courseRhumbline.nextPoint.bearingTrue',
+      'navigation.courseRhumbline.nextPoint.bearingMagnetic',
       'navigation.courseRhumbline.nextPoint.distance',
       'navigation.courseRhumbline.previousPoint.ID',
       'steering.autopilot.target.headingTrue',
       'notifications.arrivalCircleEntered',
       'notifications.perpendicularPassed'
     ],
-    callback: (headingMagnetic, headingTrue, magneticVariation, magneticVariationAgeOfService, XTE, bearingTrackTrue, bearingTrackMagnetic, nextPointID, nextPointPosition, nextPointBearingTrue, distance, previousPointID, apHeadingTrue, arrivalCircleEntered, perpendicularPassed) => {
+    callback: (
+      headingMagnetic,
+      headingTrue,
+      magneticVariation,
+      magneticVariationAgeOfService,
+      XTE,
+      bearingTrackTrue,
+      bearingTrackMagnetic,
+      nextPointID,
+      nextPointPosition,
+      nextPointBearingTrue,
+      nextPointBearingMagnetic,
+      distance,
+      previousPointID,
+      apHeadingTrue,
+      arrivalCircleEntered,
+      perpendicularPassed
+    ) => {
       const validNextPointPosition = (nextPointPosition && typeof nextPointPosition === 'object' && nextPointPosition.hasOwnProperty('latitude') && nextPointPosition.hasOwnProperty('longitude'))
       const SID = 87
       const bearingTrack = bearingTrackTrue || bearingTrackMagnetic
 
+      const navigationDataPGN = {
+        pgn: 129284,
+        SID,
+        'Distance to Waypoint': distance || 0,
+        'Course/Bearing reference': 0, // true
+        'Perpendicular Crossed': perpendicularPassed === null ? 0 : 1, // 0 = No, 1 = Yes
+        'Arrival Circle Entered': arrivalCircleEntered === null ? 0 : 1, // 0 = No, 1 = Yes
+        'Calculation Type': 1 // rhumbline
+        // 'ETA Time': -1, // Seconds since midnight
+        // 'ETA Date': -1, // Days since January 1, 1970
+        // 'Waypoint Closing Velocity': -1
+      }
+
+      if (nextPointBearingTrue || nextPointBearingMagnetic) {
+        navigationDataPGN['Bearing, Position to Destination Waypoint'] = nextPointBearingTrue || nextPointBearingMagnetic
+      }
+
+      if (bearingTrack) {
+        navigationDataPGN['Bearing, Origin to Destination Waypoint'] = bearingTrack
+      }
+
+      if (previousPointID) {
+        navigationDataPGN['Origin Waypoint Number'] = previousPointID
+      }
+
+      if (nextPointID) {
+        navigationDataPGN['Destination Waypoint Number'] = nextPointID
+      }
+
+      if (validNextPointPosition) {
+        navigationDataPGN['Destination Latitude'] = nextPointPosition.latitude
+        navigationDataPGN['Destination Longitude'] = nextPointPosition.longitude
+      }
+
+      const headingToSteerPGN = {
+        pgn: 127237,
+        'Heading-To-Steer (Course)': apHeadingTrue
+      }
+
+      if (headingTrue || headingMagnetic) {
+        headingToSteerPGN['Vessel Heading'] = headingTrue || headingMagnetic
+      }
+
       return [
-        (!distance || !nextPointBearingTrue || !validNextPointPosition) ? null : {
-          pgn: 129284,
-          SID,
-          'Distance to Waypoint': distance,
-          'Course/Bearing reference': 0, // true
-          'Perpendicular Crossed': perpendicularPassed === null ? 0 : 1, // 0 = No, 1 = Yes
-          'Arrival Circle Entered': arrivalCircleEntered === null ? 0 : 1, // 0 = No, 1 = Yes
-          'Calculation Type': 1, // rhumbline
-          // 'ETA Time': -1, // Seconds since midnight
-          // 'ETA Date': -1, // Days since January 1, 1970
-          'Bearing, Origin to Destination Waypoint': bearingTrack,
-          'Bearing, Position to Destination Waypoint': nextPointBearingTrue,
-          'Origin Waypoint Number': previousPointID,
-          'Destination Waypoint Number': nextPointID,
-          'Destination Latitude': nextPointPosition.latitude,
-          'Destination Longitude': nextPointPosition.longitude
-          // 'Waypoint Closing Velocity': -1
-        },
-        (!apHeadingTrue || !headingTrue) ? null : {
-          pgn: 127237,
-          'Heading-To-Steer (Course)': apHeadingTrue,
-          'Vessel Heading': headingTrue
-        },
+        navigationDataPGN,
+        (!apHeadingTrue) ? null : headingToSteerPGN,
         !XTE ? null : {
           pgn: 129283, // XTE
           'XTE mode': 0, // Autonomous
           SID,
           XTE
         },
-        (!magneticVariation || !magneticVariationAgeOfService) ? null : {
+        (!magneticVariation) ? null : {
           pgn: 127258, // Magnetic variation
           SID,
           Source: 1, // Automatic Chart
           Variation: magneticVariation, // Variation with resolution 0.0001 in rad,
-          'Age of service': Math.floor(magneticVariationAgeOfService / 86400000) // Days since epoch
+          'Age of service': Math.floor(magneticVariationAgeOfService || 0 / 86400000) // Days since epoch
         }
       ].filter(pgn => (pgn !== null)).map(pgn => {
         debug(`Sending PGN ${pgn.pgn}: ${JSON.stringify(pgn, null, 2)}`)
