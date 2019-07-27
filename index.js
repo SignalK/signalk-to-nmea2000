@@ -1,6 +1,6 @@
 const Bacon = require("baconjs");
 const util = require("util");
-const { toPgn, toActisenseSerialFormat } = require("canboatjs");
+const { toPgn, toActisenseSerialFormat } = require("@canboat/canboatjs");
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
