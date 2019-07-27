@@ -7,6 +7,8 @@ module.exports = (app, plugin) => {
     'blackWater': 'Black water',
     'freshWater': 'Water',
     'wasteWater': 'Gray water',
+    'greyWater': 'Gray water',
+    'grayWater': 'Gray water',
     'liveWell': 'Live well',
     'lubrication': 'Oil',
     'gas': 'Fuel'
