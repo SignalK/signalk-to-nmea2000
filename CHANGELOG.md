@@ -1,5 +1,9 @@
 ## Change Log
 
+### v2.5.0 (2019/07/27 18:43 +00:00)
+- [#30](https://github.com/SignalK/signalk-to-nmea2000/pull/30) chore: update to latest canboatjs (@sbender9)
+- [#29](https://github.com/SignalK/signalk-to-nmea2000/pull/29) feature: support "greyWater"  keys (@sbender9)
+
 ### v2.4.1 (2019/06/04 17:32 +00:00)
 - [#26](https://github.com/SignalK/signalk-to-nmea2000/pull/26) fix: bad heading values causing ais encoding to fail (@sbender9)
 
