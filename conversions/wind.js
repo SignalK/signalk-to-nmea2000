@@ -3,6 +3,7 @@ module.exports = (app, plugin) => {
   return {
     title: 'Wind (130306)',
     optionKey: 'WINDv2',
+    pgns: [ 130306 ],
     keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
     callback: (angle, speed) => {
       try {

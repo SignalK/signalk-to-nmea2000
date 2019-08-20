@@ -15,6 +15,7 @@ module.exports = (app, plugin) => {
     pgn: 130312,
     title: 'Outside Temperature (130312)',
     optionKey: 'TEMPERATURE_OUTSIDE',
+    pgns: [ 130312 ],
     keys: [
       "environment.outside.temperature"
     ],
@@ -26,6 +27,7 @@ module.exports = (app, plugin) => {
     pgn: 130312,
     title: 'Inside Temperature (130312)',
     optionKey: 'TEMPERATURE_INSIDE',
+    pgns: 130312,
     keys: [
       "environment.inside.temperature"
     ],
@@ -37,6 +39,7 @@ module.exports = (app, plugin) => {
     pgn: 130312,
     title: 'Engine Room Temperature (130312)',
     optionKey: 'TEMPERATURE_ENGINEROOM',
+    pgns: [ 130312 ],
     keys: [
       "environment.inside.engineRoom.temperature"
     ],
@@ -48,6 +51,7 @@ module.exports = (app, plugin) => {
     pgn: 130312,
     title: 'Refridgerator Temperature (130312)',
     optionKey: 'TEMPERATURE_refridgerator',
+    pgns: [ 130312 ],
     keys: [
       "environment.inside.refrigerator.temperature"
     ],

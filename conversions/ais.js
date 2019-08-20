@@ -50,6 +50,7 @@ module.exports = (app, plugin) => {
     sourceType: 'onDelta',
     //outputType: 'buffer',
     optionKey: 'AISv2',
+    pgns: [ static_pgn, position_pgn, aton_pgn ],
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId
 
@@ -191,11 +192,11 @@ function generatePosition(vessel, mmsi, delta) {
       status = 0
     }
 
-    if ( cog > Math.PI*2 ) {
+    if ( cog >= Math.PI*2 ) {
       cog = undefined
     }
 
-    if ( heading > Math.PI*2 ) {
+    if ( heading >= Math.PI*2 ) {
       heading = undefined
     }
     

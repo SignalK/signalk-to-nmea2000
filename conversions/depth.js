@@ -4,6 +4,7 @@ module.exports = (app, plugin) => {
   return {
     title: 'Depth (128267)',
     optionKey: 'DEPTHv2',
+    pgns: [ 128267 ],
     keys: ["environment.depth.belowTransducer"],
     callback: (belowTransducer) => {
       var surfaceToTransducer = _.get(app.signalk.self,

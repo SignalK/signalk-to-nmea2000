@@ -17,6 +17,7 @@ module.exports = (app, plugin) => {
   return {
     title: 'Tank Levels (127505)',
     optionKey: 'TANKS',
+    pgns: [ 127505 ],
     context: 'vessels.self',
     properties: () => {
       var tanks = _.get(app.signalk.self, 'tanks')
