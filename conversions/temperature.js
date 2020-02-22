@@ -1,11 +1,10 @@
 
 let tempMessage = (temp, inst, src) => {
-  return [{
+  return   return [{
     pgn: 130312,
     SID: 0xff,
-    "Temperature Instance": inst,
     "Instance": inst,
-    "Temperature Source": src,
+    "Source": src,
     "Actual Temperature": temp,
   }]
 }
@@ -53,6 +52,83 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 7)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Freezer Temperature (130312)',
+    optionKey: 'TEMPERATURE_FREEZER',
+    keys: [
+      "environment.inside.freezer.temperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 13)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Main Cabin Temperature (130312)',
+    optionKey: 'TEMPERATURE_MAINCABIN',
+    keys: [
+      "environment.inside.mainCabin.temperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 4)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Heating System Temperature (130312)',
+    optionKey: 'TEMPERATURE_HEATINGSYSTEM',
+    keys: [
+      "environment.inside.heating.temperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 8)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Dew Point Temperature (130312)',
+    optionKey: 'TEMPERATURE_DEWPOINT',
+    keys: [
+      "environment.outside.dewPointTemperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 9)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Apparent Wind Chill Temperature (130312)',
+    optionKey: 'TEMPERATURE_APPARENTWINDCHILL',
+    keys: [
+      "environment.outside.apparentWindChillTemperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 10)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Theoretical Wind Chill Temperature (130312)',
+    optionKey: 'TEMPERATURE_THEORETICALWINDCHILL',
+    keys: [
+      "environment.outside.theoreticalWindChillTemperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 11)
+    }
+  },
+  {
+    pgn: 130312,
+    title: 'Heat Index Temperature (130312)',
+    optionKey: 'TEMPERATURE_HEATINDEX',
+    keys: [
+      "environment.outside.heatIndexTemperature"
+    ],
+    callback: (temperature) => {
+      return tempMessage(temperature, 107, 12)
     }
   }
   ]
