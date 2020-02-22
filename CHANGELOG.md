@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.6.0 (2020/02/22 19:36 +00:00)
+- [#37](https://github.com/SignalK/signalk-to-nmea2000/pull/37) Feature: Extend support for other PGN 130312 temperature sources (@jncarter123)
+
 ### v2.5.0 (2019/07/27 18:43 +00:00)
 - [#30](https://github.com/SignalK/signalk-to-nmea2000/pull/30) chore: update to latest canboatjs (@sbender9)
 - [#29](https://github.com/SignalK/signalk-to-nmea2000/pull/29) feature: support "greyWater"  keys (@sbender9)
