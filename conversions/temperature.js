@@ -1,6 +1,6 @@
 
 let tempMessage = (temp, inst, src) => {
-  return   return [{
+  return [{
     pgn: 130312,
     SID: 0xff,
     "Instance": inst,
