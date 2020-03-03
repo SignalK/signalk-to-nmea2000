@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.7.0 (2020/03/03 17:21 +00:00)
+- [#39](https://github.com/SignalK/signalk-to-nmea2000/pull/39) feature: add option to periodically resend data to the bus (@sbender9)
+
 ### v2.6.0 (2020/02/22 19:36 +00:00)
 - [#37](https://github.com/SignalK/signalk-to-nmea2000/pull/37) Feature: Extend support for other PGN 130312 temperature sources (@jncarter123)
 
