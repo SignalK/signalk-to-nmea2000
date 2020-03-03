@@ -68,6 +68,12 @@ module.exports = function(app) {
             title: 'Enabled',
             type: 'boolean',
             default: false
+          },
+          resend: {
+            type: 'number',
+            title: 'Resend (seconds)',
+            description:'If non-zero, the msg will be periodically resent',
+            default: 0
           }
         }
       }
@@ -111,7 +117,7 @@ module.exports = function(app) {
                 if ( _.isUndefined(subConversion.outputType) ) {
                   subConversion.outputType = 'to-n2k'
                 }
-                mapper(subConversion, options)
+                mapper(subConversion, options[conversion.optionKey])
               }
             })
           }
@@ -168,11 +174,24 @@ module.exports = function(app) {
     }
   }
 
-  function processOutput(conversion, output) {
+  function processOutput(conversion, options, output) {
+    if ( options.resend > 0 ) {
+      if ( conversion.resendTimer ) {
+        let idx = timers.indexOf(conversion.resendTimer)
+        if ( idx != -1 ) {
+          timers.splice(idx, 1)
+        }
+        clearInterval(conversion.resendTimer)
+      }
+      conversion.resendTimer = setInterval(() => {
+        outputTypes[conversion.outputType](output)
+      }, options.resend * 1000)
+      timers.push(conversion.resendTimer)
+    }
     outputTypes[conversion.outputType](output)
   }
 
-  function mapBaconjs(conversion) {
+  function mapBaconjs(conversion, options) {
     unsubscribes.push(
       timeoutingArrayStream(
         conversion.keys,
@@ -182,15 +201,15 @@ module.exports = function(app) {
       )
         .map(values => conversion.callback.call(this, ...values))
         .onValue(pgns => {
-          processOutput(conversion, pgns)
+          processOutput(conversion, options, pgns)
         })
     );
   }
 
-  function mapOnDelta(conversion) {
+  function mapOnDelta(conversion, options) {
     app.signalk.on('delta', (delta) => {
       try {
-        processOutput(conversion, conversion.callback(delta))
+        processOutput(conversion, options, conversion.callback(delta))
       } catch ( err ) {
         app.error(err)
         console.error(err.stack)
