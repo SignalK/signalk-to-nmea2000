@@ -2,7 +2,7 @@
 module.exports = (app, plugin) => {
   return {
     pgns: [ 130311 ],
-    title: 'Environmental Parameters (130311)',
+    title: 'Atmospheric Pressure (130311)',
     optionKey: 'ENVIRONMENT_PARAMETERS',
     keys: ["environment.outside.pressure"],
 
