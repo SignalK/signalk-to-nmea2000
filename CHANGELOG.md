@@ -1,5 +1,11 @@
 ## Change Log
 
+### v2.8.0 (2020/03/10 18:53 +00:00)
+- [#40](https://github.com/SignalK/signalk-to-nmea2000/pull/40) Added Atmospheric Pressure using Environmental Parameters PGN 130311. (@htool)
+- [#44](https://github.com/SignalK/signalk-to-nmea2000/pull/44) feture: add a setting to configure how to resend (@sbender9)
+- [#42](https://github.com/SignalK/signalk-to-nmea2000/pull/42) fix: show an error message for unknown tank types (@sbender9)
+- [#41](https://github.com/SignalK/signalk-to-nmea2000/pull/41) feature: add support for conversions to use subscriptions (@sbender9)
+
 ### v2.7.0 (2020/03/03 17:21 +00:00)
 - [#39](https://github.com/SignalK/signalk-to-nmea2000/pull/39) feature: add option to periodically resend data to the bus (@sbender9)
 
