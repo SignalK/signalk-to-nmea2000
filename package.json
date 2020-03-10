@@ -37,5 +37,8 @@
     "mocha": "^5.0.0",
     "signalk-server": "^1.4.0",
     "sinon": "^4.1.6"
+  },
+  "engines": {
+    "node": "10"
   }
 }
