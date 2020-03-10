@@ -79,6 +79,12 @@ module.exports = (app, plugin) => {
             }
           }
         }
+        else
+        {
+          const msg = `unknown tank type: ${split[1]}`
+          app.error(msg)
+          app.setProviderError(msg)
+        }
       })
     }
   }
