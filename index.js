@@ -75,6 +75,12 @@ module.exports = function(app) {
             title: 'Resend (seconds)',
             description:'If non-zero, the msg will be periodically resent',
             default: 0
+          },
+          resendTime: {
+            type: 'number',
+            title: 'Resend Duration (seconds)',
+            description:'The value will be resent for the given #number of seconds',
+            default: 30
           }
         }
       }
@@ -177,17 +183,25 @@ module.exports = function(app) {
     }
   }
 
+  function clearResendInterval(timer) {
+    let idx = timers.indexOf(timer)
+    if ( idx != -1 ) {
+      timers.splice(idx, 1)
+    }
+    clearInterval(timer)
+  }
+
   function processOutput(conversion, options, output) {
     if ( options.resend && options.resend > 0 ) {
       if ( conversion.resendTimer ) {
-        let idx = timers.indexOf(conversion.resendTimer)
-        if ( idx != -1 ) {
-          timers.splice(idx, 1)
-        }
-        clearInterval(conversion.resendTimer)
+        clearResendInterval(conversion.resendTimer)
       }
+      const startedAt = Date.now()
       conversion.resendTimer = setInterval(() => {
         outputTypes[conversion.outputType](output)
+        if ( Date.now() - startedAt > (options.resendTime || 30) * 1000 ) {
+          clearResendInterval(conversion.resendTimer)
+        }
       }, options.resend * 1000)
       timers.push(conversion.resendTimer)
     }
