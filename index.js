@@ -36,6 +36,7 @@ module.exports = function(app) {
   var sourceTypes = {
     'onDelta': mapOnDelta,
     'onValueChange': mapBaconjs,
+    'subscription': mapSubscription,
     'timer': mapTimer
   }
 
@@ -109,15 +110,17 @@ module.exports = function(app) {
           }
           if ( subConversions != null ) {
             subConversions.forEach(subConversion => {
-              var type = _.isUndefined(subConversion.sourceType) ? 'onValueChange' : subConversion.sourceType
-              var mapper = sourceTypes[type]
-              if ( _.isUndefined(mapper) ) {
-                console.error(`Unknown conversion type: ${type}`)
-              } else {
-                if ( _.isUndefined(subConversion.outputType) ) {
-                  subConversion.outputType = 'to-n2k'
+              if ( !_.isUndefined(subConversion) ) {
+                var type = _.isUndefined(subConversion.sourceType) ? 'onValueChange' : subConversion.sourceType
+                var mapper = sourceTypes[type]
+                if ( _.isUndefined(mapper) ) {
+                  console.error(`Unknown conversion type: ${type}`)
+                } else {
+                  if ( _.isUndefined(subConversion.outputType) ) {
+                    subConversion.outputType = 'to-n2k'
+                  }
+                  mapper(subConversion, options[conversion.optionKey])
                 }
-                mapper(subConversion, options[conversion.optionKey])
               }
             })
           }
@@ -175,7 +178,7 @@ module.exports = function(app) {
   }
 
   function processOutput(conversion, options, output) {
-    if ( options.resend > 0 ) {
+    if ( options.resend && options.resend > 0 ) {
       if ( conversion.resendTimer ) {
         let idx = timers.indexOf(conversion.resendTimer)
         if ( idx != -1 ) {
@@ -217,9 +220,9 @@ module.exports = function(app) {
     })
   }
 
-  function mapTimer(conversion) {
+  function mapTimer(conversion, options) {
     timers.push(setInterval(() => {
-      processOutput(conversion, conversion.callback(app))
+      processOutput(conversion, null, conversion.callback(app))
     }, conversion.interval));
   }
 
@@ -234,7 +237,7 @@ module.exports = function(app) {
       subscribe: []
     }
 
-    var keys = _.isFunction(mapping.keys) ? mapping.keys(options) : keys
+    var keys = _.isFunction(mapping.keys) ? mapping.keys(options) : mapping.keys
     keys.forEach(key => {
       subscription.subscribe.push({ path: key})
     });
@@ -247,7 +250,7 @@ module.exports = function(app) {
       subscription_error,
       delta => {
         try {
-          processToPGNs(mapping.callback(delta, options))
+          processOutput(mapping, options, mapping.callback(delta))
         } catch ( err ) {
           app.error(err)
         }
