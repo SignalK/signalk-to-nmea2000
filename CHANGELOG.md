@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.9.0 (2020/03/21 13:38 +00:00)
+- [#46](https://github.com/SignalK/signalk-to-nmea2000/pull/46) feature: add support for attitude (127257) (@sbender9)
+
 ### v2.8.0 (2020/03/10 18:53 +00:00)
 - [#40](https://github.com/SignalK/signalk-to-nmea2000/pull/40) Added Atmospheric Pressure using Environmental Parameters PGN 130311. (@htool)
 - [#44](https://github.com/SignalK/signalk-to-nmea2000/pull/44) feture: add a setting to configure how to resend (@sbender9)
