@@ -48,10 +48,10 @@ module.exports = (app, plugin) => {
           let state
           if (value.state === 'normal') {
             state = 'Normal'
-          } else if (method.indexOf('sound') === -1) {
-            state = 'Silenced'
           } else if (method.length == 0) {
             state = 'Acknowledged'
+          } else if (method.indexOf('sound') === -1) {
+              state = 'Silenced'
           } else {
             state = 'Active'
           }
@@ -91,7 +91,8 @@ module.exports = (app, plugin) => {
             'Escalation Support': 0,
             'Trigger Condition': 1,
             'Threshold Status': 1,
-            'Alert Priority': 0
+            'Alert Priority': 0,
+            'Alert State': state
           })
         }
       } else {
