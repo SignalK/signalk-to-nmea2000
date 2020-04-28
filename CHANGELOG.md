@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.9.1 (2020/04/28 19:19 +00:00)
+- [#48](https://github.com/SignalK/signalk-to-nmea2000/pull/48) fix: crashing with system time enabled (@sbender9)
+
 ### v2.9.0 (2020/03/21 13:38 +00:00)
 - [#46](https://github.com/SignalK/signalk-to-nmea2000/pull/46) feature: add support for attitude (127257) (@sbender9)
 
