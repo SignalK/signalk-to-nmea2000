@@ -192,7 +192,7 @@ module.exports = function(app) {
   }
 
   function processOutput(conversion, options, output) {
-    if ( options.resend && options.resend > 0 ) {
+    if ( options && options.resend && options.resend > 0 ) {
       if ( conversion.resendTimer ) {
         clearResendInterval(conversion.resendTimer)
       }
