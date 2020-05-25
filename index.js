@@ -84,6 +84,14 @@ module.exports = function(app) {
           }
         }
       }
+      const safeKeys = conversion.keys || []
+      safeKeys.forEach((key, i) => {
+        obj.properties[pathToPropName(key)] = {
+          title: `Source for ${key}`,
+          description: `Use data only from this source (leave blank to ignore source)`,
+          type : 'string'
+        }
+      })
 
       schema.properties[conversion.optionKey] = obj
 
@@ -214,7 +222,8 @@ module.exports = function(app) {
         conversion.keys,
         conversion.timeouts,
         app.streambundle,
-        unsubscribes
+        unsubscribes,
+        options
       )
         .map(values => conversion.callback.call(this, ...values))
         .onValue(pgns => {
@@ -275,7 +284,8 @@ module.exports = function(app) {
     keys,
     timeouts = [],
     streambundle,
-    unsubscribes
+    unsubscribes,
+    options
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -288,7 +298,14 @@ module.exports = function(app) {
     }, {})
     const combinedBus = new Bacon.Bus()
     keys.map(skKey => {
-      streambundle.getSelfStream(skKey).onValue(value => {
+      const sourceRef = options[pathToPropName(skKey)]
+      app.debug(`${skKey} ${sourceRef}`)
+
+      let bus = streambundle.getSelfBus(skKey)
+      if (sourceRef) {
+        bus = bus.filter( x => x.$source === sourceRef)
+      }
+      bus.map('.value').onValue(value => {
         lastValues[skKey] = {
           timestamp: new Date().getTime(),
           value
@@ -313,6 +330,11 @@ module.exports = function(app) {
   }
 
 };
+
+function pathToPropName(path) {
+  return path.replace(/\./g, '')
+
+}
 
 
 const notDefined = x => typeof x === 'undefined'
