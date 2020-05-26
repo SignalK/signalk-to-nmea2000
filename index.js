@@ -46,7 +46,7 @@ module.exports = function(app) {
   }
 
   plugin.id = "sk-to-nmea2000";
-  plugin.name = "Convert Signal K to NMEA2000";
+  plugin.name = "Signal K to NMEA 2000";
   plugin.description = "Plugin to convert Signal K to NMEA2000";
 
   var schema = {
