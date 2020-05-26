@@ -1,5 +1,9 @@
 ## Change Log
 
+### v2.10.0 (2020/05/26 14:31 +00:00)
+- [#50](https://github.com/SignalK/signalk-to-nmea2000/pull/50) feature: source filtering (@tkurki)
+- [#49](https://github.com/SignalK/signalk-to-nmea2000/pull/49) fix: plugin name in server ui (@tkurki)
+
 ### v2.9.1 (2020/04/28 19:19 +00:00)
 - [#48](https://github.com/SignalK/signalk-to-nmea2000/pull/48) fix: crashing with system time enabled (@sbender9)
 
