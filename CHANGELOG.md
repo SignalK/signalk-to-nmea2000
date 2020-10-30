@@ -1,6 +1,6 @@
 ## Change Log
 
-### v2.11.0 (2020/10/30 21:33 +00:00)
+### v2.11.0 (2020/10/30 21:34 +00:00)
 - [#47](https://github.com/SignalK/signalk-to-nmea2000/pull/47) feature: add support for n2k alerts (126983, 126985) (@jncarter123)
 
 ### v2.10.0 (2020/05/26 14:31 +00:00)
