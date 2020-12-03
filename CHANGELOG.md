@@ -1,5 +1,8 @@
 ## Change Log
 
+### v2.12.0 (2020/12/03 21:36 +00:00)
+- [#52](https://github.com/SignalK/signalk-to-nmea2000/pull/52) feature: add Sea/Air Temp PGN (130310) (@benwingrove)
+
 ### v2.11.0 (2020/10/30 21:34 +00:00)
 - [#47](https://github.com/SignalK/signalk-to-nmea2000/pull/47) feature: add support for n2k alerts (126983, 126985) (@jncarter123)
 
