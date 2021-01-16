@@ -1,3 +1,5 @@
+DEPRECATED see [Releases](https://github.com/SignalK/signalk-to-nmea2000/releases) for Release Notes
+
 ## Change Log
 
 ### v2.12.0 (2020/12/03 21:36 +00:00)
