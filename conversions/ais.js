@@ -376,16 +376,18 @@ function int8buff(array) {
 function hasAnyKeys(delta, keys) {
   if ( delta.updates ) {
     for ( var i = 0; i < delta.updates.length; i++ ) {
-      for ( var j = 0; j < delta.updates[i].values.length; j++ ) {
-        var valuePath = delta.updates[i].values[j].path
-        var value = delta.updates[i].values[j].value
+      if (Array.isArray(delta.updates[i].values)) {
+        for ( var j = 0; j < delta.updates[i].values.length; j++ ) {
+          var valuePath = delta.updates[i].values[j].path
+          var value = delta.updates[i].values[j].value
 
-        if ( valuePath == '' ) {
-          if ( _.intersection(_.keys(value), keys).length > 0 ) {
+          if ( valuePath == '' ) {
+            if ( _.intersection(_.keys(value), keys).length > 0 ) {
+              return true
+            }
+          } else if ( keys.includes(valuePath) ) {
             return true
           }
-        } else if ( keys.includes(valuePath) ) {
-          return true
         }
       }
     }
