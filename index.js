@@ -25,7 +25,7 @@ module.exports = function(app) {
 
     Output type can be:
 
-      'to-n2k' - The outut will be sent through the to-n2k package (https://github.com/tkurki/to-n2k)
+      'to-n2k' - The output will be sent through the to-n2k package (https://github.com/tkurki/to-n2k)
 
       'buffer' - The output should be a buffer that is sent directly to nmea2000out
 
@@ -166,7 +166,7 @@ module.exports = function(app) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
           const msg = toActisenseSerialFormat(pgn.pgn, pgn.buffer);
-          app.debug("emit " + msg);
+          app.debug(`emit nmea2000out ${JSON.stringify(pgn)}`)
           app.emit("nmea2000out", msg);
         } catch ( err ) {
           console.error(`error writing pgn ${JSON.stringify(pgn)}`)
@@ -180,7 +180,7 @@ module.exports = function(app) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
-          app.debug("emit %j", pgn)
+          app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
           app.emit("nmea2000JsonOut", pgn);
         }
         catch ( err ) {

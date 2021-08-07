@@ -36,7 +36,7 @@ describe('Battery status 127508', function () {
     app.providerStatistics = []
     app.debug = (x) => console.log(x)
     const n2kSpy = sinon.spy()
-    app.on('nmea2000out', n2kSpy)
+    app.on('nmea2000JsonOut', n2kSpy)
     setTimeout(() => {
       n2kSpy.callCount.should.equal(2)
       // TODO assert proper fastformat output here
