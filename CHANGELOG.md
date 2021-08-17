@@ -1,6 +1,6 @@
 ## Change Log
 
-### v2.13.0 (2021/08/08 18:44 +00:00)
+### v2.13.0 (2021/08/17 13:26 +00:00)
 - [#54](https://github.com/SignalK/signalk-to-nmea2000/pull/54) feature: add support for navigation data (129283, 129284) (@ardbiesheuvel)
 - [#56](https://github.com/SignalK/signalk-to-nmea2000/pull/56) Ais delta guard (@tkurki)
 - [#55](https://github.com/SignalK/signalk-to-nmea2000/pull/55) chore: fix failing test (@tkurki)
