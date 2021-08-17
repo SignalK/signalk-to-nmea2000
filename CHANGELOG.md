@@ -1,5 +1,10 @@
 ## Change Log
 
+### v2.13.0 (2021/08/08 18:44 +00:00)
+- [#54](https://github.com/SignalK/signalk-to-nmea2000/pull/54) feature: add support for navigation data (129283, 129284) (@ardbiesheuvel)
+- [#56](https://github.com/SignalK/signalk-to-nmea2000/pull/56) Ais delta guard (@tkurki)
+- [#55](https://github.com/SignalK/signalk-to-nmea2000/pull/55) chore: fix failing test (@tkurki)
+
 ### v2.12.0 (2020/12/03 21:36 +00:00)
 - [#52](https://github.com/SignalK/signalk-to-nmea2000/pull/52) feature: add Sea/Air Temp PGN (130310) (@benwingrove)
 
