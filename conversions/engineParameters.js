@@ -135,7 +135,7 @@ module.exports = (app, plugin) => {
                 "Engine Instance": engine.instanceId,
                 "Instance": engine.instanceId,
                 "Speed": revolutions === null ? undefined : revolutions * 60,
-                "Boost Presure": boostPressure === null ? undefined : boostPressure / 100,
+                "Boost Pressure": boostPressure === null ? undefined : boostPressure / 100,
                 "Tilt/Trim": trimState === null ? undefined : trimState * 100
             }]
           }
