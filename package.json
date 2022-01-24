@@ -1,6 +1,6 @@
 {
   "name": "signalk-to-nmea2000",
-  "version": "2.13.1",
+  "version": "2.14.0",
   "description": "Signal K server plugin to convert Signal K to NMEA2000",
   "main": "index.js",
   "scripts": {
