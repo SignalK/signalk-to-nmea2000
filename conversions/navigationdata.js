@@ -1,12 +1,38 @@
 
 module.exports = (app, plugin) => {
+
+  const apiVersion = app.config.version ? parseInt(app.config.version.split('.')[0]) : 1
+  const pgn129283Keys = apiVersion > 1
+    ? ['navigation.course.calcValues.crossTrackError']
+    : ['navigation.courseGreatCircle.crossTrackError']
+
+  const pgn129284Keys = apiVersion > 1
+    ? [
+      'navigation.course.calcValues.distance',
+      'navigation.course.calcValues.bearingTrue',
+      'navigation.course.calcValues.bearingTrackTrue',
+      'navigation.course.nextPoint.position',
+      'navigation.course.calcValues.velocityMadeGood',
+      'notifications.course.arrivalCircleEntered',
+      'notifications.course.perpendicularPassed',
+      'navigation.course.activeRoute.pointIndex'
+    ]
+    : [
+      'navigation.courseGreatCircle.nextPoint.distance',
+      'navigation.courseGreatCircle.bearingToDestinationTrue',
+      'navigation.courseGreatCircle.bearingOriginToDestinationTrue',
+      'navigation.courseGreatCircle.nextPoint',
+      'navigation.courseGreatCircle.nextPoint.velocityMadeGood',
+      'notifications.arrivalCircleEntered',
+      'notifications.perpendicularPassed',
+      'navigation.courseRhumbline.nextPoint.ID'
+    ]
+
   return [{
     pgn: 129283,
     title: 'Cross Track Error (129283)',
     optionKey: 'xte',
-    keys: [
-      'navigation.courseRhumbline.crossTrackError'
-    ],
+    keys: pgn129283Keys,
     callback: (XTE) => [{
       pgn: 129283,
       XTE,
@@ -17,16 +43,7 @@ module.exports = (app, plugin) => {
     pgn: 129284,
     title: 'Navigation Data (129284)',
     optionKey: 'navigationdata',
-    keys: [
-      'navigation.courseRhumbline.nextPoint.distance',
-      'navigation.courseRhumbline.bearingToDestinationTrue',
-      'navigation.courseRhumbline.bearingOriginToDestinationTrue',
-      'navigation.courseRhumbline.nextPoint',
-      'navigation.courseRhumbline.nextPoint.velocityMadeGood',
-      'notifications.arrivalCircleEntered',
-      'notifications.perpendicularPassed',
-      'navigation.courseRhumbline.nextPoint.ID'
-    ],
+    keys: pgn129284Keys,
     timeouts: [
       10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
     ],
