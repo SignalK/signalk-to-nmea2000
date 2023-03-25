@@ -45,8 +45,8 @@ module.exports = (app, plugin) => {
   },
   {
     pgn: 130312,
-    title: 'Refridgerator Temperature (130312)',
-    optionKey: 'TEMPERATURE_refridgerator',
+    title: 'Refrigerator Temperature (130312)',
+    optionKey: 'TEMPERATURE_refrigerator',
     keys: [
       "environment.inside.refrigerator.temperature"
     ],
