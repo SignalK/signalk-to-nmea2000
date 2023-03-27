@@ -69,6 +69,7 @@ module.exports = (app, plugin) => {
               res.push({
                 pgn: 127506,
                 "DC Instance": battery.instanceId,
+                "DC Type": "Battery",
                 "Instance": battery.instanceId,
                 'State of Charge': stateOfCharge,
                 'State of Health': stateOfHealth,
