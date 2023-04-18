@@ -54,7 +54,14 @@ module.exports = function(app) {
     title: "Conversions to NMEA2000",
     description:
     "If there is SignalK data for the conversion generate the following NMEA2000 pgns from Signal K data:",
-    properties: {}
+    properties: {
+      defaultOutEvents: {
+        type: 'string',
+        title: 'Default NMEA 2000 Json Out Events',
+        description: 'Comma separated list of event names',
+        default: 'nmea2000JsonOut'
+      }
+    }
   };
 
   updateSchema()
@@ -81,6 +88,11 @@ module.exports = function(app) {
             title: 'Resend Duration (seconds)',
             description:'The value will be resent for the given #number of seconds',
             default: 30
+          },
+          outEvents: {
+            type: 'string',
+            title: 'NMEA 2000 Json Out Event',
+            description: 'Comma separated list of event name, leave blank to use the default'
           }
         }
       }
@@ -108,6 +120,13 @@ module.exports = function(app) {
   }
 
   plugin.start = function(options) {
+    let defaultOutEvents
+    if ( typeof options.defaultOutEvents === 'undefined' || options.defaultOutEvents === "" ) {
+      defaultOutEvents = ['nmea2000JsonOut']
+    } else {
+      defaultOutEvents = options.defaultOutEvents.split(',')
+    }
+    
     conversions.forEach(conversion => {
       if ( !_.isArray(conversion) ) {
         conversion = [ conversion ]
@@ -116,6 +135,14 @@ module.exports = function(app) {
         if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
           app.debug(`${conversion.title} is enabled`)
 
+          let outEventSettings = options[conversion.optionKey].outEvents
+          
+          if ( typeof outEventSettings === 'undefined' || outEventSettings === '' ) {
+            conversion.outEvents = defaultOutEvents
+          } else {
+            conversion.outEvents = outEventSettings.split(',')
+          }
+          
           var subConversions = conversion.conversions
           if ( _.isUndefined(subConversions) ) {
             subConversions = [ conversion ]
@@ -161,7 +188,7 @@ module.exports = function(app) {
     }).filter(converter => { return typeof converter !== 'undefined'; });
   }
 
-  function processBufferOutput(pgns) {
+  function processBufferOutput(conversion, options, pgns) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
@@ -176,12 +203,14 @@ module.exports = function(app) {
     }
   }
 
-  function processToN2K(pgns) {
+  function processToN2K(conversion, options, pgns) {
     if ( pgns ) {
       pgns.filter(pgn => pgn != null).forEach(pgn => {
         try {
-          app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
-          app.emit("nmea2000JsonOut", pgn);
+          conversion.outEvents.forEach(event => {
+            app.debug(`emit ${event} ${JSON.stringify(pgn)}`)
+            app.emit(event, pgn);
+          })
         }
         catch ( err ) {
           console.error(`error writing pgn ${JSON.stringify(pgn)}`)
@@ -206,14 +235,14 @@ module.exports = function(app) {
       }
       const startedAt = Date.now()
       conversion.resendTimer = setInterval(() => {
-        outputTypes[conversion.outputType](output)
+        outputTypes[conversion.outputType](conversion, options, output)
         if ( Date.now() - startedAt > (options.resendTime || 30) * 1000 ) {
           clearResendInterval(conversion.resendTimer)
         }
       }, options.resend * 1000)
       timers.push(conversion.resendTimer)
     }
-    outputTypes[conversion.outputType](output)
+    outputTypes[conversion.outputType](conversion, options, output)
   }
 
   function mapBaconjs(conversion, options) {
