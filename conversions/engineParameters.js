@@ -108,14 +108,14 @@ module.exports = (app, plugin) => {
                 pgn: 127489,
                 "Engine Instance": engine.instanceId,
                 "Instance": engine.instanceId,
-                "Oil pressure": oilPres === null ? undefined : oilPres / 100,
+                "Oil pressure": oilPres === null ? undefined : oilPres,
                 "Oil temperature": oilTemp === null ? undefined : oilTemp,
                 "Temperature": temp === null ? undefined : temp,
                 "Alternator Potential": altVolt === null ? undefined : altVolt,
                 "Fuel Rate": fuelRate ===null ? undefined : fuelRate * 3600 * 1000,
                 "Total Engine hours": runTime === null ? undefined : runTime,
-                "Coolant Pressure": coolPres === null ? undefined : coolPres / 100,
-                "Fuel Pressure": fuelPres === null ? undefined : fuelPres / 100,
+                "Coolant Pressure": coolPres === null ? undefined : coolPres,
+                "Fuel Pressure": fuelPres === null ? undefined : fuelPres,
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
                 "Percent Engine Load": engLoad === null ? undefined : engLoad * 100,
@@ -135,7 +135,7 @@ module.exports = (app, plugin) => {
                 "Engine Instance": engine.instanceId,
                 "Instance": engine.instanceId,
                 "Speed": revolutions === null ? undefined : revolutions * 60,
-                "Boost Pressure": boostPressure === null ? undefined : boostPressure / 100,
+                "Boost Pressure": boostPressure === null ? undefined : boostPressure,
                 "Tilt/Trim": trimState === null ? undefined : trimState * 100
             }]
           }
