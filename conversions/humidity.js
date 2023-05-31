@@ -18,7 +18,7 @@ let tempMessage = (hum, inst, src) => {
         "environment.outside.humidity"
       ],
       callback: (hum) => {
-        return tempMessage(hum, 0, 1)
+        return tempMessage(hum*100, 0, 1)
       },
     },
     {
@@ -29,7 +29,7 @@ let tempMessage = (hum, inst, src) => {
         "environment.inside.humidity"
       ],
       callback: (hum) => {
-        return tempMessage(hum, 0, 0)
+        return tempMessage(hum*100, 0, 0)
       }
     }]
   }
