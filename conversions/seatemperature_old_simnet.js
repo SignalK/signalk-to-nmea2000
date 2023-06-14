@@ -1,7 +1,7 @@
 
 module.exports = (app, plugin) => {
   return {
-    title: 'Sea/Air Temp OLD Simnet (130311)',
+    title: 'Sea Temp - OLD Simnet (130311)',
     optionKey: 'ENVIRONMENT_PARAMETERS_SEA_OLD',
     keys: ["environment.water.temperature"],
     callback: (water) => {
@@ -9,8 +9,11 @@ module.exports = (app, plugin) => {
         return [
           {
 		  pgn: 130311,
-		  //SID: 0xff,
-		  "Water Temperature": water
+		  //'temperatureSource': 0,
+		  //'humiditySource': 1,
+		  'temperature': water,
+		  //'humidity': 75,
+		  //'atmosphericPressure': 900,
           }
         ]
       } catch ( err ) {
@@ -19,3 +22,4 @@ module.exports = (app, plugin) => {
     }
   }
 }
+
