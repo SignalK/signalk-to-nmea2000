@@ -6,7 +6,7 @@
   "scripts": {
     "test": "mocha --timeout 10000",
     "create-release": "github-create-release --owner signalk --repository signalk-to-nmea2000",
-    "release": "git tag -d v$npm_package_version && git tag v$npm_package_version && git push --tags && git push && npm run create-release"
+    "release": "git tag -d v$npm_package_version ; git tag v$npm_package_version && git push --tags && git push && npm run create-release"
   },
   "keywords": [
     "signalk-node-server-plugin"
