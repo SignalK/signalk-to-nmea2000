@@ -24,7 +24,7 @@ module.exports = (app, plugin) => {
     },
     tests: [{
       input: [ 4.5 ],
-      skData: {
+      skSelfData: {
         'environment.depth.surfaceToTransducer.value': 1
       },
       expected: [{
@@ -38,7 +38,7 @@ module.exports = (app, plugin) => {
       }]
     },{
       input: [ 2.1 ],
-      skData: {
+      skSelfData: {
         'environment.depth.transducerToKeel.value': 3
       },
       expected: [{

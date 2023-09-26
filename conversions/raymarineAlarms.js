@@ -70,6 +70,34 @@ module.exports = (app, plugin) => {
         console.error(err)
       }
 
-    }
+    },
+    tests: [{
+      input: [ {
+        "context":"vessels.urn:mrn:imo:mmsi:367301250",
+        "updates":[{"values":[
+          {
+            "path":"notifications.navigation.anchor",
+            "value": {
+              "state": "alert",
+              "method": [ "sound" ]
+            }
+          }
+        ]}]
+      }],
+      expected: [{
+          "prio": 2,
+        "pgn": 65288,
+        "dst": 255,
+        "fields": {
+          "Manufacturer Code": "Raymarine",
+          "Industry Code": "Marine Industry",
+          "SID": "1",
+          "Alarm Status": "Alarm condition met and not silenced",
+          "Alarm ID": "Deep Anchor",
+          "Alarm Group": "Instrument",
+          "Alarm Priority": "1"
+        }
+      }]
+    }]
   }
 }

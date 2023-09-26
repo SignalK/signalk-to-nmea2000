@@ -9,11 +9,17 @@ chai.use(require('chai-json-equal'));
 
 const parser = new FromPgn()
 
+let skSelfData = {}
 let skData = {}
 
 const app = {
   getSelfPath: (path) => {
+    return skSelfData[path]
+  },
+  getPath: (path) => {
     return skData[path]
+  },
+  debug: (msg) => {
   }
 }
 
@@ -71,7 +77,9 @@ describe('conversions work', () => {
           subConv.tests.forEach((test, idx) => {
             it(`${conversion.title} test # ${idx} works`, function (done) {
               skData = test.skData || {}
+              skSelfData = test.skSelfData || {}
               let results = subConv.callback.call(null, ...test.input)
+              assert.equal(results.length, test.expected.length, 'number of results returned does not match the number of expected results')
               let error
               results.forEach((res, idx) => {
                 try
