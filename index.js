@@ -1,6 +1,5 @@
 const Bacon = require("baconjs");
 const util = require("util");
-const { toPgn, toActisenseSerialFormat } = require("@canboat/canboatjs");
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
@@ -27,8 +26,6 @@ module.exports = function(app) {
 
       'to-n2k' - The output will be sent through the to-n2k package (https://github.com/tkurki/to-n2k)
 
-      'buffer' - The output should be a buffer that is sent directly to nmea2000out
-
     sourceType defaults to 'onValueChange'
     outputType defaults to 'to-n2k'
    */
@@ -41,8 +38,7 @@ module.exports = function(app) {
   }
 
   var outputTypes = {
-    'to-n2k': processToN2K,
-    'buffer': processBufferOutput
+    'to-n2k': processToN2K
   }
 
   plugin.id = "sk-to-nmea2000";
@@ -159,21 +155,6 @@ module.exports = function(app) {
       pgn = path.basename(fname, '.js')
       return require(path.join(fpath, pgn))(app, plugin);
     }).filter(converter => { return typeof converter !== 'undefined'; });
-  }
-
-  function processBufferOutput(pgns) {
-    if ( pgns ) {
-      pgns.filter(pgn => pgn != null).forEach(pgn => {
-        try {
-          const msg = toActisenseSerialFormat(pgn.pgn, pgn.buffer);
-          app.debug(`emit nmea2000out ${JSON.stringify(pgn)}`)
-          app.emit("nmea2000out", msg);
-        } catch ( err ) {
-          console.error(`error writing pgn ${JSON.stringify(pgn)}`)
-          console.error(err.stack)
-        }
-      })
-    }
   }
 
   function processToN2K(pgns) {
