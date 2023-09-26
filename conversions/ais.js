@@ -443,3 +443,72 @@ function isN2K(delta) {
   }
   return res
 }
+
+
+const testVessel = {
+  "mmsi": "367301250",
+  "navigation": {
+    "speedOverGround": {
+      "value": 1.69,
+    },
+    "courseOverGroundTrue": {
+      "value": 4.2237,
+    },
+    "position": {
+      "value": {
+        "longitude": -76.3972832,
+        "latitude": 39.131
+      },
+    },
+    "rateOfTurn": {
+      "value": 0,
+    },
+    "headingTrue": {
+      "value": 3.3335,
+    },
+    "state": {
+      "value": "motoring",
+    },
+    "specialManeuver": {
+      "value": "not available",
+    },
+    "destination": {
+      "commonName": {
+        "value": "BALTIMORE",
+      }
+    }
+  },
+  "sensors": {
+    "ais": {
+      "class": {
+        "value": "A",
+      },
+      "fromBow": {
+        "value": 9,
+      }
+    }
+  },
+  "name": "SOME BOAT",
+  "design": {
+    "draft": {
+      "value": {
+        "maximum": 4.2
+      },
+    },
+    "length": {
+      "value": {
+        "overall": 30
+      },
+    },
+    "aisShipType": {
+      "value": {
+        "id": 52,
+        "name": "Tug"
+      },
+    },
+    "beam": {
+      "value": 7,
+    }
+  }
+}
+

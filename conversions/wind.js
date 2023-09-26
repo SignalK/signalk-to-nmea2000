@@ -19,23 +19,35 @@ module.exports = (app, plugin) => {
       }
     },
 
-    tests: [
-      {
-        input: [ 2.0944, 1.2 ],
-        expected: [
-          {
-            pgn: 130306,
-            dst: 255,
-            prio: 2,
-            fields: {
-              'Wind Speed': 1.2,
-              'Wind Angle': 2.0944,
-              'Reference': "Apparent"
-            }
+    tests: [{
+      input: [ 2.0944, 1.2 ],
+      expected: [
+        {
+          pgn: 130306,
+          dst: 255,
+          prio: 2,
+          fields: {
+            'Wind Speed': 1.2,
+            'Wind Angle': 2.0944,
+            'Reference': "Apparent"
           }
-        ]
-      }
-    ]
+        }
+      ]
+    },{
+      input: [ -2.0944, 1.5 ],
+      expected: [
+        {
+          pgn: 130306,
+          dst: 255,
+          prio: 2,
+          fields: {
+            'Wind Speed': 1.5,
+            'Wind Angle': 4.1888,
+            'Reference': "Apparent"
+          }
+        }
+      ]
+    }]
   }
 }
 

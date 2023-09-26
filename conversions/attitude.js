@@ -31,7 +31,7 @@ module.exports = (app, plugin) => {
             "SID": 87,
             "Yaw": 1.8843,
           },
-          "pgn": 127257
+          "pgn": 127257,
           "prio": 2
         }]
       }

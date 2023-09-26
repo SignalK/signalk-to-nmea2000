@@ -16,6 +16,20 @@ module.exports = (app, plugin) => {
         "Variation": variation,
         Reference: "Magnetic"
       }]
-    }
+    },
+    tests: [{
+      input: [ 1.2, 0.7 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 127250,
+        "dst": 255,
+        "fields": {
+          "SID": 87,
+          "Heading": 1.2,
+          "Variation": 0.7,
+          "Reference": "Magnetic"
+        }
+      }]
+    }]
   }
 }

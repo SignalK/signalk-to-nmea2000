@@ -44,12 +44,53 @@ module.exports = (app, plugin) => {
           HDOP:0.64,
           'Geoidal Separation': -0.01,
           'Reference Stations': 1,
-          'Reference Station Type': 'GPS+SBAS/WAAS',
-          'Reference Station ID': 7
+          list: [{
+            'Reference Station Type': 'GPS+SBAS/WAAS',
+            'Reference Station ID': 7
+          }]
           //'Age of DGNSS Corrections': 
         })
       }
       return res
-    }
+    },
+    tests: [{
+      input: [ { longitude: -75.487264,
+                 latitude: 32.0631296 } ],
+      expected: [{
+        "prio": 2,
+        "pgn": 129025,
+        "dst": 255,
+        "fields": {
+          "Latitude": 32.0631296,
+          "Longitude": -75.487264
+        }
+      },{
+        "__preprocess__": (testResult) => {
+          //these change every time
+          delete testResult.fields.Date
+          delete testResult.fields.Time
+        },
+        "prio": 2,
+        "pgn": 129029,
+        "dst": 255,
+        "fields": {
+          "Latitude": 32.0631296,
+          "Longitude": -75.487264,
+          "GNSS type": "GPS+SBAS/WAAS",
+          "Method": "DGNSS fix",
+          "Integrity": "No integrity checking",
+          "Number of SVs": 16,
+          "HDOP": 0.64,
+          "Geoidal Separation": -0.01,
+          "Reference Stations": 1,
+          "list": [
+            {
+              "Reference Station Type": "GPS+SBAS/WAAS",
+              "Reference Station ID": 7
+            }
+          ]
+        }
+      }]
+    }]
   }
 }

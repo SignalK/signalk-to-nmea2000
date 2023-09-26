@@ -6,10 +6,8 @@ module.exports = (app, plugin) => {
     optionKey: 'DEPTHv2',
     keys: ["environment.depth.belowTransducer"],
     callback: (belowTransducer) => {
-      var surfaceToTransducer = _.get(app.signalk.self,
-                                      'environment.depth.surfaceToTransducer.value')
-      var transducerToKeel = _.get(app.signalk.self,
-                                   'environment.depth.transducerToKeel.value')
+      var surfaceToTransducer = app.getSelfPath('environment.depth.surfaceToTransducer.value')
+      var transducerToKeel = app.getSelfPath('environment.depth.transducerToKeel.value')
       var offset = _.isUndefined(surfaceToTransducer) ? (_.isUndefined(transducerToKeel) ? 0 : transducerToKeel) : surfaceToTransducer
       try {
         return [
@@ -23,7 +21,36 @@ module.exports = (app, plugin) => {
       } catch ( err ) {
         console.error(err)
       }
-    }
+    },
+    tests: [{
+      input: [ 4.5 ],
+      skData: {
+        'environment.depth.surfaceToTransducer.value': 1
+      },
+      expected: [{
+        "prio": 2,
+        "pgn": 128267,
+        "dst": 255,
+        "fields": {
+          "Depth": 4.5,
+          "Offset": 1
+        }
+      }]
+    },{
+      input: [ 2.1 ],
+      skData: {
+        'environment.depth.transducerToKeel.value': 3
+      },
+      expected: [{
+        "prio": 2,
+        "pgn": 128267,
+        "dst": 255,
+        "fields": {
+          "Depth": 2.1,
+          "Offset": 3
+        }
+      }]
+    }]
   }
 }
 

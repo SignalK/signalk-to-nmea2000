@@ -36,6 +36,17 @@ module.exports = (app, plugin) => {
       }
     },
 
+    testOptions: {
+      BATTERYv2: {
+        batteries: [
+          {
+            signalkId: 0,
+            instanceId: 1
+          }
+        ]
+      }
+    },
+
     conversions: (options) => {
       if ( !_.get(options, 'BATTERYv2.batteries') ) {
         return null
@@ -73,12 +84,38 @@ module.exports = (app, plugin) => {
                 "Instance": battery.instanceId,
                 'State of Charge': stateOfCharge,
                 'State of Health': stateOfHealth,
-              'Time Remaining': timeRemaining,
+                'Time Remaining': timeRemaining,
                 'Ripple Voltage': ripple
               })
             }
             return res
-          }
+          },
+          tests: [{
+            input: [12.5, 23.1, 290.15, 0.93, 12340, 0.6, 12.0],
+            expected: [{
+              "prio": 2,
+              "pgn": 127508,
+              "dst": 255,
+              "fields": {
+                "Instance": 1,
+                "Voltage": 12.5,
+                "Current": 23.1,
+                "Temperature": 290.15
+              }
+            },{
+              "prio": 2,
+              "pgn": 127506,
+              "dst": 255,
+              "fields": {
+                "Instance": 1,
+                "DC Type": "Battery",
+                "State of Charge": 93,
+                "State of Health": 60,
+                "Time Remaining": 12340,
+                "Ripple Voltage": 12
+              }
+            }]
+          }]
         }
       })
     }

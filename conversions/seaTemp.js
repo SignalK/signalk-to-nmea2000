@@ -18,6 +18,19 @@ module.exports = (app, plugin) => {
       } catch ( err ) {
         console.error(err)
       }
-    }
+    },
+    tests: [{
+      input: [ 281.2, 291, 20100 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130310,
+        "dst": 255,
+        "fields": {
+          "Water Temperature": 281.2,
+          "Outside Ambient Air Temperature": 291,
+          "Atmospheric Pressure": 20100
+        }
+      }]
+    }]
   }
 }
