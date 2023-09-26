@@ -22,7 +22,6 @@
   ],
   "license": "ISC",
   "dependencies": {
-    "@canboat/canboatjs": "1.x",
     "@signalk/github-create-release": "^1.2.1",
     "baconjs": "^0.7.88",
     "debug": "^3.1.0",
