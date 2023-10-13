@@ -18,7 +18,7 @@ module.exports = (app, plugin) => {
       "environment.outside.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 101, 1)
+      return tempMessage(temperature, 0, 1)
     },
   },
   {
@@ -29,7 +29,7 @@ module.exports = (app, plugin) => {
       "environment.inside.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 102, 2)
+      return tempMessage(temperature, 0, 2)
     }
   },
   {
@@ -40,7 +40,7 @@ module.exports = (app, plugin) => {
       "environment.inside.engineRoom.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 103, 3)
+      return tempMessage(temperature, 0, 3)
     }
   },
   {
@@ -51,7 +51,7 @@ module.exports = (app, plugin) => {
       "environment.inside.refrigerator.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 7)
+      return tempMessage(temperature, 0, 7)
     }
   },
   {
@@ -62,7 +62,7 @@ module.exports = (app, plugin) => {
       "environment.inside.freezer.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 13)
+      return tempMessage(temperature, 0, 13)
     }
   },
   {
@@ -73,7 +73,7 @@ module.exports = (app, plugin) => {
       "environment.inside.mainCabin.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 4)
+      return tempMessage(temperature, 0, 4)
     }
   },
   {
@@ -84,7 +84,7 @@ module.exports = (app, plugin) => {
       "environment.inside.heating.temperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 8)
+      return tempMessage(temperature, 0, 8)
     }
   },
   {
@@ -95,7 +95,7 @@ module.exports = (app, plugin) => {
       "environment.outside.dewPointTemperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 9)
+      return tempMessage(temperature, 0, 9)
     }
   },
   {
@@ -106,7 +106,7 @@ module.exports = (app, plugin) => {
       "environment.outside.apparentWindChillTemperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 10)
+      return tempMessage(temperature, 0, 10)
     }
   },
   {
@@ -117,7 +117,7 @@ module.exports = (app, plugin) => {
       "environment.outside.theoreticalWindChillTemperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 11)
+      return tempMessage(temperature, 0, 11)
     }
   },
   {
@@ -128,7 +128,7 @@ module.exports = (app, plugin) => {
       "environment.outside.heatIndexTemperature"
     ],
     callback: (temperature) => {
-      return tempMessage(temperature, 107, 12)
+      return tempMessage(temperature, 0, 12)
     }
   }
   ]
