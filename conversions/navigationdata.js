@@ -88,7 +88,7 @@ module.exports = (app, plugin) => {
           "Course/Bearing reference": "True",
           "Perpendicular Crossed": "Yes",
           "Arrival Circle Entered": "No",
-          "Calculation Type": "Rhumb Line",
+          "Calculation Type": "Rhumbline",
           "Bearing, Origin to Destination Waypoint": 3.1,
           "Bearing, Position to Destination Waypoint": 1.23,
           "Destination Waypoint Number": 5,

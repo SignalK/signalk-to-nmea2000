@@ -111,7 +111,7 @@ module.exports = (app, plugin) => {
                 "DC Type": "Battery",
                 "State of Charge": 93,
                 "State of Health": 60,
-                "Time Remaining": 12340,
+                "Time Remaining": "03:26:00",
                 "Ripple Voltage": 12
               }
             }]

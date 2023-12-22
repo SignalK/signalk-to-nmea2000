@@ -120,7 +120,7 @@ module.exports = (app, plugin) => {
         "pgn": 129038,
         "dst": 255,
         "fields": {
-          "Message ID": 1,
+          "Message ID": "Scheduled Class A position report",
           "User ID": 367301250,
           "Longitude": -76.3947165,
           "Latitude": 39.1296167,
@@ -139,7 +139,7 @@ module.exports = (app, plugin) => {
         "pgn": 129794,
         "dst": 255,
         "fields": {
-          "Message ID": 5,
+          "Message ID": "Static and voyage related data",
           "User ID": 367301250,
           "Callsign": "",
           "Name": "SOME BOAT",
@@ -150,8 +150,8 @@ module.exports = (app, plugin) => {
           "Draft": 4.2,
           "Destination": "BALTIMORE",
           "AIS version indicator": "ITU-R M.1371-1",
-          "DTE": "available",
-          "Reserved1": "1",
+          "DTE": "Available",
+          "Reserved1": 1,
           "AIS Transceiver information": "Channel A VDL reception"
         }
       }]
@@ -200,13 +200,13 @@ module.exports = (app, plugin) => {
           "Longitude": -76.4313882,
           "Latitude": 38.5783333,
           "Position Accuracy": "Low",
-          "AIS RAIM Flag": "in use",
+          "RAIM": "not in use",
           "Time Stamp": "0",
           "AtoN Type": "Fixed beacon: starboard hand",
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
           "Assigned Mode Flag": "Assigned mode",
-          "AIS Spare": "1",
+          "Spare": 1,
           "AtoN Name": "78A"
         }
       }]

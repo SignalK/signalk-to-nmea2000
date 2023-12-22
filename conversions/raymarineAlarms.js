@@ -85,17 +85,17 @@ module.exports = (app, plugin) => {
         ]}]
       }],
       expected: [{
-          "prio": 2,
+        "prio": 2,
         "pgn": 65288,
         "dst": 255,
         "fields": {
           "Manufacturer Code": "Raymarine",
           "Industry Code": "Marine Industry",
-          "SID": "1",
+          "SID": 1,
           "Alarm Status": "Alarm condition met and not silenced",
           "Alarm ID": "Deep Anchor",
           "Alarm Group": "Instrument",
-          "Alarm Priority": "1"
+          "Alarm Priority": 1
         }
       }]
     }]

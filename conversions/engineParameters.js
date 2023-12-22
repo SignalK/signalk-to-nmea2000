@@ -150,13 +150,15 @@ module.exports = (app, plugin) => {
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
                 "Percent Engine Load": engLoad === null ? undefined : engLoad * 100,
-                "Percent Engine Torque": engTorque === null ? undefined : engTorque * 100
+                "Engine Load": engLoad === null ? undefined : engLoad * 100,
+                "Percent Engine Torque": engTorque === null ? undefined : engTorque * 100,
+                "Engine Torque": engTorque === null ? undefined : engTorque * 100
             }]
           },
           tests: [{
-            input: [ 102733, 210, 220, 13.1, 100, 201123, 202133, 11111, 10, 20 ],
+            input: [ 102733, 210, 220, 13.1, 100, 201123, 202133, 11111111, 0.5, 1.0 ],
             expected: [{
-                "prio": 2,
+              "prio": 2,
               "pgn": 127489,
               "dst": 255,
               "fields": {
@@ -166,13 +168,13 @@ module.exports = (app, plugin) => {
                 "Temperature": 220,
                 "Alternator Potential": 13.1,
                 "Fuel Rate": -2355.2,
-                "Total Engine hours": 201123,
+                "Total Engine hours": "55:52:03",
                 "Coolant Pressure": 2000,
-                "Fuel Pressure": 111,
+                "Fuel Pressure": 111000,
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
-                "Percent Engine Load": -24,
-                "Percent Engine Torque": -48
+                "Engine Load": 50,
+                "Engine Torque": 100
               }
             }]
           }]
