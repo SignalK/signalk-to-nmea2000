@@ -20,6 +20,19 @@ module.exports = (app, plugin) => {
     callback: (temperature) => {
       return tempMessage(temperature, 101, 1)
     },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 101,
+          "Source": "Outside Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -30,7 +43,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 102, 2)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 102,
+          "Source": "Inside Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -41,7 +67,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 103, 3)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 103,
+          "Source": "Engine Room Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -52,7 +91,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 7)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Refrigeration Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -63,7 +115,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 13)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Freezer Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -74,7 +139,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 4)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Main Cabin Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -85,7 +163,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 8)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Heating System Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -96,7 +187,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 9)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Dew Point Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -107,7 +211,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 10)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Apparent Wind Chill Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -118,7 +235,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 11)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Theoretical Wind Chill Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   },
   {
     pgn: 130312,
@@ -129,7 +259,20 @@ module.exports = (app, plugin) => {
     ],
     callback: (temperature) => {
       return tempMessage(temperature, 107, 12)
-    }
+    },
+    tests: [{
+      input: [ 281.2 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130312,
+        "dst": 255,
+        "fields": {
+          "Instance": 107,
+          "Source": "Heat Index Temperature",
+          "Actual Temperature": 281.2
+        }
+      }]
+    }]
   }
   ]
 }

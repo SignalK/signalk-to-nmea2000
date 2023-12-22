@@ -65,7 +65,7 @@ module.exports = (app, plugin) => {
           return null
         }
     
-        var vessel = _.get(app.signalk.root, delta.context)
+        var vessel = app.getPath(delta.context)
         var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
         
         if ( !mmsi ) {
@@ -82,7 +82,7 @@ module.exports = (app, plugin) => {
         }
         return res
       } else if ( delta.context.startsWith('atons.') ) {
-        var vessel = _.get(app.signalk.root, delta.context)
+        var vessel = app.getPath(delta.context)
         var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
 
         if ( !mmsi ) {
@@ -91,7 +91,126 @@ module.exports = (app, plugin) => {
         
         return [ generateAtoN(vessel, mmsi, delta) ]
       }
-    }
+    },
+    tests: [{
+      input: [{
+        "context":"vessels.urn:mrn:imo:mmsi:367301250",
+        "updates":[{"values":[
+          {
+            "path":"navigation.position",
+            "value": {"longitude":-76.3947165,"latitude":39.1296167}
+          },
+          {"path":"navigation.courseOverGroundTrue","value":1.501},
+          {"path":"navigation.speedOverGround","value":0.05},
+          {"path":"navigation.headingTrue","value":5.6199},
+          {"path":"navigation.rateOfTurn","value":0},
+          {"path":"navigation.state","value":"motoring"},
+          {"path":"navigation.destination.commonName","value":"BALTIMORE"},
+          {"path":"sensors.ais.fromBow","value":9},
+          {"path": "design.draft", "value": { "maximum": 4.2 }},
+          {"path": "design.length","value": {"overall": 30}},
+          {"path": "design.aisShipType", "value": {"id": 52, "name": "Tug"}},
+          {"path": "design.beam","value": 7},
+          {"path":"","value":{"mmsi":"367301250"}},
+          {"path":"","value":{"name":"SOME BOAT"}}
+        ]}
+      ]}],
+      expected: [{
+        "prio": 2,
+        "pgn": 129038,
+        "dst": 255,
+        "fields": {
+          "Message ID": "Scheduled Class A position report",
+          "User ID": 367301250,
+          "Longitude": -76.3947165,
+          "Latitude": 39.1296167,
+          "Position Accuracy": "Low",
+          "RAIM": "not in use",
+          "Time Stamp": "0",
+          "COG": 1.501,
+          "SOG": 0.05,
+          "AIS Transceiver information": "Channel A VDL reception",
+          "Heading": 5.6199,
+          "Rate of Turn": 0,
+          "Nav Status": "Under way using engine"
+        }
+      },{
+        "prio": 2,
+        "pgn": 129794,
+        "dst": 255,
+        "fields": {
+          "Message ID": "Static and voyage related data",
+          "User ID": 367301250,
+          "Callsign": "",
+          "Name": "SOME BOAT",
+          "Type of ship": "Tug",
+          "Length": 30,
+          "Beam": 7,
+          "Position reference from Bow": 9,
+          "Draft": 4.2,
+          "Destination": "BALTIMORE",
+          "AIS version indicator": "ITU-R M.1371-1",
+          "DTE": "Available",
+          "Reserved1": 1,
+          "AIS Transceiver information": "Channel A VDL reception"
+        }
+      }]
+    },{
+      input: [{
+        "context": "atons.urn:mrn:imo:mmsi:993672085",
+        "updates": [
+          {
+            "values":[
+              {"path": "","value": {"name": "78A"}},
+              {
+                "path": "navigation.position",
+                "value": {
+                  "longitude": -76.4313882,
+                  "latitude": 38.5783333
+                }
+              },
+              {
+                "path": "atonType",
+                "value": {
+                  "id": 14,
+                  "name": "Beacon, Starboard Hand"
+                }
+              },
+               {
+                 "path": "",
+                 "value": {
+                   "mmsi": "993672085"
+                 }
+               },
+               {
+                 "path": "sensors.ais.class",
+                 "value": "ATON"
+               }
+            ]
+          }
+        ]}],
+      expected: [{
+        "prio": 2,
+        "pgn": 129041,
+        "dst": 255,
+        "fields": {
+          "Message ID": 0,
+          "Repeat Indicator": "Initial",
+          "User ID": 993672085,
+          "Longitude": -76.4313882,
+          "Latitude": 38.5783333,
+          "Position Accuracy": "Low",
+          "RAIM": "not in use",
+          "Time Stamp": "0",
+          "AtoN Type": "Fixed beacon: starboard hand",
+          "Off Position Indicator": "Yes",
+          "Virtual AtoN Flag": "Yes",
+          "Assigned Mode Flag": "Assigned mode",
+          "Spare": 1,
+          "AtoN Name": "78A"
+        }
+      }]
+    }]
   }
 }
 

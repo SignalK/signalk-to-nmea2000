@@ -12,6 +12,19 @@ module.exports = (app, plugin) => {
       XTE,
       "XTE mode": "Autonomous",
       "Navigation Terminated": "No"
+    }],
+    tests: [{
+      input: [ 0.12 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 129283,
+        "dst": 255,
+        "fields": {
+          "XTE mode": "Autonomous",
+          "Navigation Terminated": "No",
+          "XTE": 0.12
+        }
+      }]
     }]
   }, {
     pgn: 129284,
@@ -57,6 +70,33 @@ module.exports = (app, plugin) => {
         "Destination Longitude" : dest.longitude,
         "Waypoint Closing Velocity" : WCV,
       }]
-    }
+    },
+    tests: [{
+      input: [ 12, 1.23, 3.1, { longitude: -75.487264, latitude: 32.0631296 } , 4.0, null, 1, 5 ],
+      expected: [{
+        "__preprocess__": (testResult) => {
+          //these change every time
+          delete testResult.fields["ETA Date"]
+          delete testResult.fields["ETA Time"]
+        },
+        "prio": 2,
+        "pgn": 129284,
+        "dst": 255,
+        "fields": {
+          "SID": 136,
+          "Distance to Waypoint": 12,
+          "Course/Bearing reference": "True",
+          "Perpendicular Crossed": "Yes",
+          "Arrival Circle Entered": "No",
+          "Calculation Type": "Rhumbline",
+          "Bearing, Origin to Destination Waypoint": 3.1,
+          "Bearing, Position to Destination Waypoint": 1.23,
+          "Destination Waypoint Number": 5,
+          "Destination Latitude": 32.0631296,
+          "Destination Longitude": -75.487264,
+          "Waypoint Closing Velocity": 4
+        }
+      }]
+    }]
   }]
 }
