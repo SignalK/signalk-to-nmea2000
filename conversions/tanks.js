@@ -83,7 +83,7 @@ module.exports = (app, plugin) => {
                   "Instance": tank.instanceId,
                   Type: type,
                   Level: currentLevel * 100,
-                  Capacity: capacity
+                  Capacity: capacity * 1000
                 })
               }
               
