@@ -90,7 +90,7 @@ module.exports = (app, plugin) => {
               return res
             },
             tests: [{
-              input: [ 0.35, 12 ],
+              input: [ 0.35, .012 ],
               expected: [{
                 "prio": 2,
                 "pgn": 127505,
