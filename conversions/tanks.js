@@ -83,14 +83,14 @@ module.exports = (app, plugin) => {
                   "Instance": tank.instanceId,
                   Type: type,
                   Level: currentLevel * 100,
-                  Capacity: capacity
+                  Capacity: capacity * 1000
                 })
               }
               
               return res
             },
             tests: [{
-              input: [ 0.35, 12 ],
+              input: [ 0.35, .012 ],
               expected: [{
                 "prio": 2,
                 "pgn": 127505,
