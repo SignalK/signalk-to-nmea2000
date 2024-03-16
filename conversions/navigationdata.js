@@ -14,7 +14,7 @@ module.exports = (app, plugin) => {
       "Navigation Terminated": "No"
     }],
     tests: [{
-      input: [ 0.12 ],
+      input: [0.12],
       expected: [{
         "prio": 2,
         "pgn": 129283,
@@ -31,48 +31,41 @@ module.exports = (app, plugin) => {
     title: 'Navigation Data (129284)',
     optionKey: 'navigationdata',
     keys: [
-      'navigation.courseRhumbline.nextPoint.distance',
-      'navigation.courseRhumbline.bearingToDestinationTrue',
-      'navigation.courseRhumbline.bearingOriginToDestinationTrue',
-      'navigation.courseRhumbline.nextPoint',
-      'navigation.courseRhumbline.nextPoint.velocityMadeGood',
-      'notifications.arrivalCircleEntered',
-      'notifications.perpendicularPassed',
-      'navigation.courseRhumbline.nextPoint.ID'
+      'navigation.course.calcValues.distance',
+      'navigation.course.calcValues.bearingTrue',
+      'navigation.course.calcValues.bearingTrackTrue',
+      'navigation.course.nextPoint',
+      'navigation.course.calcValues.timeToGo',
+      'navigation.course.calcValues.velocityMadeGood',
+      'navigation.course.arrivalCircleEntered',
+      'navigation.course.perpendicularPassed',
     ],
-    timeouts: [
-      10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
-    ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, dest, WCV, ace, pp, wpid) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, dest, secondsToGo, vmg, ace, pp) => {
       var dateObj = new Date();
-      var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
       var etaTime = (dateObj.getUTCHours() * (60 * 60) +
-                     dateObj.getUTCMinutes() * 60 +
-                     dateObj.getUTCSeconds() +
-                     secondsToGo) % 86400;
+        dateObj.getUTCMinutes() * 60 +
+        dateObj.getUTCSeconds() +
+        secondsToGo) % 86400;
 
       return [{
         pgn: 129284,
-        "SID" : 0x88,
-        "Distance to Waypoint" :  distToDest,
-        "Course/Bearing reference" : 0,
-        "Perpendicular Crossed" : pp != null,
-        "Arrival Circle Entered" : ace != null,
-        "Calculation Type" : 1,
-        "ETA Time" : (WCV > 0) ? etaTime : undefined,
-        "ETA Date": (WCV > 0) ? etaDate : undefined,
-        "Bearing, Origin to Destination Waypoint" : bearingOriginToDest,
-        "Bearing, Position to Destination Waypoint" : bearingToDest,
-        "Origin Waypoint Number" : undefined,
-        "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : dest.latitude,
-        "Destination Longitude" : dest.longitude,
-        "Waypoint Closing Velocity" : WCV,
+        "Distance to Waypoint": distToDest,
+        "Course/Bearing reference": "True",
+        "Perpendicular Crossed": pp != null,
+        "Arrival Circle Entered": ace != null,
+        "Calculation Type": "Great Circle",
+        "ETA Time": (vmg > 0) ? etaTime : undefined,
+        "ETA Date": (vmg > 0) ? etaDate : undefined,
+        "Bearing, Origin to Destination Waypoint": bearingOriginToDest,
+        "Bearing, Position to Destination Waypoint": bearingToDest,
+        "Destination Latitude": dest.latitude,
+        "Destination Longitude": dest.longitude,
+        "Waypoint Closing Velocity": vmg,
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, { longitude: -75.487264, latitude: 32.0631296 } , 4.0, null, 1, 5 ],
+      input: [12, 1.23, 3.1, { longitude: -75.487264, latitude: 32.0631296 }, 60, 4.0, null, null],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -83,15 +76,13 @@ module.exports = (app, plugin) => {
         "pgn": 129284,
         "dst": 255,
         "fields": {
-          "SID": 136,
           "Distance to Waypoint": 12,
           "Course/Bearing reference": "True",
-          "Perpendicular Crossed": "Yes",
+          "Perpendicular Crossed": "No",
           "Arrival Circle Entered": "No",
-          "Calculation Type": "Rhumbline",
+          "Calculation Type": "Great Circle",
           "Bearing, Origin to Destination Waypoint": 3.1,
           "Bearing, Position to Destination Waypoint": 1.23,
-          "Destination Waypoint Number": 5,
           "Destination Latitude": 32.0631296,
           "Destination Longitude": -75.487264,
           "Waypoint Closing Velocity": 4
