@@ -40,6 +40,16 @@ module.exports = (app, plugin) => {
       }
     },
 
+    testOptions: {
+      SOLAR: {
+        chargers:[{
+          signalkId: 'bimini',
+          instanceId: 10,
+          panelInstanceId: 11
+        }]
+      }
+    },
+    
     conversions: (options) => {
       if ( !_.get(options, 'SOLAR.chargers') ) {
         return null
@@ -73,7 +83,29 @@ module.exports = (app, plugin) => {
             }
             
             return res
-          }
+          },
+          tests: [{
+            input: [ 13, 5, 2, 45.0 ],
+            expected: [{
+              "prio": 2,
+              "pgn": 127508,
+              "dst": 255,
+              "fields": {
+                "Instance": 10,
+                "Voltage": 13,
+                "Current": 5
+              }
+            },{
+              "prio": 2,
+              "pgn": 127508,
+              "dst": 255,
+              "fields": {
+                "Instance": 11,
+                "Voltage": 45,
+                "Current": 2
+              }
+            }]
+          }]
         }
       })
     }

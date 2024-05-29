@@ -17,6 +17,17 @@ module.exports = (app, plugin) => {
       } catch ( err ) {
         console.error(err)
       }
-    }
+    },
+    tests: [{
+      input: [ 3507100 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 130311,
+        "dst": 255,
+        "fields": {
+          "Atmospheric Pressure": 3507100
+        }
+      }]
+    }]
   }
 }

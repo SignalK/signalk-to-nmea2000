@@ -123,6 +123,64 @@ module.exports = (app, plugin) => {
       } catch (err) {
         console.error(err)
       }
-    }
+    },
+    tests: [{
+      input: [ {
+        "context":"vessels.urn:mrn:imo:mmsi:367301250",
+        "updates":[{"values":[
+          {
+            "path":"notifications.environment.inside.refrigerator.temperature",
+            "value": {
+              "state": "alert",
+              "message": "The Fridge Temperature is high",
+              "alertId": 1
+            }
+          }
+        ]}]
+      }],
+      expected: [{
+        "prio": 2,
+        "pgn": 126985,
+        "dst": 255,
+        "fields": {
+          "Alert Type": "Caution",
+          "Alert Category": "Technical",
+          "Alert System": 5,
+          "Alert Sub-System": 0,
+          "Alert ID": 1,
+          "Data Source Network ID NAME": 1,
+          "Data Source Instance": 0,
+          "Data Source Index-Source": 0,
+          "Alert Occurrence Number": 0,
+          "Language ID": "English (US)",
+          "Alert Text Description": "The Fridge Temperature is high"
+        }
+      },{
+        "prio": 2,
+        "pgn": 126983,
+        "dst": 255,
+        "fields": {
+          "Alert Type": "Caution",
+          "Alert Category": "Technical",
+          "Alert System": 5,
+          "Alert Sub-System": 0,
+          "Alert ID": 1,
+          "Data Source Network ID NAME": 1,
+          "Data Source Instance": 0,
+          "Data Source Index-Source": 0,
+          "Alert Occurrence Number": 0,
+          "Temporary Silence Status": "No",
+          "Acknowledge Status": "Yes",
+          "Escalation Status": "No",
+          "Temporary Silence Support": "Yes",
+          "Acknowledge Support": "Yes",
+          "Escalation Support": "No",
+          "Trigger Condition": "Auto",
+          "Threshold Status": "Threshold Exceeded",
+          "Alert Priority": 0,
+          "Alert State": "Acknowledged"
+        }
+      }]
+    }]
   }
 }

@@ -17,6 +17,17 @@ module.exports = (app, plugin) => {
       } catch ( err ) {
         console.error(err)
       }
-    }
+    },
+    tests: [{
+      input: [ 0.24 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 128000,
+        "dst": 255,
+        "fields": {
+          "Leeway Angle": 0.24
+        }
+      }]
+    }]
   }
 }

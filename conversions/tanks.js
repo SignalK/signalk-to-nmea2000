@@ -51,6 +51,18 @@ module.exports = (app, plugin) => {
       }
     },
 
+    testOptions: {
+      TANKS:
+      {
+        tanks: [
+          {
+            signalkPath: 'tanks.fuel.0',
+            instanceId: 1
+          }
+        ]
+      }
+    },
+
     conversions: (options) => {
       if ( !_.get(options, 'TANKS.tanks') ) {
         return null
@@ -71,12 +83,26 @@ module.exports = (app, plugin) => {
                   "Instance": tank.instanceId,
                   Type: type,
                   Level: currentLevel * 100,
-                  Capacity: capacity
+                  Capacity: capacity * 1000
                 })
               }
               
               return res
-            }
+            },
+            tests: [{
+              input: [ 0.35, .012 ],
+              expected: [{
+                "prio": 2,
+                "pgn": 127505,
+                "dst": 255,
+                "fields": {
+                  "Instance": 1,
+                  "Type": "Fuel",
+                  "Level": 35,
+                  "Capacity": 12
+                }
+              }]
+            }]
           }
         }
         else

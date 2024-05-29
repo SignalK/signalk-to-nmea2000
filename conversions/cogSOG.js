@@ -20,6 +20,19 @@ module.exports = (app, plugin) => {
       } catch ( err ) {
         console.error(err)
       }
-    }
+    },
+    tests: [{
+      input: [ 2.1, 9 ],
+      expected: [{
+        "prio": 2,
+        "pgn": 129026,
+        "dst": 255,
+        "fields": {
+          "COG Reference": "True",
+          "COG": 2.1,
+          "SOG": 9
+        }
+      }]
+    }]
   }
 }
