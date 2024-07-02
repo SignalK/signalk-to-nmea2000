@@ -15,7 +15,7 @@ let tempMessage = (hum, inst, src) => {
       title: 'Outside Humidity (130313)',
       optionKey: 'HUMIDITY_OUTSIDE',
       keys: [
-        "environment.outside.humidity"
+        "environment.outside.relativeHumidity"
       ],
       callback: (hum) => {
         return tempMessage(hum*100, 0, 1)
@@ -26,7 +26,7 @@ let tempMessage = (hum, inst, src) => {
       title: 'Inside Humidity (130313)',
       optionKey: 'HUMIDITY_INSIDE',
       keys: [
-        "environment.inside.humidity"
+        "environment.inside.relativeHumidity"
       ],
       callback: (hum) => {
         return tempMessage(hum*100, 0, 0)
