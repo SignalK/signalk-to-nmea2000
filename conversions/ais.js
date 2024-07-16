@@ -53,7 +53,7 @@ module.exports = (app, plugin) => {
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId
 
-      if ( delta.context != selfContext || isN2K(delta) ) {
+      if ( delta.context == selfContext || isN2K(delta) ) {
         return null
       }
 
