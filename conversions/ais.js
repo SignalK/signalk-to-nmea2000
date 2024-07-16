@@ -107,6 +107,7 @@ module.exports = (app, plugin) => {
           {"path":"navigation.state","value":"motoring"},
           {"path":"navigation.destination.commonName","value":"BALTIMORE"},
           {"path":"sensors.ais.fromBow","value":9},
+          {"path":"sensors.ais.fromCenter","value":0},
           {"path": "design.draft", "value": { "maximum": 4.2 }},
           {"path": "design.length","value": {"overall": 30}},
           {"path": "design.aisShipType", "value": {"id": 52, "name": "Tug"}},
@@ -147,6 +148,7 @@ module.exports = (app, plugin) => {
           "Length": 30,
           "Beam": 7,
           "Position reference from Bow": 9,
+          "Position reference from Starboard": 3.5,
           "Draft": 4.2,
           "Destination": "BALTIMORE",
           "AIS version indicator": "ITU-R M.1371-1",
@@ -243,7 +245,7 @@ function generateStatic(vessel, mmsi, delta) {
   }
 
   var fromStarboard
-  if ( beam && fromCenter ) {
+  if ( !_.isUndefined(beam) && !_.isUndefined(fromCenter) ) {
     fromStarboard = (beam / 2 + fromCenter)
   }
   fromBow = fromBow ? fromBow : undefined
@@ -413,7 +415,7 @@ function generateAtoN(vessel, mmsi, delta) {
     */
 
     var fromStarboard
-    if ( beam && fromCenter ) {
+    if ( !_.isUndefined(beam) && !_.isUndefined(fromCenter) ) {
       fromStarboard = (beam / 2 + fromCenter)
     }
     fromBow = fromBow ? fromBow * 10 : undefined
