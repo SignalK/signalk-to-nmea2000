@@ -66,7 +66,7 @@ module.exports = (app, plugin) => {
         }
     
         var vessel = app.getPath(delta.context)
-        var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(vessel, delta, 'mmsi');
+        var mmsi = findDeltaValue(vessel, delta, 'mmsi');
         
         if ( !mmsi ) {
           return null;
@@ -83,7 +83,7 @@ module.exports = (app, plugin) => {
         return res
       } else if ( delta.context.startsWith('atons.') ) {
         var vessel = app.getPath(delta.context)
-        var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(vessel, delta, 'mmsi');
+        var mmsi = findDeltaValue(vessel, delta, 'mmsi');
 
         if ( !mmsi ) {
           return
@@ -215,8 +215,7 @@ module.exports = (app, plugin) => {
 }
 
 function generateStatic(vessel, mmsi, delta) {
-  var name = _.get(vessel, "name") || findDeltaValue(vessel, delta, 'name');
-
+  var name = findDeltaValue(vessel, delta, 'name');
   var type = _.get(findDeltaValue(vessel, delta, "design.aisShipType"), "id")
   var callsign = findDeltaValue(vessel, delta, "communication.callsignVhf")
   var length = _.get(findDeltaValue(vessel, delta, 'design.length'), 'overall')
