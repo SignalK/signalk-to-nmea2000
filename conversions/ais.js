@@ -533,7 +533,7 @@ function findDeltaValue(vessel, delta, path) {
     }
   }
   let val = _.get(vessel, path)
-  return val ? val.value: undefined
+  return val && !_.isUndefined(val.value) ? val.value: val
 }
 
 function fillASCII(theString, len)
