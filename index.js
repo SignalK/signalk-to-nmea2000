@@ -163,6 +163,7 @@ module.exports = function(app) {
         try {
           app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
           app.emit("nmea2000JsonOut", pgn);
+          app.reportOutputMessages(1)
         }
         catch ( err ) {
           console.error(`error writing pgn ${JSON.stringify(pgn)}`)
