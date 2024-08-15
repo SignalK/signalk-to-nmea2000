@@ -171,6 +171,7 @@ module.exports = function(app) {
         }
       })
     }
+    app.reportOutputMessages(pgns.length)
   }
 
   function clearResendInterval(timer) {
