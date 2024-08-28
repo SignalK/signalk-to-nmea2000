@@ -169,6 +169,9 @@ module.exports = function(app) {
           console.error(err.stack)
         }
       })
+      if ( app.reportOutputMessages ) {
+        app.reportOutputMessages(pgns.length)
+      }
     }
   }
 

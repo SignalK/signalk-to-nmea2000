@@ -66,7 +66,7 @@ module.exports = (app, plugin) => {
         }
     
         var vessel = app.getPath(delta.context)
-        var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
+        var mmsi = findDeltaValue(vessel, delta, 'mmsi');
         
         if ( !mmsi ) {
           return null;
@@ -83,7 +83,7 @@ module.exports = (app, plugin) => {
         return res
       } else if ( delta.context.startsWith('atons.') ) {
         var vessel = app.getPath(delta.context)
-        var mmsi = _.get(vessel, 'mmsi') || findDeltaValue(delta, 'mmsi');
+        var mmsi = findDeltaValue(vessel, delta, 'mmsi');
 
         if ( !mmsi ) {
           return
@@ -107,6 +107,7 @@ module.exports = (app, plugin) => {
           {"path":"navigation.state","value":"motoring"},
           {"path":"navigation.destination.commonName","value":"BALTIMORE"},
           {"path":"sensors.ais.fromBow","value":9},
+          {"path":"sensors.ais.fromCenter","value":0},
           {"path": "design.draft", "value": { "maximum": 4.2 }},
           {"path": "design.length","value": {"overall": 30}},
           {"path": "design.aisShipType", "value": {"id": 52, "name": "Tug"}},
@@ -147,6 +148,7 @@ module.exports = (app, plugin) => {
           "Length": 30,
           "Beam": 7,
           "Position reference from Bow": 9,
+          "Position reference from Starboard": 3.5,
           "Draft": 4.2,
           "Destination": "BALTIMORE",
           "AIS version indicator": "ITU-R M.1371-1",
@@ -215,17 +217,16 @@ module.exports = (app, plugin) => {
 }
 
 function generateStatic(vessel, mmsi, delta) {
-  var name = _.get(vessel, "name") || findDeltaValue(delta, 'name');
-  
-  var type = _.get(findDeltaValue(delta, "design.aisShipType"), "id")
-  var callsign = findDeltaValue(delta, "communication.callsignVhf")
-  var length = _.get(findDeltaValue(delta, 'design.length'), 'overall')
-  var beam = findDeltaValue(delta, 'design.beam')
-  var fromCenter = findDeltaValue(delta, 'sensors.ais.fromCenter')
-  var fromBow = findDeltaValue(delta, 'sensors.ais.fromBow')
-  var draft = _.get(findDeltaValue(delta, 'design.draft'), 'maximum')
-  var imo = findDeltaValue(delta, 'registrations.imo')
-  var dest = findDeltaValue(delta, 'navigation.destination.commonName')
+  var name = findDeltaValue(vessel, delta, 'name');
+  var type = _.get(findDeltaValue(vessel, delta, "design.aisShipType"), "id")
+  var callsign = findDeltaValue(vessel, delta, "communication.callsignVhf")
+  var length = _.get(findDeltaValue(vessel, delta, 'design.length'), 'overall')
+  var beam = findDeltaValue(vessel, delta, 'design.beam')
+  var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
+  var fromBow = findDeltaValue(vessel, delta, 'sensors.ais.fromBow')
+  var draft = _.get(findDeltaValue(vessel, delta, 'design.draft'), 'maximum')
+  var imo = findDeltaValue(vessel, delta, 'registrations.imo')
+  var dest = findDeltaValue(vessel, delta, 'navigation.destination.commonName')
   /*
   type = _.isUndefined(type) ? 0 : type
   callsign = fillASCII(callsign ? callsign : '0', 7)
@@ -243,7 +244,7 @@ function generateStatic(vessel, mmsi, delta) {
   }
 
   var fromStarboard
-  if ( beam && fromCenter ) {
+  if ( !_.isUndefined(beam) && !_.isUndefined(fromCenter) ) {
     fromStarboard = (beam / 2 + fromCenter)
   }
   fromBow = fromBow ? fromBow : undefined
@@ -294,14 +295,14 @@ function generateStatic(vessel, mmsi, delta) {
 }
 
 function generatePosition(vessel, mmsi, delta) {
-  var position = findDeltaValue(delta, 'navigation.position')
+  var position = findDeltaValue(vessel, delta, 'navigation.position')
 
   if ( position && position.latitude && position.longitude ) {
-    var cog = findDeltaValue(delta, 'navigation.courseOverGroundTrue')
-    var sog = findDeltaValue(delta, 'navigation.speedOverGround')
-    var heading = findDeltaValue(delta, 'navigation.headingTrue');
-    var rot = findDeltaValue(delta, 'navigation.rateOfTurn')
-    var status = findDeltaValue(delta, 'navigation.state')
+    var cog = findDeltaValue(vessel, delta, 'navigation.courseOverGroundTrue')
+    var sog = findDeltaValue(vessel, delta, 'navigation.speedOverGround')
+    var heading = findDeltaValue(vessel, delta, 'navigation.headingTrue');
+    var rot = findDeltaValue(vessel, delta, 'navigation.rateOfTurn')
+    var status = findDeltaValue(vessel, delta, 'navigation.state')
 
     if ( !_.isUndefined(status) ) {
       status = navStatusMapping[status]
@@ -393,15 +394,15 @@ function generatePosition(vessel, mmsi, delta) {
 }
 
 function generateAtoN(vessel, mmsi, delta) {
-  var position = findDeltaValue(delta, 'navigation.position')
+  var position = findDeltaValue(vessel, delta, 'navigation.position')
 
   if ( position && position.latitude && position.longitude ) {
-    var name = _.get(vessel, "name") || findDeltaValue(delta, 'name');
-    var type = _.get(findDeltaValue(delta, "atonType"), "id")
-    var length = _.get(findDeltaValue(delta, 'design.length'), 'overall')
-    var beam = findDeltaValue(delta, 'design.beam')
-    var fromCenter = findDeltaValue(delta, 'sensors.ais.fromCenter')
-    var fromBow = findDeltaValue(delta, 'sensors.ais.fromBow')
+    var name = _.get(vessel, "name") || findDeltaValue(vessel, delta, 'name');
+    var type = _.get(findDeltaValue(vessel, delta, "atonType"), "id")
+    var length = _.get(findDeltaValue(vessel, delta, 'design.length'), 'overall')
+    var beam = findDeltaValue(vessel, delta, 'design.beam')
+    var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
+    var fromBow = findDeltaValue(vessel, delta, 'sensors.ais.fromBow')
     var latitude = position.latitude * 10000000;
     var longitude = position.longitude * 10000000;
 
@@ -413,7 +414,7 @@ function generateAtoN(vessel, mmsi, delta) {
     */
 
     var fromStarboard
-    if ( beam && fromCenter ) {
+    if ( !_.isUndefined(beam) && !_.isUndefined(fromCenter) ) {
       fromStarboard = (beam / 2 + fromCenter)
     }
     fromBow = fromBow ? fromBow * 10 : undefined
@@ -514,7 +515,7 @@ function hasAnyKeys(delta, keys) {
   return false
 }
 
-function findDeltaValue(delta, path) {
+function findDeltaValue(vessel, delta, path) {
   if ( delta.updates ) {
     for ( var i = 0; i < delta.updates.length; i++ ) {
       for ( var j = 0; j < delta.updates[i].values.length; j++ ) {
@@ -531,7 +532,8 @@ function findDeltaValue(delta, path) {
       }
     }
   }
-  return undefined
+  let val = _.get(vessel, path)
+  return val && !_.isUndefined(val.value) ? val.value: val
 }
 
 function fillASCII(theString, len)
