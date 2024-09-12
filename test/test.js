@@ -46,7 +46,7 @@ describe('every conversion has a test', () => {
         if ( typeof subConversions === 'undefined' ) {
           subConversions = [ conversion ]
         } else if ( typeof subConversions === 'function' ) {
-          subConversions = subConversions(conversion.testOptions || {})
+          subConversions = subConversions(Array.isArray(conversion.testOptions) ? conversion.testOptions[0] : conversion.testOptions)
         }
         assert(subConversions != undefined)
         subConversions.forEach(subConv => {
@@ -65,48 +65,55 @@ describe('conversions work', () => {
     }      
     
     conversion.forEach(conversion => {
-      var subConversions = conversion.conversions
-      if ( typeof subConversions === 'undefined' ) {
-        subConversions = [ conversion ]
-      } else if ( typeof subConversions === 'function' ) {
-        subConversions = subConversions(conversion.testOptions || {})
-      }
-      subConversions.forEach(subConv => {
-        //subConv.should.have.property('tests')
-        if ( subConv.tests ) {
-          subConv.tests.forEach((test, idx) => {
-            it(`${conversion.title} test # ${idx} works`, function (done) {
-              skData = test.skData || {}
-              skSelfData = test.skSelfData || {}
-              let results = subConv.callback.call(null, ...test.input)
-              assert.equal(results.length, test.expected.length, 'number of results returned does not match the number of expected results')
-              let error
-              results.forEach((res, idx) => {
-                try
-                {
-                  let encoded = pgnToActisenseSerialFormat(res)
-                  let pgn = parser.parseString(encoded)
-                  delete pgn.description
-                  delete pgn.src
-                  delete pgn.timestamp
-                  delete pgn.input
+      let optionsList = Array.isArray(conversion.testOptions) ? conversion.testOptions : [ conversion.testOptions ]
 
-                  let expected = test.expected[idx]
-                  let preprocess = expected["__preprocess__"]
-                  if ( preprocess ) {
-                    preprocess(pgn)
-                    delete expected["__preprocess__"]
-                  }
-                  //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
-                  pgn.should.jsonEqual(expected)
-                } catch ( e ) {
-                  error = e
-                }
-              })
-              done(error)
-            })
-          })
+      optionsList.forEach((options, oidx) => {
+        var subConversions = conversion.conversions
+        if ( typeof subConversions === 'undefined' ) {
+          subConversions = [ conversion ]
+        } else if ( typeof subConversions === 'function' ) {
+          subConversions = subConversions(options || {})
         }
+        subConversions.forEach(subConv => {
+          //subConv.should.have.property('tests')
+          if ( subConv.tests ) {
+            subConv.tests.forEach((test, idx) => {
+              it(`${conversion.title} test # ${oidx}/${idx} works`, function (done) {
+                skData = test.skData || {}
+                skSelfData = test.skSelfData || {}
+                let results = subConv.callback.call(null, ...test.input)
+                assert.equal(results.length, test.expected.length, 'number of results returned does not match the number of expected results')
+                let error
+                results.forEach((res, idx) => {
+                  try
+                  {
+                    let encoded = pgnToActisenseSerialFormat(res)
+                    let pgn = parser.parseString(encoded)
+                    delete pgn.description
+                    delete pgn.src
+                    delete pgn.timestamp
+                    delete pgn.input
+                    
+                    let expected = test.expected[idx]
+                    if ( typeof expected === 'function' ) {
+                      expected = expected(options)
+                    }
+                    let preprocess = expected["__preprocess__"]
+                    if ( preprocess ) {
+                      preprocess(pgn)
+                      delete expected["__preprocess__"]
+                    }
+                    //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
+                    pgn.should.jsonEqual(expected)
+                  } catch ( e ) {
+                    error = e
+                  }
+                })
+                done(error)
+              })
+            })
+          }
+        })
       })
     })
   })
