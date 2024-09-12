@@ -1,6 +1,6 @@
 
 let tempMessage = (pgn, temp, inst, src) => {
-  return [{
+  return {
     pgn,
     prio: 2,
     dst: 255,
@@ -9,7 +9,7 @@ let tempMessage = (pgn, temp, inst, src) => {
       "Source": src,
       [pgn == 130316 ? "Temperature" : "Actual Temperature"]: temp
     }
-  }]
+  }
 }
 
 function makeTemperature(pgn, prefix, info)
@@ -28,11 +28,17 @@ function makeTemperature(pgn, prefix, info)
       },
     },
     
-    testOptions: {
-      [optionKey]: {
-        instance: 0
+    testOptions: [
+      {
+        [optionKey]: {
+          instance: 0
+        }
+      },
+      {
+        [optionKey]: {
+        }
       }
-    },
+    ],
       
     conversions: (options) => {
       let instance = options[optionKey].instance
@@ -41,12 +47,17 @@ function makeTemperature(pgn, prefix, info)
       return [{
         keys: [ info.source ],
         callback: (temperature) => {
-          return tempMessage(pgn, temperature, instance, info.n2kSource)
+          return [ tempMessage(pgn, temperature, instance, info.n2kSource) ]
         },
         tests: [
           {
             input: [ 281.2 ],
-            expected: tempMessage(pgn, 281.2, 0, info.n2kSource)
+            expected: [
+              (testOptions) => {
+                let expectedInstance = testOptions[optionKey].instance !== undefined ? testOptions[optionKey].instance : info.instance
+                return tempMessage(pgn, 281.2, expectedInstance, info.n2kSource)
+              }
+            ]
           }
         ]
       }]
