@@ -34,7 +34,7 @@ module.exports = (app, plugin) => {
       'navigation.courseRhumbline.nextPoint.distance',
       'navigation.courseRhumbline.bearingToDestinationTrue',
       'navigation.courseRhumbline.bearingOriginToDestinationTrue',
-      'navigation.courseRhumbline.nextPoint',
+      'navigation.courseRhumbline.nextPoint.position',
       'navigation.courseRhumbline.nextPoint.velocityMadeGood',
       'notifications.arrivalCircleEntered',
       'notifications.perpendicularPassed',
@@ -43,7 +43,7 @@ module.exports = (app, plugin) => {
     timeouts: [
       10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
     ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, dest, WCV, ace, pp, wpid) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, ace, pp, wpid) => {
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -66,8 +66,8 @@ module.exports = (app, plugin) => {
         "Bearing, Position to Destination Waypoint" : bearingToDest,
         "Origin Waypoint Number" : undefined,
         "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : dest.latitude,
-        "Destination Longitude" : dest.longitude,
+        "Destination Latitude" : destPos.latitude,
+        "Destination Longitude" : destPos.longitude,
         "Waypoint Closing Velocity" : WCV,
       }]
     },
