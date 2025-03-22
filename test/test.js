@@ -81,35 +81,40 @@ describe('conversions work', () => {
               it(`${conversion.title} test # ${oidx}/${idx} works`, function (done) {
                 skData = test.skData || {}
                 skSelfData = test.skSelfData || {}
-                let results = subConv.callback.call(null, ...test.input)
-                assert.equal(results.length, test.expected.length, 'number of results returned does not match the number of expected results')
-                let error
-                results.forEach((res, idx) => {
-                  try
-                  {
-                    let encoded = pgnToActisenseSerialFormat(res)
-                    let pgn = parser.parseString(encoded)
-                    delete pgn.description
-                    delete pgn.src
-                    delete pgn.timestamp
-                    delete pgn.input
-                    
-                    let expected = test.expected[idx]
-                    if ( typeof expected === 'function' ) {
-                      expected = expected(options)
-                    }
-                    let preprocess = expected["__preprocess__"]
-                    if ( preprocess ) {
-                      preprocess(pgn)
-                      delete expected["__preprocess__"]
-                    }
-                    //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
-                    pgn.should.jsonEqual(expected)
-                  } catch ( e ) {
-                    error = e
-                  }
+                let result = subConv.callback.call(null, ...test.input)
+                Promise.resolve(result).then(results => {
+                  results = results || []
+                  Promise.all(results).then(pgns => {
+                    let error
+                    assert.equal(pgns.length, test.expected.length, 'number of results returned does not match the number of expected results')
+                    pgns.forEach((res, idx) => {
+                      try
+                      {
+                        let encoded = pgnToActisenseSerialFormat(res)
+                        let pgn = parser.parseString(encoded)
+                        delete pgn.description
+                        delete pgn.src
+                        delete pgn.timestamp
+                        delete pgn.input
+
+                        let expected = test.expected[idx]
+                        if ( typeof expected === 'function' ) {
+                          expected = expected(options)
+                        }
+                        let preprocess = expected["__preprocess__"]
+                        if ( preprocess ) {
+                          preprocess(pgn)
+                          delete expected["__preprocess__"]
+                        }
+                        //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
+                        pgn.should.jsonEqual(expected)
+                      } catch ( e ) {
+                        error = e
+                      }
+                    })
+                    done(error)
+                  })
                 })
-                done(error)
               })
             })
           }
