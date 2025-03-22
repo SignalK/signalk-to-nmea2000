@@ -157,21 +157,23 @@ module.exports = function(app) {
     }).filter(converter => { return typeof converter !== 'undefined'; });
   }
 
-  function processToN2K(pgns) {
-    if ( pgns ) {
-      pgns.filter(pgn => pgn != null).forEach(pgn => {
-        try {
-          app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
-          app.emit("nmea2000JsonOut", pgn);
+  function processToN2K(values) {
+    if (values) {
+      Promise.all(values).then(pgns => {
+        pgns.filter(pgn => pgn != null).forEach(pgn => {
+          try {
+            app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
+            app.emit("nmea2000JsonOut", pgn);
+          }
+          catch ( err ) {
+            console.error(`error writing pgn ${JSON.stringify(pgn)}`)
+            console.error(err.stack)
+          }
+        })
+        if ( app.reportOutputMessages ) {
+          app.reportOutputMessages(pgns.length)
         }
-        catch ( err ) {
-          console.error(`error writing pgn ${JSON.stringify(pgn)}`)
-          console.error(err.stack)
-        }
-      })
-      if ( app.reportOutputMessages ) {
-        app.reportOutputMessages(pgns.length)
-      }
+      });
     }
   }
 
@@ -190,14 +192,18 @@ module.exports = function(app) {
       }
       const startedAt = Date.now()
       conversion.resendTimer = setInterval(() => {
-        outputTypes[conversion.outputType](output)
+        Promise.resolve(output).then((values) => {
+          outputTypes[conversion.outputType](values)
+        })
         if ( Date.now() - startedAt > (options.resendTime || 30) * 1000 ) {
           clearResendInterval(conversion.resendTimer)
         }
       }, options.resend * 1000)
       timers.push(conversion.resendTimer)
     }
-    outputTypes[conversion.outputType](output)
+    Promise.resolve(output).then((values) => {
+      outputTypes[conversion.outputType](values)
+    })
   }
 
   function mapBaconjs(conversion, options) {
