@@ -7,7 +7,7 @@ chai.Should()
 //chai.use(require('chai-things'))
 chai.use(require('chai-json-equal'));
 
-const parser = new FromPgn()
+const parser = new FromPgn({useCamel:false})
 
 let skSelfData = {}
 let skData = {}
