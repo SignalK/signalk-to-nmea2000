@@ -3,6 +3,8 @@ const util = require("util");
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
+const { mapCamelCaseKeys } = require('@canboat/ts-pgns')
+const { satisfies } = require('semver')
 
 module.exports = function(app) {
   var plugin = {};
@@ -10,6 +12,8 @@ module.exports = function(app) {
   var timers = []
   var conversions = load_conversions(app, plugin)
   conversions = [].concat.apply([], conversions)
+
+  const needsCamelMapping = !satisfies(app.config.version, ">=2.15.0")
 
   /*
     Each conversion can specify the sourceType and outputType.
@@ -163,9 +167,12 @@ module.exports = function(app) {
     if (values) {
       Promise.all(values).then(pgns => {
         pgns.filter(pgn => pgn != null).forEach(pgn => {
+          const converted = needsCamelMapping ? mapCamelCaseKeys(pgn) : pgn
+          console.log(JSON.stringify(converted, null, 2))
+          
           try {
-            app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
-            app.emit("nmea2000JsonOut", pgn);
+            app.debug(`emit nmea2000JsonOut ${JSON.stringify(converted)}`)
+            app.emit("nmea2000JsonOut", converted);
           }
           catch ( err ) {
             console.error(`error writing pgn ${JSON.stringify(pgn)}`)

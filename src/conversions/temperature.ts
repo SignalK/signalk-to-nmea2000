@@ -48,7 +48,7 @@ function makeTemperature(pgn:number, prefix:string, info:any)
         instance = info.instance
       return [{
         keys: [ info.source ],
-        callback: (temperature:number): PGN[] => {
+        callback: (temperature:number) => {
           return [ tempMessage(pgn, temperature, instance, info.n2kSource) ]
         },
         tests: [

@@ -1,4 +1,5 @@
 const { pgnToActisenseSerialFormat, FromPgn } = require("@canboat/canboatjs");
+const { mapCamelCaseKeys } = require('@canboat/ts-pgns')
 const path = require('path')
 const fs = require('fs')
 const chai = require('chai')
@@ -111,6 +112,7 @@ describe('conversions work', () => {
                         //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
                         pgn.should.jsonEqual(expected)
                       } catch ( e ) {
+                        //console.error(e)
                         error = e
                       }
                     })
