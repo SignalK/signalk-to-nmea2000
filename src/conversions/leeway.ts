@@ -25,7 +25,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     tests: [{
       input: [ 0.24 ],
       expected: [{
-        "prio": 2,
+        "prio": 3,
         "pgn": 128000,
         "dst": 255,
         "fields": {

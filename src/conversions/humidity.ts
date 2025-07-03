@@ -22,7 +22,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     tests: [{
       input: [ .50 ],
       expected: [{
-        "prio": 2,
+        "prio": 5,
         "pgn": 130313,
         "dst": 255,
         "fields": {
@@ -52,7 +52,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     tests: [{
       input: [ 1.0 ],
       expected: [{
-        "prio": 2,
+        "prio": 5,
         "pgn": 130313,
         "dst": 255,
         "fields": {

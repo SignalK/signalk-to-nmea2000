@@ -36,7 +36,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
             "Yaw": 1.8843,
           },
           "pgn": 127257,
-          "prio": 2
+          "prio": 3
         }]
       }
     ]

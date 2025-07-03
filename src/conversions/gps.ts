@@ -83,7 +83,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
           delete testResult.fields.Date
           delete testResult.fields.Time
         },
-        "prio": 2,
+        "prio": 3,
         "pgn": 129029,
         "dst": 255,
         "fields": {

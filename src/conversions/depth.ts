@@ -32,7 +32,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
         'environment.depth.surfaceToTransducer.value': 1
       },
       expected: [{
-        "prio": 2,
+        "prio": 3,
         "pgn": 128267,
         "dst": 255,
         "fields": {
@@ -46,7 +46,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
         'environment.depth.transducerToKeel.value': 3
       },
       expected: [{
-        "prio": 2,
+        "prio": 3,
         "pgn": 128267,
         "dst": 255,
         "fields": {

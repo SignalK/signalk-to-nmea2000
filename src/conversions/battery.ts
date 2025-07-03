@@ -106,7 +106,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
           tests: [{
             input: [12.5, 23.1, 290.15, 0.93, 12340, 0.6, 12.0],
             expected: [{
-              "prio": 2,
+              "prio": 6,
               "pgn": 127508,
               "dst": 255,
               "fields": {
@@ -116,7 +116,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
                 "Temperature": 290.15
               }
             },{
-              "prio": 2,
+              "prio": 6,
               "pgn": 127506,
               "dst": 255,
               "fields": {
