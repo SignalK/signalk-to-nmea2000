@@ -1,17 +1,24 @@
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN_128259,
+  PGN_128259Defaults,
+} from '@canboat/ts-pgns'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     pgns: [ 128259 ],
     title: 'Speed (128259)',
     optionKey: 'SPEED',
     keys: ["navigation.speedThroughWater"],
 
-    callback: (speed) => {
+    callback: (speed:number): PGN_128259[]|undefined => {
       try {
         return [
           {
-            pgn: 128259,
-            "Speed Water Referenced": speed,
+            ...PGN_128259Defaults,
+            fields: {
+              speedWaterReferenced: speed,
+            }
           }
         ]
       } catch ( err ) {

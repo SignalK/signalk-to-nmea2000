@@ -1,17 +1,25 @@
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN_130306,
+  PGN_130306Defaults,
+  WindReference
+} from '@canboat/ts-pgns'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     title: 'Wind (130306)',
     optionKey: 'WINDv2',
     keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
-    callback: (angle, speed) => {
+    callback: (angle:number, speed:number): PGN_130306[]|undefined => {
       try {
         return [
           {
-            pgn: 130306,
-            'Wind Speed': speed,
-            'Wind Angle': angle < 0 ? angle + Math.PI*2 : angle,
-            'Reference': 2
+            ...PGN_130306Defaults,
+            fields: {
+              windSpeed: speed,
+              windAngle: angle < 0 ? angle + Math.PI*2 : angle,
+              reference: WindReference.Apparent
+            }
           }
         ]
       } catch ( err ) {

@@ -1,5 +1,11 @@
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN_127250,
+  PGN_127250Defaults,
+  DirectionReference
+} from '@canboat/ts-pgns'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     pgn: 127250,
     title: 'TrueHeading (127250)',
@@ -7,13 +13,14 @@ module.exports = (app, plugin) => {
     keys: [
       "navigation.headingTrue"
     ],
-    callback: (heading) => {
+    callback: (heading:number): PGN_127250[] => {
       return [{
-        pgn: 127250,
-        SID: 87,
-        Heading: heading,
-        "Variation": undefined,
-        Reference: "True"
+        ...PGN_127250Defaults,
+        fields: {
+          sid: 87,
+          heading: heading,
+          reference: DirectionReference.True
+        }
       }]
     },
     tests: [{

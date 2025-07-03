@@ -1,17 +1,22 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN_127505,
+  PGN_127505Defaults,
+  TankType
+} from '@canboat/ts-pgns'
+import _ from 'lodash'
 
-module.exports = (app, plugin) => {
-
-  const typeMapping = {
-    'fuel': 'Fuel',
-    'blackWater': 'Black water',
-    'freshWater': 'Water',
-    'wasteWater': 'Gray water',
-    'greyWater': 'Gray water',
-    'grayWater': 'Gray water',
-    'liveWell': 'Live well',
-    'lubrication': 'Oil',
-    'gas': 'Fuel'
+module.exports = (app:any, plugin:Plugin) => {
+  const typeMapping: {[key:string]: TankType} = {
+    'fuel': TankType.Fuel,
+    'blackWater': TankType.BlackWater,
+    'freshWater': TankType.Water,
+    'wasteWater': TankType.GrayWater,
+    'greyWater': TankType.GrayWater,
+    'grayWater': TankType.GrayWater,
+    'liveWell': TankType.LiveWell,
+    'lubrication': TankType.Oil,
+    'gas': TankType.Fuel
   }
   
   return {
@@ -20,7 +25,7 @@ module.exports = (app, plugin) => {
     context: 'vessels.self',
     properties: () => {
       var tanks = _.get(app.signalk.self, 'tanks')
-      var tankPaths = []
+      var tankPaths: string[] = []
       if ( !_.isUndefined(tanks) ) {
         _.keys(tanks).forEach(type => {
           _.keys(tanks[type]).forEach(instance => {
@@ -63,36 +68,35 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options:any) => {
       if ( !_.get(options, 'TANKS.tanks') ) {
         return null
       }
-      return options.TANKS.tanks.map(tank => {
+      return options.TANKS.tanks.map((tank:any) => {
         var split = tank.signalkPath.split('.')
         var type = typeMapping[split[1]]
         if ( !_.isUndefined(type) ) {
           return {
             keys: [`${tank.signalkPath}.currentLevel`, `${tank.signalkPath}.capacity`],
             timeouts: [60000, 60000],
-            callback: (currentLevel, capacity) => {
+            callback: (currentLevel:number, capacity:number): PGN_127505[]|undefined => {
               var res = []
               if ( currentLevel != null || capacity != null ) {
-                
-                res.push({
-                  pgn: 127505,
-                  "Instance": tank.instanceId,
-                  Type: type,
-                  Level: currentLevel * 100,
-                  Capacity: capacity * 1000
-                })
+                return [{
+                  ...PGN_127505Defaults,
+                  fields: {
+                    instance: tank.instanceId,
+                    type: type,
+                    level: currentLevel * 100,
+                    capacity: capacity * 1000
+                  }
+                }]
               }
-              
-              return res
             },
             tests: [{
               input: [ 0.35, .012 ],
               expected: [{
-                "prio": 2,
+                "prio": 6,
                 "pgn": 127505,
                 "dst": 255,
                 "fields": {

@@ -1,6 +1,12 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN,
+  PGN_127508,
+  PGN_127508Defaults,
+} from '@canboat/ts-pgns'
+import _ from 'lodash'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
 
   const solarKeys = [
     'voltage',
@@ -50,35 +56,37 @@ module.exports = (app, plugin) => {
       }
     },
     
-    conversions: (options) => {
+    conversions: (options:any): PGN_127508[]|undefined => {
       if ( !_.get(options, 'SOLAR.chargers') ) {
-        return null
+        return
       }
-      return options.SOLAR.chargers.map(charger => {
+      return options.SOLAR.chargers.map((charger:any) => {
         return {
           keys: solarKeys.map(key => `electrical.solar.${charger.signalkId}.${key}`),
           timeouts: solarKeys.map(key => 60000),
-          callback: (voltage, current, panelCurrent, panelVoltage) => {
-            var res = []
+          callback: (voltage:number, current:number, panelCurrent:number, panelVoltage:number) => {
+            const res : PGN_127508[] = []
             if ( voltage != null
                  || current != null ) {
               res.push({
-                pgn: 127508,
-                "Battery Instance": charger.instanceId,
-                "Instance": charger.instanceId,
-                Voltage: voltage,
-                Current: current
+                ...PGN_127508Defaults,
+                fields: {
+                  instance: charger.instanceId,
+                  voltage: voltage,
+                  current: current
+                }
               })
             }
 
             if ( panelVoltage != null
                  || panelCurrent != null ) {
               res.push({
-                pgn: 127508,
-                "Battery Instance": charger.panelInstanceId,
-                "Instance": charger.panelInstanceId,
-                Voltage: panelVoltage,
-                Current: panelCurrent
+                ...PGN_127508Defaults,
+                fields: {
+                  instance: charger.panelInstanceId,
+                  voltage: panelVoltage,
+                  current: panelCurrent
+                }
               })
             }
             
@@ -87,7 +95,7 @@ module.exports = (app, plugin) => {
           tests: [{
             input: [ 13, 5, 2, 45.0 ],
             expected: [{
-              "prio": 2,
+              "prio": 6,
               "pgn": 127508,
               "dst": 255,
               "fields": {
@@ -96,7 +104,7 @@ module.exports = (app, plugin) => {
                 "Current": 5
               }
             },{
-              "prio": 2,
+              "prio": 6,
               "pgn": 127508,
               "dst": 255,
               "fields": {
