@@ -129,7 +129,7 @@ module.exports = function(app:ServerAPI, plugin:Plugin) {
         ]}
       ]}],
       expected: [{
-        "prio": 2,
+        "prio": 4,
         "pgn": 129038,
         "dst": 255,
         "fields": {
@@ -148,7 +148,7 @@ module.exports = function(app:ServerAPI, plugin:Plugin) {
           "Nav Status": "Under way using engine"
         }
       },{
-        "prio": 2,
+        "prio": 4,
         "pgn": 129794,
         "dst": 255,
         "fields": {
@@ -203,7 +203,7 @@ module.exports = function(app:ServerAPI, plugin:Plugin) {
           }
         ]}],
       expected: [{
-        "prio": 2,
+        "prio": 4,
         "pgn": 129041,
         "dst": 255,
         "fields": {
@@ -369,42 +369,67 @@ function generateAtoN(vessel:any, mmsiString:string, delta:Delta): PGN_129041|un
   }
 }
 
+class Found extends Error {
+  value: any
+  constructor(value:any = undefined) {
+    super()
+    this.value = value
+  }
+}
+
 function hasAnyKeys(delta:Delta, keys: string[]) {
-  if ( delta.updates ) {
-    delta.updates.forEach((update: Update) => {
-      if (hasValues(update)) {
-        update.values.forEach(async (pathValue: PathValue) => {
-          if ( pathValue.path == '' ) {
-            if ( _.intersection(_.keys(pathValue.value), keys).length > 0 ) {
-              return true
+  try {
+    if ( delta.updates ) {
+      delta.updates.forEach((update: Update) => {
+        if (hasValues(update)) {
+          update.values.forEach((pathValue: PathValue) => {
+            if ( pathValue.path == '' ) {
+              if ( _.intersection(_.keys(pathValue.value), keys).length > 0 ) {
+                throw new Error()
+              }
+            } else if ( keys.includes(pathValue.path) ) {
+              throw new Error()
             }
-          } else if ( keys.includes(pathValue.path) ) {
-            return true
-          }
-        })
-      }
-    })
+          })
+        }
+      })
+    }
+  } catch ( error ) {
+    if ( error instanceof Found ) {
+      return true
+    } else {
+      throw error
+    }
   }
   return false
 }
 
 function findDeltaValue(vessel:any, delta:Delta, path:string) {
-  if ( delta.updates ) {
-    delta.updates.forEach((update: Update) => {
-      if (hasValues(update)) {
-        update.values.forEach(async (pathValue: PathValue) => {
-          if ( pathValue.path == '' && path.indexOf('.') == -1 ) {
-            const value =  _.get(pathValue.value, path)
-            if ( value ) {
-              return value
+  try {
+    if ( delta.updates ) {
+      delta.updates.forEach((update: Update) => {
+        if (hasValues(update)) {
+          update.values.forEach((pathValue: PathValue) => {
+            if ( pathValue.path == '' && path.indexOf('.') == -1 ) {
+              const value =  _.get(pathValue.value, path)
+              if ( value ) {
+                throw new Found(value)
+              }
+            } else if ( path == pathValue.path ) {
+              throw new Found(pathValue.value)
             }
-          } else if ( path == pathValue.path ) {
-            return pathValue.value
-          }
-        })
-      }
-    })
+          })
+        }
+      })
+    }
+  } catch ( error ) {
+    if ( error instanceof Found ) {
+      return error.value
+    } else {
+      throw error
+    }
   }
+
   let val = _.get(vessel, path)
   return val && !_.isUndefined(val.value) ? val.value: val
 }
