@@ -1,5 +1,7 @@
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import { PGN_127257, PGN_127257Defaults, DcSource } from '@canboat/ts-pgns'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     pgn: 127250,
     title: 'Attitude (127257)',
@@ -7,13 +9,15 @@ module.exports = (app, plugin) => {
     keys: [
       "navigation.attitude"
     ],
-    callback: (attitude) => {
+    callback: (attitude:any): PGN_127257[] => {
       return [{
-        pgn: 127257,
-        SID: 87,
-        Pitch: attitude.pitch,
-        Yaw: attitude.yaw,
-        Roll: attitude.roll
+        ...PGN_127257Defaults,
+        fields: {
+          sid: 87,
+          pitch: attitude.pitch,
+          yaw: attitude.yaw,
+          roll: attitude.roll
+        }
       }]
     },
     tests: [

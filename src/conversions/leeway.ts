@@ -1,17 +1,21 @@
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import { PGN_128000, PGN_128000Defaults } from '@canboat/ts-pgns'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     pgns: [ 128000 ],
     title: 'Leeway (128000)',
     optionKey: 'LEEWAY',
     keys: ["performance.leeway"],
 
-    callback: (leeway) => {
+    callback: (leeway:number): PGN_128000[]|undefined => {
       try {
         return [
           {
-            pgn: 128000,
-            "Leeway Angle": leeway,
+            ...PGN_128000Defaults,
+            fields: {
+              leewayAngle: leeway,
+            }
           }
         ]
       } catch ( err ) {

@@ -1,6 +1,15 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN,
+  PGN_127508,
+  PGN_127508Defaults,
+  PGN_127506,
+  PGN_127506Defaults,
+  DcSource
+} from '@canboat/ts-pgns'
+import _ from 'lodash'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
 
   const batteryKeys = [
     'voltage',
@@ -47,46 +56,50 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options:any) => {
       if ( !_.get(options, 'BATTERYv2.batteries') ) {
         return null
       }
-      return options.BATTERYv2.batteries.map(battery => {
+      return options.BATTERYv2.batteries.map((battery:any) => {
         return {
           keys: batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`),
           timeouts: batteryKeys.map(key => 60000),
-          callback: (voltage, current, temperature, stateOfCharge, timeRemaining, stateOfHealth, ripple) => {
-            var res = []
+          callback: (voltage:number, current:number, temperature:number, stateOfCharge:number, timeRemaining:number, stateOfHealth:number, ripple:number) => {
+            var res:PGN[] = []
             if ( voltage != null
                  || current != null
                  || temperature != null ) {
-              res.push({
-                pgn: 127508,
-                "Battery Instance": battery.instanceId,
-                "Instance": battery.instanceId,
-                Voltage: voltage,
-                Current: current,
-                Temperature: temperature
-              })
+              const pgn: PGN_127508 = {
+                ...PGN_127508Defaults,
+                fields: {
+                  instance: battery.instanceId,
+                  voltage: voltage,
+                  current: current,
+                  temperature: temperature
+                }
+              }
+              res.push(pgn)
             }
             
             if ( stateOfCharge != null
                  || timeRemaining != null
                  || stateOfHealth != null
                  || ripple != null ) {
-              stateOfCharge = _.isUndefined(stateOfCharge) || stateOfCharge == null ? undefined : stateOfCharge*100
-              stateOfHealth = _.isUndefined(stateOfHealth) || stateOfHealth == null ? undefined : stateOfHealth*100
-              
-              res.push({
-                pgn: 127506,
-                "DC Instance": battery.instanceId,
-                "DC Type": "Battery",
-                "Instance": battery.instanceId,
-                'State of Charge': stateOfCharge,
-                'State of Health': stateOfHealth,
-                'Time Remaining': timeRemaining,
-                'Ripple Voltage': ripple
-              })
+              const n2kStateOfCharge = _.isUndefined(stateOfCharge) || stateOfCharge == null ? undefined : stateOfCharge*100
+              const n2KStateOfHealth = _.isUndefined(stateOfHealth) || stateOfHealth == null ? undefined : stateOfHealth*100
+
+              const pgn: PGN_127506 = {
+                ...PGN_127506Defaults,
+                fields: {
+                  dcType: DcSource.Battery,
+                  instance: battery.instanceId,
+                  stateOfCharge: n2kStateOfCharge,
+                  stateOfHealth: n2KStateOfHealth,
+                  timeRemaining,
+                  rippleVoltage: ripple
+                }
+              }
+              res.push(pgn)
             }
             return res
           },

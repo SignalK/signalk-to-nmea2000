@@ -152,8 +152,10 @@ module.exports = function(app) {
     fpath = path.join(__dirname, 'conversions')
     files = fs.readdirSync(fpath)
     return files.map(fname => {
-      let pgn = path.basename(fname, '.js')
-      return require(path.join(fpath, pgn))(app, plugin);
+      if ( fname.endsWith('.js') ) {
+        let pgn = path.basename(fname, '.js')
+        return require(path.join(fpath, pgn))(app, plugin);
+      }
     }).filter(converter => { return typeof converter !== 'undefined'; });
   }
 

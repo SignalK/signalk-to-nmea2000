@@ -1,21 +1,25 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import { PGN_128267, PGN_128267Defaults } from '@canboat/ts-pgns'
+import _ from 'lodash'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     title: 'Depth (128267)',
     optionKey: 'DEPTHv2',
     keys: ["environment.depth.belowTransducer"],
-    callback: (belowTransducer) => {
+    callback: (belowTransducer:number): PGN_128267[]|undefined => {
       var surfaceToTransducer = app.getSelfPath('environment.depth.surfaceToTransducer.value')
       var transducerToKeel = app.getSelfPath('environment.depth.transducerToKeel.value')
       var offset = _.isUndefined(surfaceToTransducer) ? (_.isUndefined(transducerToKeel) ? 0 : transducerToKeel) : surfaceToTransducer
       try {
         return [
           {
-            pgn: 128267,
-            SID: 0xff,
-            Depth: belowTransducer,
-            Offset: offset
+            ...PGN_128267Defaults,
+            fields: {
+              sid: 0xff,
+              depth: belowTransducer,
+              offset: offset
+            }
           }
         ]
       } catch ( err ) {
