@@ -27,7 +27,7 @@
   "dependencies": {
     "@canboat/ts-pgns": "^1.0.1",
     "@signalk/server-api": "^2.7.1",
-    "baconjs": "^0.7.88",
+    "baconjs": "^1.0.1",
     "lodash": "^4.17.4"
   },
   "repository": {
