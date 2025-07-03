@@ -29,7 +29,6 @@ function load_conversions () {
   return files.map(fname => {
     if ( fname.endsWith('.js') ) {
       pgn = path.basename(fname, '.js')
-      console.log('Loading: ' + fname)
       return require(path.join(fpath, pgn))(app, {});
     }
   }).filter(converter => { return typeof converter !== 'undefined'; });

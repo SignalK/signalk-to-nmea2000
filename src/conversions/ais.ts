@@ -148,7 +148,7 @@ module.exports = function(app:ServerAPI, plugin:Plugin) {
           "Nav Status": "Under way using engine"
         }
       },{
-        "prio": 4,
+        "prio": 6,
         "pgn": 129794,
         "dst": 255,
         "fields": {
@@ -385,10 +385,10 @@ function hasAnyKeys(delta:Delta, keys: string[]) {
           update.values.forEach((pathValue: PathValue) => {
             if ( pathValue.path == '' ) {
               if ( _.intersection(_.keys(pathValue.value), keys).length > 0 ) {
-                throw new Error()
+                throw new Found()
               }
             } else if ( keys.includes(pathValue.path) ) {
-              throw new Error()
+              throw new Found()
             }
           })
         }
