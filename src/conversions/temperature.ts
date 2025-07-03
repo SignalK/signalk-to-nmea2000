@@ -1,5 +1,7 @@
+import { ServerAPI, Plugin, Delta, Update, PathValue, hasValues} from '@signalk/server-api'
+import { PGN } from '@canboat/ts-pgns'
 
-let tempMessage = (pgn, temp, inst, src) => {
+let tempMessage = (pgn:number, temp:number, inst:number, src:number) => {
   return {
     pgn,
     prio: 2,
@@ -12,7 +14,7 @@ let tempMessage = (pgn, temp, inst, src) => {
   }
 }
 
-function makeTemperature(pgn, prefix, info)
+function makeTemperature(pgn:number, prefix:string, info:any)
 {
   let optionKey = `${prefix}_${info.option}`
   return {
@@ -40,20 +42,20 @@ function makeTemperature(pgn, prefix, info)
       }
     ],
       
-    conversions: (options) => {
+    conversions: (options:any) => {
       let instance = options[optionKey].instance
       if ( instance === undefined )
         instance = info.instance
       return [{
         keys: [ info.source ],
-        callback: (temperature) => {
+        callback: (temperature:number): PGN[] => {
           return [ tempMessage(pgn, temperature, instance, info.n2kSource) ]
         },
         tests: [
           {
             input: [ 281.2 ],
             expected: [
-              (testOptions) => {
+              (testOptions:any) => {
                 let expectedInstance = testOptions[optionKey].instance !== undefined ? testOptions[optionKey].instance : info.instance
                 return tempMessage(pgn, 281.2, expectedInstance, info.n2kSource)
               }
@@ -135,7 +137,7 @@ const temperatures = [
   }
 ]
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return temperatures.flatMap(info => {
     return [
       makeTemperature(130312, 'TEMPERATURE', info),
