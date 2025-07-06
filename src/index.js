@@ -168,7 +168,6 @@ module.exports = function(app) {
       Promise.all(values).then(pgns => {
         pgns.filter(pgn => pgn != null).forEach(pgn => {
           const converted = needsCamelMapping ? mapCamelCaseKeys(pgn) : pgn
-          console.log(JSON.stringify(converted, null, 2))
           
           try {
             app.debug(`emit nmea2000JsonOut ${JSON.stringify(converted)}`)

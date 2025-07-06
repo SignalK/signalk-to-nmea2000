@@ -3,11 +3,8 @@ import _ from 'lodash'
 import { ServerAPI, Plugin, Delta, Update, PathValue, hasValues} from '@signalk/server-api'
 import {
   PGN_129794,
-  PGN_129794Defaults,
   PGN_129038,
-  PGN_129038Defaults,
   PGN_129041,
-  PGN_129041Defaults,
   YesNo
 } from '@canboat/ts-pgns'
 
@@ -252,25 +249,22 @@ function generateStatic(vessel:any, mmsiString:string, delta:Delta): PGN_129794 
   }
   fromBow = fromBow ? fromBow : undefined
 
-  return {
-    ...PGN_129794Defaults,
-    fields: {
-      messageId: 5,
-      userId: mmsiString,
-      callsign: callsign,
-      name: name,
-      typeOfShip: type,
-      length: length,
-      beam: beam,
-      positionReferenceFromStarboard: fromStarboard,
-      positionReferenceFromBow: fromBow,
-      draft: draft,
-      destination: dest,
-      aisVersionIndicator: 0,
-      dte: 0,
-      aisTransceiverInformation: 0,
-    }
-  }
+  return new PGN_129794({
+    messageId: 5,
+    userId: mmsiString,
+    callsign: callsign,
+    name: name,
+    typeOfShip: type,
+    length: length,
+    beam: beam,
+    positionReferenceFromStarboard: fromStarboard,
+    positionReferenceFromBow: fromBow,
+    draft: draft,
+    destination: dest,
+    aisVersionIndicator: 0,
+    dte: 0,
+    aisTransceiverInformation: 0,
+  })
 }
 
 function generatePosition(vessel:any, mmsi:string, delta:Delta): PGN_129038|null {
@@ -300,24 +294,21 @@ function generatePosition(vessel:any, mmsi:string, delta:Delta): PGN_129038|null
     }
     
     
-    return {
-      ...PGN_129038Defaults,
-      fields: {
-        messageId: 1,
-        userId: mmsi,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        positionAccuracy: 0,
-        raim: 0,
-        timeStamp: 0,
-        cog: cog,
-        sog: sog,
-        aisTransceiverInformation: 0,
-        heading: heading,
-        rateOfTurn: rot,
-        navStatus: n2kStatus
-      }
-    }
+    return new PGN_129038({
+      messageId: 1,
+      userId: mmsi,
+      longitude: position.longitude,
+      latitude: position.latitude,
+      positionAccuracy: 0,
+      raim: 0,
+      timeStamp: 0,
+      cog: cog,
+      sog: sog,
+      aisTransceiverInformation: 0,
+      heading: heading,
+      rateOfTurn: rot,
+      navStatus: n2kStatus
+    })
   } else {
     return null
   }
@@ -342,28 +333,25 @@ function generateAtoN(vessel:any, mmsiString:string, delta:Delta): PGN_129041|un
     }
     fromBow = fromBow ? fromBow * 10 : undefined
 
-    return {
-      ...PGN_129041Defaults,
-      fields: {
-        messageId: 0,
-        repeatIndicator: 0,
-        userId: mmsiString,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        positionAccuracy: 0,
-        raim: 0,
-        timeStamp: 0,
-        lengthDiameter: length,
-        beamDiameter: beam,
-        positionReferenceFromStarboardEdge: fromStarboard,
-        positionReferenceFromTrueNorthFacingEdge: fromBow,
-        atonType: type,
-        atonName: name,
-        offPositionIndicator: 0,
-        virtualAtonFlag: 0,
-        assignedModeFlag:1,
-      }
-    }
+    return new PGN_129041({
+      messageId: 0,
+      repeatIndicator: 0,
+      userId: mmsiString,
+      longitude: position.longitude,
+      latitude: position.latitude,
+      positionAccuracy: 0,
+      raim: 0,
+      timeStamp: 0,
+      lengthDiameter: length,
+      beamDiameter: beam,
+      positionReferenceFromStarboardEdge: fromStarboard,
+      positionReferenceFromTrueNorthFacingEdge: fromBow,
+      atonType: type,
+      atonName: name,
+      offPositionIndicator: 0,
+      virtualAtonFlag: 0,
+      assignedModeFlag:1,
+    })
   } else {
     return undefined
   }

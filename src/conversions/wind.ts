@@ -12,16 +12,11 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
     callback: (angle:number, speed:number): PGN_130306[]|undefined => {
       try {
-        return [
-          {
-            ...PGN_130306Defaults,
-            fields: {
-              windSpeed: speed,
-              windAngle: angle < 0 ? angle + Math.PI*2 : angle,
-              reference: WindReference.Apparent
-            }
-          }
-        ]
+        return [new PGN_130306({
+          windSpeed: speed,
+          windAngle: angle < 0 ? angle + Math.PI*2 : angle,
+          reference: WindReference.Apparent
+        })]
       } catch ( err ) {
         console.error(err)
       }
