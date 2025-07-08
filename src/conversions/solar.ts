@@ -2,7 +2,6 @@ import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN,
   PGN_127508,
-  PGN_127508Defaults,
 } from '@canboat/ts-pgns'
 import _ from 'lodash'
 
@@ -68,26 +67,20 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
             const res : PGN_127508[] = []
             if ( voltage != null
                  || current != null ) {
-              res.push({
-                ...PGN_127508Defaults,
-                fields: {
-                  instance: charger.instanceId,
-                  voltage: voltage,
-                  current: current
-                }
-              })
+              res.push(new PGN_127508({
+                instance: charger.instanceId,
+                voltage: voltage,
+                current: current
+              }))
             }
 
             if ( panelVoltage != null
                  || panelCurrent != null ) {
-              res.push({
-                ...PGN_127508Defaults,
-                fields: {
-                  instance: charger.panelInstanceId,
-                  voltage: panelVoltage,
-                  current: panelCurrent
-                }
-              })
+              res.push(new PGN_127508({
+                instance: charger.panelInstanceId,
+                voltage: panelVoltage,
+                current: panelCurrent
+              }))
             }
             
             return res

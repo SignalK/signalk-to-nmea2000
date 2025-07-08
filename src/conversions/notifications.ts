@@ -2,9 +2,7 @@ import { ServerAPI, Plugin, Delta, Update, PathValue, hasValues} from '@signalk/
 import {
   PGN,
   PGN_126983,
-  PGN_126983Defaults,
   PGN_126985,
-  PGN_126985Defaults,
   AlertType,
   AlertCategory,
   AlertState
@@ -66,48 +64,42 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
           }
 
           let idName = alertId.toString().padStart(16, '0')
-          const pgn1 : PGN_126985 = {
-            ...PGN_126985Defaults,
-            fields: {
-              alertId,
-              alertType: type,
-              alertCategory: alertCategory,
-              alertSystem: alertSystem,
-              alertSubSystem: 0,
-              dataSourceNetworkIdName: idName,
-              dataSourceInstance: 0,
-              dataSourceIndexSource: 0,
-              alertOccurrenceNumber: 0,
-              languageId: 0,
-              alertTextDescription: value.message
-            }
-          }
+          const pgn1 = new PGN_126985({
+            alertId,
+            alertType: type,
+            alertCategory: alertCategory,
+            alertSystem: alertSystem,
+            alertSubSystem: 0,
+            dataSourceNetworkIdName: idName,
+            dataSourceInstance: 0,
+            dataSourceIndexSource: 0,
+            alertOccurrenceNumber: 0,
+            languageId: 0,
+            alertTextDescription: value.message
+          })
           pgns.push(pgn1)
 
-          const pgn2: PGN_126983 = {
-            ...PGN_126983Defaults,
-            fields: {
-              alertId,
-              alertType: type,
-              alertState: state,
-              alertCategory: alertCategory,
-              alertSystem: alertSystem,
-              alertSubSystem: 0,
-              dataSourceNetworkIdName: idName,
-              dataSourceInstance: 0,
-              dataSourceIndexSource: 0,
-              alertOccurrenceNumber: 0,
-              temporarySilenceStatus: value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
-              acknowledgeStatus: !value.method || value.method.length == 0 ? 1 : 0,
-              escalationStatus: 0,
-              temporarySilenceSupport: 1,
-              acknowledgeSupport: 1,
-              escalationSupport: 0,
-              triggerCondition: 1,
-              thresholdStatus: 1,
-              alertPriority: 0
-            }
-          }
+          const pgn2 = new PGN_126983({
+            alertId,
+            alertType: type,
+            alertState: state,
+            alertCategory: alertCategory,
+            alertSystem: alertSystem,
+            alertSubSystem: 0,
+            dataSourceNetworkIdName: idName,
+            dataSourceInstance: 0,
+            dataSourceIndexSource: 0,
+            alertOccurrenceNumber: 0,
+            temporarySilenceStatus: value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
+            acknowledgeStatus: !value.method || value.method.length == 0 ? 1 : 0,
+            escalationStatus: 0,
+            temporarySilenceSupport: 1,
+            acknowledgeSupport: 1,
+            escalationSupport: 0,
+            triggerCondition: 1,
+            thresholdStatus: 1,
+            alertPriority: 0
+          })
           pgns.push(pgn2)
         }
       } else {

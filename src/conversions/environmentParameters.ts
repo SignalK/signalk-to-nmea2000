@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_130311, PGN_130311Defaults } from '@canboat/ts-pgns'
+import { PGN_130311 } from '@canboat/ts-pgns'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
@@ -11,13 +11,10 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     callback: (pressure:number): PGN_130311[]|undefined => {
       try {
         return [
-          {
-            ...PGN_130311Defaults,
-            fields: {
-              temperatureSource: 0xff, // probably should not be PartOfPrimaryKey
-              atmosphericPressure: pressure,
-            }
-          }
+          new PGN_130311({
+            temperatureSource: 0xff, // probably should not be PartOfPrimaryKey
+            atmosphericPressure: pressure,
+          })
         ]
       } catch ( err ) {
         console.error(err)

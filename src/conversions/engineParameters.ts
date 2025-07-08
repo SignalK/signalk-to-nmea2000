@@ -1,12 +1,10 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN_127488,
-  PGN_127488Defaults,
   PGN_127489,
-  PGN_127489Defaults,
   PGN_130312,
-  PGN_130312Defaults,
-  TemperatureSource } from '@canboat/ts-pgns'
+  TemperatureSource
+} from '@canboat/ts-pgns'
 import _ from 'lodash'
 
 const DEFAULT_TIMEOUT = 10000  // ms
@@ -76,14 +74,13 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
             `propulsion.${engine.signalkId}.exhaustTemperature`
           ],
           callback: (temperature:number): PGN_130312[] => {
-            return [{
-              ...PGN_130312Defaults,
-              fields: {
+            return [
+              new PGN_130312({
                 instance: engine.tempInstanceId,
                 source: TemperatureSource.ExhaustGasTemperature,
                 actualTemperature: temperature,
-              }
-            }]
+              })
+            ]
           },
           tests: [{
             input: [ 281.2 ],
@@ -144,9 +141,8 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
           keys: engParKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engParKeys.map(key => DEFAULT_TIMEOUT),
           callback: (oilPres:number, oilTemp:number, temp:number, altVolt:number, fuelRate:number, runTime:number, coolPres:number, fuelPres:number, engLoad:number, engTorque:number): PGN_127489[] => {
-            return [{
-              ...PGN_127489Defaults,
-              fields: {
+            return [
+              new PGN_127489({
                 instance: engine.instanceId,
                 oilPressure: oilPres === null ? undefined : oilPres / 100,
                 oilTemperature: oilTemp === null ? undefined : oilTemp,
@@ -160,8 +156,8 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
                 discreteStatus2: [],
                 engineLoad: engLoad === null ? undefined : engLoad * 100,
                 engineTorque: engTorque === null ? undefined : engTorque * 100
-              }
-            }]
+              })
+            ]
           },
           tests: [{
             input: [ 102733, 210, 220, 13.1, 100, 201123, 202133, 11111111, 0.5, 1.0 ],
@@ -194,15 +190,14 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
           keys: engRapidKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engRapidKeys.map(key => DEFAULT_TIMEOUT),
           callback: (revolutions:number, boostPressure:number, trimState:number): PGN_127488[]  => {
-            return [{
-              ...PGN_127488Defaults,
-              fields: {
+            return [
+              new PGN_127488({
                 instance: engine.instanceId,
                 speed: revolutions === null ? undefined : revolutions * 60,
                 boostPressure: boostPressure === null ? undefined : boostPressure / 100,
                 tiltTrim: trimState === null ? undefined : trimState * 100
-              }
-            }]
+              })
+            ]
           },
           tests: [{
             input: [ 1001, 20345, 0.5 ],

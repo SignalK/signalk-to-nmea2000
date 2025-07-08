@@ -1,7 +1,6 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN_127505,
-  PGN_127505Defaults,
   TankType
 } from '@canboat/ts-pgns'
 import _ from 'lodash'
@@ -82,15 +81,14 @@ module.exports = (app:any, plugin:Plugin) => {
             callback: (currentLevel:number, capacity:number): PGN_127505[]|undefined => {
               var res = []
               if ( currentLevel != null || capacity != null ) {
-                return [{
-                  ...PGN_127505Defaults,
-                  fields: {
+                return [
+                  new PGN_127505({
                     instance: tank.instanceId,
                     type: type,
                     level: currentLevel * 100,
                     capacity: capacity * 1000
-                  }
-                }]
+                  })
+                ]
               }
             },
             tests: [{

@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_130310, PGN_130310Defaults } from '@canboat/ts-pgns'
+import { PGN_130310 } from '@canboat/ts-pgns'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
@@ -9,15 +9,12 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     callback: (water:number, air:number, pressure:number): PGN_130310[]|undefined => {
       try {
         return [
-          {
-            ...PGN_130310Defaults,
-            fields: {
-	      sid: 0xff,
-	      waterTemperature: water,
-	      outsideAmbientAirTemperature: air,
-	      atmosphericPressure: pressure
-            }
-          }
+          new PGN_130310({
+	    sid: 0xff,
+	    waterTemperature: water,
+	    outsideAmbientAirTemperature: air,
+	    atmosphericPressure: pressure
+          })
         ]
       } catch ( err ) {
         console.error(err)

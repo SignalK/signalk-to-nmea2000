@@ -2,9 +2,7 @@ import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN,
   PGN_129025,
-  PGN_129025Defaults,
   PGN_129029,
-  PGN_129029Defaults,
   Gns,
   GnsMethod,
   GnsIntegrity
@@ -21,13 +19,10 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       //app.debug(`position: ${JSON.stringify(position)}`)
 
       const res: PGN[] = []
-      const pos: PGN_129025 = {
-        ...PGN_129025Defaults, 
-        fields: {
-          latitude: position.latitude,
-          longitude: position.longitude
-        }
-      }
+      const pos = new  PGN_129025({
+        latitude: position.latitude,
+        longitude: position.longitude
+      })
       res.push(pos)
 
       if (
@@ -42,26 +37,23 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
 
         const time = `${pad(dateObj.getUTCHours())}:${pad(dateObj.getUTCMinutes())}:${pad(Math.floor(dateObj.getUTCSeconds()))}`
         
-        const posData: PGN_129029 = {
-          ...PGN_129029Defaults,
-          fields: {
-            date: date,
-            time: time,
-            latitude: position.latitude,
-            longitude: position.longitude,
-            gnssType: Gns.GpsPlussbaswaas,
-            method: GnsMethod.DgnssFix,
-            integrity: GnsIntegrity.NoIntegrityChecking,
-            numberOfSvs: 16,
-            hdop:0.64,
-            geoidalSeparation: -0.01,
-            referenceStations: 1,
-            list: [{
-              referenceStationType: Gns.GpsPlussbaswaas,
-              referenceStationId: 7
-            }]
-          }
-        }
+        const posData = new PGN_129029({
+          date: date,
+          time: time,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          gnssType: Gns.GpsPlussbaswaas,
+          method: GnsMethod.DgnssFix,
+          integrity: GnsIntegrity.NoIntegrityChecking,
+          numberOfSvs: 16,
+          hdop:0.64,
+          geoidalSeparation: -0.01,
+          referenceStations: 1,
+          list: [{
+            referenceStationType: Gns.GpsPlussbaswaas,
+            referenceStationId: 7
+          }]
+        })
         res.push(posData)
       }
       return res

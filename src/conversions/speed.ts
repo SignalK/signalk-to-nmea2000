@@ -1,7 +1,6 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
-  PGN_128259,
-  PGN_128259Defaults,
+  PGN_128259
 } from '@canboat/ts-pgns'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
@@ -14,12 +13,9 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     callback: (speed:number): PGN_128259[]|undefined => {
       try {
         return [
-          {
-            ...PGN_128259Defaults,
-            fields: {
-              speedWaterReferenced: speed,
-            }
-          }
+          new PGN_128259({
+            speedWaterReferenced: speed,
+          })
         ]
       } catch ( err ) {
         console.error(err)

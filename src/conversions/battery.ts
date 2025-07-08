@@ -2,9 +2,7 @@ import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN,
   PGN_127508,
-  PGN_127508Defaults,
   PGN_127506,
-  PGN_127506Defaults,
   DcSource
 } from '@canboat/ts-pgns'
 import _ from 'lodash'
@@ -69,15 +67,12 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
             if ( voltage != null
                  || current != null
                  || temperature != null ) {
-              const pgn: PGN_127508 = {
-                ...PGN_127508Defaults,
-                fields: {
-                  instance: battery.instanceId,
-                  voltage: voltage,
-                  current: current,
-                  temperature: temperature
-                }
-              }
+              const pgn = new PGN_127508({
+                instance: battery.instanceId,
+                voltage: voltage,
+                current: current,
+                temperature: temperature
+              })
               res.push(pgn)
             }
             
@@ -88,17 +83,14 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
               const n2kStateOfCharge = _.isUndefined(stateOfCharge) || stateOfCharge == null ? undefined : stateOfCharge*100
               const n2KStateOfHealth = _.isUndefined(stateOfHealth) || stateOfHealth == null ? undefined : stateOfHealth*100
 
-              const pgn: PGN_127506 = {
-                ...PGN_127506Defaults,
-                fields: {
-                  dcType: DcSource.Battery,
-                  instance: battery.instanceId,
-                  stateOfCharge: n2kStateOfCharge,
-                  stateOfHealth: n2KStateOfHealth,
-                  timeRemaining,
-                  rippleVoltage: ripple
-                }
-              }
+              const pgn = new PGN_127506({
+                dcType: DcSource.Battery,
+                instance: battery.instanceId,
+                stateOfCharge: n2kStateOfCharge,
+                stateOfHealth: n2KStateOfHealth,
+                timeRemaining,
+                rippleVoltage: ripple
+              })
               res.push(pgn)
             }
             return res

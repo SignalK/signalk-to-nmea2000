@@ -1,7 +1,6 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN_126992,
-  PGN_126992Defaults,
   SystemTime
 } from '@canboat/ts-pgns'
 
@@ -20,14 +19,11 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       const time = `${pad(dateObj.getUTCHours())}:${pad(dateObj.getUTCMinutes())}:${pad(Math.floor(dateObj.getUTCSeconds()))}`
       
       return [
-        {
-          ...PGN_126992Defaults,
-          fields: {
-            source: SystemTime.Gps,
-            date: dateString,
-            time: time
-          }
-        }
+        new PGN_126992({
+          source: SystemTime.Gps,
+          date: dateString,
+          time: time
+        })
       ]
     },
     tests: [{

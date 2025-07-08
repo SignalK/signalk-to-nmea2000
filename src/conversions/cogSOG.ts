@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { DirectionReference, PGN_129026, PGN_129026Defaults } from '@canboat/ts-pgns'
+import { DirectionReference, PGN_129026 } from '@canboat/ts-pgns'
 import _ from 'lodash'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
@@ -12,14 +12,11 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     callback: (course:number, speed:number): PGN_129026[]|undefined => {
       try {
         return [
-          {
-            ...PGN_129026Defaults,
-            fields: {
-              cogReference: DirectionReference.True,
-              cog: course,
-              sog: speed
-            }
-          }
+          new PGN_129026({
+            cogReference: DirectionReference.True,
+            cog: course,
+            sog: speed
+          })
         ]
       } catch ( err ) {
         console.error(err)

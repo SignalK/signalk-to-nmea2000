@@ -1,15 +1,14 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_130314, PGN_130314Defaults, PressureSource } from '@canboat/ts-pgns'
+import { PGN_130314, PressureSource } from '@canboat/ts-pgns'
 
 let pressMessage = (pres:number, src:PressureSource) : PGN_130314[] => {
-  return [{
-    ...PGN_130314Defaults,
-    fields: {
+  return [
+    new PGN_130314({
       instance: 100,
       source: src,
       pressure: pres,
-    }
-  }]
+    })
+  ]
 }
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {

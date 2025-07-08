@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_129291, PGN_129291Defaults, DirectionReference } from '@canboat/ts-pgns'
+import { PGN_129291, DirectionReference } from '@canboat/ts-pgns'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
@@ -9,14 +9,11 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     callback: (set:number, drift:number): PGN_129291[]|undefined => {
       try {
         return [
-          {
-            ...PGN_129291Defaults,
-            fields: {
-              set: set,
-              drift: drift,
-              setReference: DirectionReference.True
-            }
-          }
+          new PGN_129291({
+            set: set,
+            drift: drift,
+            setReference: DirectionReference.True
+          })
         ]
       } catch ( err ) {
         console.error(err)

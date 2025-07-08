@@ -1,7 +1,6 @@
 import { ServerAPI, Plugin, Delta, Update, PathValue, hasValues} from '@signalk/server-api'
 import {
   PGN_65288,
-  PGN_65288Defaults,
   SeatalkAlarmStatus,
   SeatalkAlarmId,
   SeatalkAlarmGroup,
@@ -59,18 +58,15 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       }
 
       if ((state) && (alarmId)) {
-        const pgn: PGN_65288 = {
-          ...PGN_65288Defaults,
-          fields: {
-	    sid: 1,
-            alarmStatus: state,
-            alarmId,
-	    alarmGroup: SeatalkAlarmGroup.Instrument,
-	    alarmPriority: 1,
-	    manufacturerCode: ManufacturerCode.Raymarine,
-	    industryCode: IndustryCode.Marine
-          }
-        }
+        const pgn = new PGN_65288({
+	  sid: 1,
+          alarmStatus: state,
+          alarmId,
+	  alarmGroup: SeatalkAlarmGroup.Instrument,
+	  alarmPriority: 1,
+	  manufacturerCode: ManufacturerCode.Raymarine,
+	  industryCode: IndustryCode.Marine
+        })
         ;(pgn as any).path = path
         pgns.push(pgn)
       }

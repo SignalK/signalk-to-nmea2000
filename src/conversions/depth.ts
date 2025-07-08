@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_128267, PGN_128267Defaults } from '@canboat/ts-pgns'
+import { PGN_128267 } from '@canboat/ts-pgns'
 import _ from 'lodash'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
@@ -13,14 +13,11 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       var offset = _.isUndefined(surfaceToTransducer) ? (_.isUndefined(transducerToKeel) ? 0 : transducerToKeel) : surfaceToTransducer
       try {
         return [
-          {
-            ...PGN_128267Defaults,
-            fields: {
-              sid: 0xff,
-              depth: belowTransducer,
-              offset: offset
-            }
-          }
+          new PGN_128267({
+            sid: 0xff,
+            depth: belowTransducer,
+            offset: offset
+          })
         ]
       } catch ( err ) {
         console.error(err)

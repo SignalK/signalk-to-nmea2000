@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_130313, PGN_130313Defaults, HumiditySource } from '@canboat/ts-pgns'
+import { PGN_130313, HumiditySource } from '@canboat/ts-pgns'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
   return [{
@@ -10,14 +10,13 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       "environment.outside.relativeHumidity"
     ],
     callback: (humidity:number): PGN_130313[] => {
-      return [{
-        ...PGN_130313Defaults,
-        fields: {
+      return [
+        new PGN_130313({
           instance: 100,
           source: HumiditySource.Outside,
           actualHumidity: humidity,
-        }
-      }]
+        })
+      ]
     },
     tests: [{
       input: [ .50 ],
@@ -40,14 +39,13 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       "environment.inside.relativeHumidity"
     ],
     callback: (humidity:number): PGN_130313[] => {
-      return [{
-        ...PGN_130313Defaults,
-        fields: {
+      return [
+        new PGN_130313({
           instance: 100,
           source: HumiditySource.Inside,
           actualHumidity: humidity,
-        }
-      }]
+        })
+      ]
     },
     tests: [{
       input: [ 1.0 ],

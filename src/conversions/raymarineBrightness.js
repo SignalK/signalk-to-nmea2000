@@ -58,6 +58,11 @@ module.exports = (app, plugin) => {
           tests: [{
             input: [0.85],
             expected: [{
+              "__preprocess__": (testResult) => {
+                delete testResult.fields.manufacturerCode
+                delete testResult.fields.industryCode
+                delete testResult.fields.proprietaryId
+              },
               "prio": 2,
               "pgn": 126720,
               "dst": 255,

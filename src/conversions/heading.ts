@@ -1,5 +1,5 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
-import { PGN_127250, PGN_127250Defaults, DirectionReference } from '@canboat/ts-pgns'
+import { PGN_127250, DirectionReference } from '@canboat/ts-pgns'
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
@@ -11,15 +11,14 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       'navigation.magneticVariation'
     ],
     callback: (heading:number, variation:number): PGN_127250[] => {
-      return [{
-        ...PGN_127250Defaults,
-        fields: {
+      return [
+        new PGN_127250({
           sid: 87,
           heading: heading,
           variation: variation,
           reference: DirectionReference.Magnetic
-        }
-      }]
+        })
+      ]
     },
     tests: [{
       input: [ 1.2, 0.7 ],
