@@ -1,6 +1,6 @@
 import { ServerAPI, Plugin, Delta, Update, PathValue, hasValues} from '@signalk/server-api'
 import {
-  PGN_65288,
+  PGN_65288_SeatalkAlarm,
   SeatalkAlarmStatus,
   SeatalkAlarmId,
   SeatalkAlarmGroup,
@@ -8,7 +8,7 @@ import {
   IndustryCode
 } from '@canboat/ts-pgns'
 
-let pgns: PGN_65288[] = []
+let pgns: PGN_65288_SeatalkAlarm[] = []
 
 module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
@@ -18,7 +18,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
            'notifications.mob'],
     context: 'vessels.self',
     sourceType: 'subscription',
-    callback: (delta:any): PGN_65288[]|undefined => {
+    callback: (delta:any): PGN_65288_SeatalkAlarm[]|undefined => {
 
       const update = delta.updates[0].values[0]
       const path = update.path
@@ -58,14 +58,12 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
       }
 
       if ((state) && (alarmId)) {
-        const pgn = new PGN_65288({
+        const pgn = new PGN_65288_SeatalkAlarm({
 	  sid: 1,
           alarmStatus: state,
           alarmId,
 	  alarmGroup: SeatalkAlarmGroup.Instrument,
 	  alarmPriority: 1,
-	  manufacturerCode: ManufacturerCode.Raymarine,
-	  industryCode: IndustryCode.Marine
         })
         ;(pgn as any).path = path
         pgns.push(pgn)
@@ -92,6 +90,11 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
         ]}]
       }],
       expected: [{
+        "__preprocess__": (testResult:any) => {
+          //remove camelCase keys (MatchFields)
+          delete testResult.fields.manufacturerCode
+          delete testResult.fields.industryCode
+        },
         "prio": 7,
         "pgn": 65288,
         "dst": 255,
