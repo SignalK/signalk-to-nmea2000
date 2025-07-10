@@ -1,7 +1,6 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
   PGN_130306,
-  PGN_130306Defaults,
   WindReference
 } from '@canboat/ts-pgns'
 

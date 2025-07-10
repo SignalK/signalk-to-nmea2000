@@ -1,6 +1,10 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN_126720_Seatalk1DisplayBrightness
+} from '@canboat/ts-pgns'
+import _ from 'lodash'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     title: 'Raymarine (Seatalk) Display Brightness (126720)',
     optionKey: 'RAYMARINE',
@@ -34,36 +38,34 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options:any) => {
       if (!_.get(options, 'RAYMARINE.groups')) {
         return null
       }
-      return options.RAYMARINE.groups.map(group => {
+      return options.RAYMARINE.groups.map((group:any) => {
         return {
           keys: [`electrical.displays.raymarine.${group.signalkId}.brightness`],
-          callback: (brightness) => {
-            return [{
-              pgn: 126720,
-              "dst": 255,
-              "Manufacturer Code": "Raymarine",
-              "Industry Code": "Marine Industry",
-              "Proprietary ID": "0x0c8c",
-              "Group": group.instanceId,
-              "Unknown 1": 1,
-              "Command": "Brightness",
-              "Brightness": brightness * 100,
-              "Unknown 2": 0
-            }]
+          callback: (brightness:number) => {
+            return [
+              new PGN_126720_Seatalk1DisplayBrightness({
+                group: group.instanceId,
+                unknown1: 1,
+                brightness: brightness * 100,
+                unknown2: 0
+              })
+            ]
           },
           tests: [{
             input: [0.85],
             expected: [{
-              "__preprocess__": (testResult) => {
+              "__preprocess__": (testResult:any) => {
+                //remove camelCase keys (MatchFields)
                 delete testResult.fields.manufacturerCode
                 delete testResult.fields.industryCode
                 delete testResult.fields.proprietaryId
+                delete testResult.fields.command
               },
-              "prio": 2,
+              "prio": 3,
               "pgn": 126720,
               "dst": 255,
               "fields": {
