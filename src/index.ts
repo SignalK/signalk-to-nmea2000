@@ -1,15 +1,16 @@
-const Bacon = require("baconjs");
-const util = require("util");
-const _ = require('lodash')
-const path = require('path')
-const fs = require('fs')
-const { convertCamelCase } = require('@canboat/ts-pgns')
 
-module.exports = function(app) {
-  var plugin = {};
-  var unsubscribes = [];
-  var timers = []
-  var conversions = load_conversions(app, plugin)
+import Bacon from 'baconjs'
+import util from 'util'
+import _ from 'lodash'
+import path from 'path'
+import fs from 'fs'
+import { PGN, convertCamelCase } from '@canboat/ts-pgns'
+
+module.exports = function(app:any) {
+  var plugin: any = {};
+  var unsubscribes: any[] = [];
+  var timers: ReturnType<typeof setInterval>[] = []
+  var conversions: any[] = load_conversions(app, plugin)
   conversions = [].concat.apply([], conversions)
 
   /*
@@ -31,14 +32,14 @@ module.exports = function(app) {
     outputType defaults to 'to-n2k'
    */
 
-  var sourceTypes = {
+  var sourceTypes: {[key:string]: (conversion:any, options:any) => void} = {
     'onDelta': mapOnDelta,
     'onValueChange': mapBaconjs,
     'subscription': mapSubscription,
     'timer': mapTimer
   }
 
-  var outputTypes = {
+  var outputTypes: {[key:string]: any} = {
     'to-n2k': processToN2K
   }
 
@@ -46,7 +47,7 @@ module.exports = function(app) {
   plugin.name = "Signal K to NMEA 2000";
   plugin.description = "Plugin to convert Signal K to NMEA2000";
 
-  var schema = {
+  var schema: any = {
     type: "object",
     title: "Conversions to NMEA2000",
     description:
@@ -58,7 +59,7 @@ module.exports = function(app) {
 
   function updateSchema() {
     conversions.forEach(conversion => {
-      var obj =  {
+      var obj: any =  {
         type: 'object',
         title: conversion.title,
         properties: {
@@ -81,7 +82,7 @@ module.exports = function(app) {
           }
         }
       }
-      const safeKeys = conversion.keys || []
+      const safeKeys:string[] = conversion.keys || []
       safeKeys.forEach((key, i) => {
         obj.properties[pathToPropName(key)] = {
           title: `Source for ${key}`,
@@ -104,12 +105,12 @@ module.exports = function(app) {
     return schema
   }
 
-  plugin.start = function(options) {
-    conversions.forEach(conversion => {
+  plugin.start = function(options:any) {
+    conversions.forEach((conversion:any) => {
       if ( !_.isArray(conversion) ) {
         conversion = [ conversion ]
       }
-      conversion.forEach(conversion => {
+      conversion.forEach((conversion:any) => {
         if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
           app.debug(`${conversion.title} is enabled`)
 
@@ -120,7 +121,7 @@ module.exports = function(app) {
             subConversions = subConversions(options)
           }
           if ( subConversions != null ) {
-            subConversions.forEach(subConversion => {
+            subConversions.forEach((subConversion:any) => {
               if ( !_.isUndefined(subConversion) ) {
                 var type = _.isUndefined(subConversion.sourceType) ? 'onValueChange' : subConversion.sourceType
                 var mapper = sourceTypes[type]
@@ -149,18 +150,18 @@ module.exports = function(app) {
 
   return plugin;
 
-  function load_conversions (app, plugin) {
-    fpath = path.join(__dirname, 'conversions')
-    files = fs.readdirSync(fpath)
-    return files.map(fname => {
+  function load_conversions (app:any, plugin:any) {
+    const fpath = path.join(__dirname, 'conversions')
+    const files = fs.readdirSync(fpath)
+    return files.map((fname:string) => {
       if ( fname.endsWith('.js') ) {
         let pgn = path.basename(fname, '.js')
         return require(path.join(fpath, pgn))(app, plugin);
       }
-    }).filter(converter => { return typeof converter !== 'undefined'; });
+    }).filter((converter:any) => { return typeof converter !== 'undefined'; });
   }
 
-  function processToN2K(values) {
+  function processToN2K(values:PGN[]) {
     if (values) {
       Promise.all(values).then(pgns => {
         pgns.filter(pgn => pgn != null).forEach(pgn => {
@@ -170,7 +171,7 @@ module.exports = function(app) {
             app.debug(`emit nmea2000JsonOut ${JSON.stringify(converted)}`)
             app.emit("nmea2000JsonOut", converted);
           }
-          catch ( err ) {
+          catch ( err:any ) {
             console.error(`error writing pgn ${JSON.stringify(pgn)}`)
             console.error(err.stack)
           }
@@ -182,7 +183,7 @@ module.exports = function(app) {
     }
   }
 
-  function clearResendInterval(timer) {
+  function clearResendInterval(timer:ReturnType<typeof setInterval>) {
     let idx = timers.indexOf(timer)
     if ( idx != -1 ) {
       timers.splice(idx, 1)
@@ -190,7 +191,7 @@ module.exports = function(app) {
     clearInterval(timer)
   }
 
-  function processOutput(conversion, options, output) {
+  function processOutput(conversion:any, options:any, output:any) {
     if ( options && options.resend && options.resend > 0 ) {
       if ( conversion.resendTimer ) {
         clearResendInterval(conversion.resendTimer)
@@ -211,7 +212,7 @@ module.exports = function(app) {
     })
   }
 
-  function mapBaconjs(conversion, options) {
+  function mapBaconjs(conversion:any, options:any) {
     unsubscribes.push(
       timeoutingArrayStream(
         conversion.keys,
@@ -220,43 +221,43 @@ module.exports = function(app) {
         unsubscribes,
         options
       )
-        .map(values => conversion.callback.call(this, ...values))
+        .map((values:any) => conversion.callback(...values))
         .onValue(pgns => {
           processOutput(conversion, options, pgns)
         })
     );
-  }
+  }  
 
-  function mapOnDelta(conversion, options) {
-    app.signalk.on('delta', (delta) => {
+  function mapOnDelta(conversion:any, options:any) {
+    app.signalk.on('delta', (delta:any) => {
       try {
         processOutput(conversion, options, conversion.callback(delta))
-      } catch ( err ) {
+      } catch ( err:any ) {
         app.error(err)
         console.error(err.stack)
       }
     })
   }
 
-  function mapTimer(conversion, options) {
+  function mapTimer(conversion:any, options:any) {
     timers.push(setInterval(() => {
       processOutput(conversion, null, conversion.callback(app))
     }, conversion.interval));
   }
 
-  function subscription_error(err)
+  function subscription_error(err:any)
   {
     app.error(err.toString())
   }
 
-  function mapSubscription(mapping, options) {
-    var subscription = {
+  function mapSubscription(mapping:any, options:any) {
+    var subscription: any = {
       "context": mapping.context,
       subscribe: []
     }
 
     var keys = _.isFunction(mapping.keys) ? mapping.keys(options) : mapping.keys
-    keys.forEach(key => {
+    keys.forEach((key:string) => {
       subscription.subscribe.push({ path: key})
     });
 
@@ -266,7 +267,7 @@ module.exports = function(app) {
       subscription,
       unsubscribes,
       subscription_error,
-      delta => {
+      (delta:any) => {
         try {
           processOutput(mapping, options, mapping.callback(delta))
         } catch ( err ) {
@@ -276,15 +277,15 @@ module.exports = function(app) {
   }
 
   function timeoutingArrayStream (
-    keys,
-    timeouts = [],
-    streambundle,
-    unsubscribes,
-    options
+    keys: string[],
+    timeouts: number[] = [],
+    streambundle: any,
+    unsubscribes: any ,
+    options: any
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
-    const lastValues = keys.reduce((acc, key) => {
+    const lastValues = keys.reduce((acc:any, key:string) => {
       acc[key] = {
         timestamp: new Date().getTime(),
         value: null
@@ -298,9 +299,9 @@ module.exports = function(app) {
 
       let bus = streambundle.getSelfBus(skKey)
       if (sourceRef) {
-        bus = bus.filter( x => x.$source === sourceRef)
+        bus = bus.filter( (x:any) => x.$source === sourceRef)
       }
-      bus.map('.value').onValue(value => {
+      bus.map('.value').onValue((value:any) => {
         lastValues[skKey] = {
           timestamp: new Date().getTime(),
           value
@@ -323,14 +324,12 @@ module.exports = function(app) {
     }
     return result
   }
-
 };
 
-function pathToPropName(path) {
+function pathToPropName(path:string) {
   return path.replace(/\./g, '')
 
 }
 
-
-const notDefined = x => typeof x === 'undefined'
-const isDefined = x => typeof x !== 'undefined'
+const notDefined = (x:any) => typeof x === 'undefined'
+const isDefined = (x:any) => typeof x !== 'undefined'
