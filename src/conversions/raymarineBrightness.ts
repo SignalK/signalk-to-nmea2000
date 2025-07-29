@@ -71,7 +71,8 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
               "fields": {
                 "Manufacturer Code": "Raymarine",
                 "Industry Code": "Marine Industry",
-                "Proprietary ID": "0x0c8c",
+                "Proprietary ID": "Display",
+                "command1": "Settings",
                 "Group": "Helm 2",
                 "Unknown 1": 1,
                 "Command": "Brightness",
