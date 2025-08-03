@@ -99,6 +99,7 @@ describe('conversions work', () => {
                         delete pgn.src
                         delete pgn.timestamp
                         delete pgn.input
+                        delete pgn.id
 
                         let expected = test.expected[idx]
                         if ( typeof expected === 'function' ) {
