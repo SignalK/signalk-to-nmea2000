@@ -1,6 +1,7 @@
 import { ServerAPI, Plugin} from '@signalk/server-api'
 import {
-  PGN_126720_Seatalk1DisplayBrightness
+  PGN_126720_Seatalk1DisplayBrightness,
+  SeatalkShared
 } from '@canboat/ts-pgns'
 import _ from 'lodash'
 
@@ -49,7 +50,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
             return [
               new PGN_126720_Seatalk1DisplayBrightness({
                 group: group.instanceId,
-                unknown1: 1,
+                shared: SeatalkShared.Shared,
                 brightness: brightness * 100,
                 unknown2: 0
               })

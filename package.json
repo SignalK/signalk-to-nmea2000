@@ -24,7 +24,7 @@
   ],
   "license": "ISC",
   "dependencies": {
-    "@canboat/ts-pgns": "^1.0.1",
+    "@canboat/ts-pgns": "^1.11.3",
     "@signalk/server-api": "^2.7.1",
     "baconjs": "^1.0.1",
     "lodash": "^4.17.4"
