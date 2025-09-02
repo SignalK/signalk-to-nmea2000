@@ -75,7 +75,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
                 "Proprietary ID": "Display",
                 "command1": "Settings",
                 "Group": "Helm 2",
-                "Unknown 1": 1,
+                "Shared": "Shared",
                 "Command": "Brightness",
                 "Brightness": 85,
                 "Unknown 2": 0
