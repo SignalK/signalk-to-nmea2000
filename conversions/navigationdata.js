@@ -5,7 +5,7 @@ module.exports = (app, plugin) => {
     title: 'Cross Track Error (129283)',
     optionKey: 'xte',
     keys: [
-      'navigation.courseRhumbline.crossTrackError'
+      'navigation.course.calcValues.crossTrackError'
     ],
     callback: (XTE) => [{
       pgn: 129283,
@@ -32,13 +32,13 @@ module.exports = (app, plugin) => {
     title: 'Navigation Data (129284)',
     optionKey: 'navigationdata',
     keys: [
-      'navigation.courseRhumbline.nextPoint.distance',
-      'navigation.courseRhumbline.bearingToDestinationTrue',
-      'navigation.courseRhumbline.bearingOriginToDestinationTrue',
-      'navigation.courseRhumbline.nextPoint.position',
-      'navigation.courseRhumbline.nextPoint.velocityMadeGood',
-      'notifications.arrivalCircleEntered',
-      'notifications.perpendicularPassed',
+      'navigation.course.calcValues.distance',
+      'navigation.course.calcValues.bearingTrue',
+      'navigation.course.calcValues.bearingTrackTrue',
+      'navigation.course.nextPoint',
+      'navigation.course.calcValues.velocityMadeGood',
+      'notifications.navigation.arrivalCircleEntered',
+      'notifications.navigation.perpendicularPassed',
       'navigation.courseRhumbline.nextPoint.ID'
     ],
     timeouts: [
@@ -67,13 +67,13 @@ module.exports = (app, plugin) => {
         "Bearing, Position to Destination Waypoint" : bearingToDest,
         "Origin Waypoint Number" : undefined,
         "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : destPos.latitude,
-        "Destination Longitude" : destPos.longitude,
+        "Destination Latitude" : destPos.position.latitude,
+        "Destination Longitude" : destPos.position.longitude,
         "Waypoint Closing Velocity" : WCV,
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, { longitude: -75.487264, latitude: 32.0631296 } , 4.0, null, 1, 5 ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, 5 ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -105,13 +105,13 @@ module.exports = (app, plugin) => {
     title: 'Navigation Data Great Circle (129284)',
     optionKey: 'navigationdatagc',
     keys: [
-      'navigation.courseGreatCircle.nextPoint.distance',
-      'navigation.courseGreatCircle.bearingToDestinationTrue',
-      'navigation.courseGreatCircle.bearingOriginToDestinationTrue',
-      'navigation.courseGreatCircle.nextPoint',
-      'navigation.courseGreatCircle.nextPoint.velocityMadeGood',
-      'notifications.arrivalCircleEntered',
-      'notifications.perpendicularPassed',
+      'navigation.course.calcValues.distance',
+      'navigation.course.calcValues.bearingTrue',
+      'navigation.course.calcValues.bearingTrackTrue',
+      'navigation.course.nextPoint',
+      'navigation.course.calcValues.velocityMadeGood',
+      'notifications.navigation.arrivalCircleEntered',
+      'notifications.navigation.perpendicularPassed',
       'navigation.courseGreatCircle.nextPoint.ID'
     ],
     timeouts: [
@@ -140,13 +140,13 @@ module.exports = (app, plugin) => {
         "Bearing, Position to Destination Waypoint" : bearingToDest,
         "Origin Waypoint Number" : undefined,
         "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : dest.latitude,
-        "Destination Longitude" : dest.longitude,
+        "Destination Latitude" : dest.position.latitude,
+        "Destination Longitude" : dest.position.longitude,
         "Waypoint Closing Velocity" : WCV,
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, { longitude: -75.487264, latitude: 32.0631296 } , 4.0, null, 1, 5 ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, 5 ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
