@@ -1,8 +1,15 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import {
+  PGN_127488,
+  PGN_127489,
+  PGN_130312,
+  TemperatureSource
+} from '@canboat/ts-pgns'
+import _ from 'lodash'
 
 const DEFAULT_TIMEOUT = 10000  // ms
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
 
   // discrete status fields are not yet implemented
   const engParKeys = [
@@ -57,29 +64,28 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options:any) => {
       if ( !_.get(options, 'EXHAUST_TEMPERATURE.engines') ) {
         return null
       }
-      return options.EXHAUST_TEMPERATURE.engines.map(engine => {
+      return options.EXHAUST_TEMPERATURE.engines.map((engine:any) => {
         return {
           keys: [
             `propulsion.${engine.signalkId}.exhaustTemperature`
           ],
-          callback: (temperature) => {
-            return [{
-              pgn: 130312,
-              SID: 0xff,
-              "Temperature Instance": engine.tempInstanceId,
-              "Instance": engine.tempInstanceId,
-              "Source": 14,
-              "Actual Temperature": temperature,
-            }]
+          callback: (temperature:number): PGN_130312[] => {
+            return [
+              new PGN_130312({
+                instance: engine.tempInstanceId,
+                source: TemperatureSource.ExhaustGasTemperature,
+                actualTemperature: temperature,
+              })
+            ]
           },
           tests: [{
             input: [ 281.2 ],
             expected: [{
-              "prio": 2,
+              "prio": 5,
               "pgn": 130312,
               "dst": 255,
               "fields": {
@@ -126,34 +132,32 @@ module.exports = (app, plugin) => {
       }
     },
     
-    conversions: (options) => {
+    conversions: (options:any) => {
       if ( !_.get(options, 'ENGINE_PARAMETERS.engines') ) {
         return null
       }
-      const dyn = options.ENGINE_PARAMETERS.engines.map(engine => {
+      const dyn = options.ENGINE_PARAMETERS.engines.map((engine:any) => {
         return {
           keys: engParKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engParKeys.map(key => DEFAULT_TIMEOUT),
-          callback: (oilPres, oilTemp, temp, altVolt, fuelRate, runTime, coolPres, fuelPres, engLoad, engTorque) => {
-            return [{
-                pgn: 127489,
-                "Engine Instance": engine.instanceId,
-                "Instance": engine.instanceId,
-                "Oil pressure": oilPres === null ? undefined : oilPres / 100,
-                "Oil temperature": oilTemp === null ? undefined : oilTemp,
-                "Temperature": temp === null ? undefined : temp,
-                "Alternator Potential": altVolt === null ? undefined : altVolt,
-                "Fuel Rate": fuelRate ===null ? undefined : fuelRate * 3600 * 1000,
-                "Total Engine hours": runTime === null ? undefined : runTime,
-                "Coolant Pressure": coolPres === null ? undefined : coolPres / 100,
-                "Fuel Pressure": fuelPres === null ? undefined : fuelPres / 100,
-                "Discrete Status 1": [],
-                "Discrete Status 2": [],
-                "Percent Engine Load": engLoad === null ? undefined : engLoad * 100,
-                "Engine Load": engLoad === null ? undefined : engLoad * 100,
-                "Percent Engine Torque": engTorque === null ? undefined : engTorque * 100,
-                "Engine Torque": engTorque === null ? undefined : engTorque * 100
-            }]
+          callback: (oilPres:number, oilTemp:number, temp:number, altVolt:number, fuelRate:number, runTime:number, coolPres:number, fuelPres:number, engLoad:number, engTorque:number): PGN_127489[] => {
+            return [
+              new PGN_127489({
+                instance: engine.instanceId,
+                oilPressure: oilPres === null ? undefined : oilPres / 100,
+                oilTemperature: oilTemp === null ? undefined : oilTemp,
+                temperature: temp === null ? undefined : temp,
+                alternatorPotential: altVolt === null ? undefined : altVolt,
+                fuelRate: fuelRate ===null ? undefined : fuelRate * 3600 * 1000,
+                totalEngineHours: runTime === null ? undefined : runTime,
+                coolantPressure: coolPres === null ? undefined : coolPres / 100,
+                fuelPressure: fuelPres === null ? undefined : fuelPres / 100,
+                discreteStatus1: [],
+                discreteStatus2: [],
+                engineLoad: engLoad === null ? undefined : engLoad * 100,
+                engineTorque: engTorque === null ? undefined : engTorque * 100
+              })
+            ]
           },
           tests: [{
             input: [ 102733, 210, 220, 13.1, 100, 201123, 202133, 11111111, 0.5, 1.0 ],
@@ -181,19 +185,19 @@ module.exports = (app, plugin) => {
         }
       })
 
-      const rapid = options.ENGINE_PARAMETERS.engines.map(engine => {
+      const rapid = options.ENGINE_PARAMETERS.engines.map((engine:any) => {
         return {
           keys: engRapidKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engRapidKeys.map(key => DEFAULT_TIMEOUT),
-          callback: (revolutions, boostPressure, trimState) => {
-            return [{
-                pgn: 127488,
-                "Engine Instance": engine.instanceId,
-                "Instance": engine.instanceId,
-                "Speed": revolutions === null ? undefined : revolutions * 60,
-                "Boost Pressure": boostPressure === null ? undefined : boostPressure / 100,
-                "Tilt/Trim": trimState === null ? undefined : trimState * 100
-            }]
+          callback: (revolutions:number, boostPressure:number, trimState:number): PGN_127488[]  => {
+            return [
+              new PGN_127488({
+                instance: engine.instanceId,
+                speed: revolutions === null ? undefined : revolutions * 60,
+                boostPressure: boostPressure === null ? undefined : boostPressure / 100,
+                tiltTrim: trimState === null ? undefined : trimState * 100
+              })
+            ]
           },
           tests: [{
             input: [ 1001, 20345, 0.5 ],

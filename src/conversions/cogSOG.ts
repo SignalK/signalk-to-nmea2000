@@ -1,21 +1,22 @@
-const _ = require('lodash')
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import { DirectionReference, PGN_129026 } from '@canboat/ts-pgns'
+import _ from 'lodash'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   var lastUpdate = null
   
   return {
     title: 'COG & SOG (129026)',
     optionKey: 'COG_SOGv2',
     keys: ["navigation.courseOverGroundTrue", "navigation.speedOverGround"],
-    callback: (course, speed) => {
+    callback: (course:number, speed:number): PGN_129026[]|undefined => {
       try {
         return [
-          {
-            pgn: 129026,
-            'COG Reference': 0,
-            COG: course,
-            SOG: speed
-          }
+          new PGN_129026({
+            cogReference: DirectionReference.True,
+            cog: course,
+            sog: speed
+          })
         ]
       } catch ( err ) {
         console.error(err)

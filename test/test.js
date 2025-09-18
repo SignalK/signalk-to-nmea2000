@@ -1,4 +1,5 @@
 const { pgnToActisenseSerialFormat, FromPgn } = require("@canboat/canboatjs");
+const { mapCamelCaseKeys } = require('@canboat/ts-pgns')
 const path = require('path')
 const fs = require('fs')
 const chai = require('chai')
@@ -7,7 +8,7 @@ chai.Should()
 //chai.use(require('chai-things'))
 chai.use(require('chai-json-equal'));
 
-const parser = new FromPgn()
+const parser = new FromPgn({useCamel:false})
 
 let skSelfData = {}
 let skData = {}
@@ -24,11 +25,13 @@ const app = {
 }
 
 function load_conversions () {
-  fpath = path.join(__dirname, '../conversions')
+  fpath = path.join(__dirname, '../dist/conversions')
   files = fs.readdirSync(fpath)
   return files.map(fname => {
-    pgn = path.basename(fname, '.js')
-    return require(path.join(fpath, pgn))(app, {});
+    if ( fname.endsWith('.js') ) {
+      pgn = path.basename(fname, '.js')
+      return require(path.join(fpath, pgn))(app, {});
+    }
   }).filter(converter => { return typeof converter !== 'undefined'; });
 }
 
@@ -96,6 +99,7 @@ describe('conversions work', () => {
                         delete pgn.src
                         delete pgn.timestamp
                         delete pgn.input
+                        delete pgn.id
 
                         let expected = test.expected[idx]
                         if ( typeof expected === 'function' ) {
@@ -109,6 +113,7 @@ describe('conversions work', () => {
                         //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
                         pgn.should.jsonEqual(expected)
                       } catch ( e ) {
+                        //console.error(e)
                         error = e
                       }
                     })

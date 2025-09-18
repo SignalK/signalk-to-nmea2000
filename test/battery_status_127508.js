@@ -34,7 +34,7 @@ describe('Battery status 127508', function () {
 
     const app = new Server().app
     app.providerStatistics = []
-    app.debug = (x) => console.log(x)
+    app.debug = (x) => {}
     const n2kSpy = sinon.spy()
     app.on('nmea2000JsonOut', n2kSpy)
     setTimeout(() => {

@@ -1,18 +1,19 @@
+import { ServerAPI, Plugin} from '@signalk/server-api'
+import { PGN_129291, DirectionReference } from '@canboat/ts-pgns'
 
-module.exports = (app, plugin) => {
+module.exports = (app:ServerAPI, plugin:Plugin) => {
   return {
     title: 'Set/Drift (129291)',
     optionKey: 'SetDrift',
     keys: ["environment.current.setTrue", "environment.current.drift"],
-    callback: (set, drift) => {
+    callback: (set:number, drift:number): PGN_129291[]|undefined => {
       try {
         return [
-          {
-            pgn: 129291,
-            'Set': set,
-            'Drift': drift,
-            'Set Reference': 0
-          }
+          new PGN_129291({
+            set: set,
+            drift: drift,
+            setReference: DirectionReference.True
+          })
         ]
       } catch ( err ) {
         console.error(err)
@@ -25,7 +26,7 @@ module.exports = (app, plugin) => {
         {
           pgn: 129291,
           dst: 255,
-          prio: 2,
+          prio: 3,
           fields: {
             'Drift': 1.2,
             'Set': 2.0944,
@@ -39,7 +40,7 @@ module.exports = (app, plugin) => {
         {
           pgn: 129291,
           dst: 255,
-          prio: 2,
+          prio: 3,
           fields: {
             'Drift': 1.5,
             'Set': 1.0944,
