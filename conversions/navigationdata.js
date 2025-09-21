@@ -67,8 +67,8 @@ module.exports = (app, plugin) => {
         "Bearing, Position to Destination Waypoint" : bearingToDest,
         "Origin Waypoint Number" : undefined,
         "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : destPos.position.latitude,
-        "Destination Longitude" : destPos.position.longitude,
+        "Destination Latitude" : destPos?.position?.latitude,
+        "Destination Longitude" : destPos?.position?.longitude,
         "Waypoint Closing Velocity" : WCV,
       }]
     },
@@ -140,8 +140,8 @@ module.exports = (app, plugin) => {
         "Bearing, Position to Destination Waypoint" : bearingToDest,
         "Origin Waypoint Number" : undefined,
         "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : dest.position.latitude,
-        "Destination Longitude" : dest.position.longitude,
+        "Destination Latitude" : dest?.position?.latitude,
+        "Destination Longitude" : dest?.position?.longitude,
         "Waypoint Closing Velocity" : WCV,
       }]
     },
