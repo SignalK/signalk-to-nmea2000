@@ -39,12 +39,12 @@ module.exports = (app, plugin) => {
       'navigation.course.calcValues.velocityMadeGood',
       'notifications.navigation.arrivalCircleEntered',
       'notifications.navigation.perpendicularPassed',
-      'navigation.courseRhumbline.nextPoint.ID'
+      'navigation.course.activeRoute'
     ],
     timeouts: [
       10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
     ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, ace, pp, wpid) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, ace, pp, rte) => {
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -52,7 +52,7 @@ module.exports = (app, plugin) => {
                      dateObj.getUTCMinutes() * 60 +
                      dateObj.getUTCSeconds() +
                      secondsToGo) % 86400;
-
+      let wpid = rte && typeof rte?.pointIndex === 'number' ? rte.pointIndex + 1 : 0;
       return [{
         pgn: 129284,
         "SID" : 0x88,
@@ -73,7 +73,7 @@ module.exports = (app, plugin) => {
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, 5 ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, {pointIndex: 5} ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -92,7 +92,7 @@ module.exports = (app, plugin) => {
           "Calculation Type": "Rhumbline",
           "Bearing, Origin to Destination Waypoint": 3.1,
           "Bearing, Position to Destination Waypoint": 1.23,
-          "Destination Waypoint Number": 5,
+          "Destination Waypoint Number": 6,
           "Destination Latitude": 32.0631296,
           "Destination Longitude": -75.487264,
           "Waypoint Closing Velocity": 4
@@ -112,12 +112,12 @@ module.exports = (app, plugin) => {
       'navigation.course.calcValues.velocityMadeGood',
       'notifications.navigation.arrivalCircleEntered',
       'notifications.navigation.perpendicularPassed',
-      'navigation.courseGreatCircle.nextPoint.ID'
+      'navigation.course.activeRoute'
     ],
     timeouts: [
       10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
     ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, dest, WCV, ace, pp, wpid) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, dest, WCV, ace, pp, rte) => {
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -125,7 +125,7 @@ module.exports = (app, plugin) => {
                      dateObj.getUTCMinutes() * 60 +
                      dateObj.getUTCSeconds() +
                      secondsToGo) % 86400;
-
+      let wpid = rte && typeof rte?.pointIndex === 'number' ? rte.pointIndex + 1 : 0;
       return [{
         pgn: 129284,
         "SID" : 0x88,
@@ -146,7 +146,7 @@ module.exports = (app, plugin) => {
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, 5 ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, {pointIndex: 5} ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -165,7 +165,7 @@ module.exports = (app, plugin) => {
           "Calculation Type": "Great Circle",
           "Bearing, Origin to Destination Waypoint": 3.1,
           "Bearing, Position to Destination Waypoint": 1.23,
-          "Destination Waypoint Number": 5,
+          "Destination Waypoint Number": 6,
           "Destination Latitude": 32.0631296,
           "Destination Longitude": -75.487264,
           "Waypoint Closing Velocity": 4
