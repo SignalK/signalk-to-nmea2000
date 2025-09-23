@@ -235,7 +235,14 @@ module.exports = function(app) {
 
   function mapTimer(conversion, options) {
     timers.push(setInterval(() => {
-      processOutput(conversion, null, conversion.callback(app))
+      let values = conversion.keys?.map(key => {
+        let update = app.getSelfPath(key)
+        if (update && 'value' in update)
+          return update.value
+        else
+          return update
+      }) || []
+      processOutput(conversion, null, conversion.callback(app, ...values))
     }, conversion.interval));
   }
 
