@@ -142,7 +142,6 @@ module.exports = (app, plugin) => {
         "fields": {
           "Message ID": "Static and voyage related data",
           "User ID": 367301250,
-          "Callsign": "",
           "Name": "SOME BOAT",
           "Type of ship": "Tug",
           "Length": 30,
