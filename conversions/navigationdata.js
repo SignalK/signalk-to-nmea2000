@@ -37,14 +37,15 @@ module.exports = (app, plugin) => {
       'navigation.course.calcValues.bearingTrackTrue',
       'navigation.course.nextPoint',
       'navigation.course.calcValues.velocityMadeGood',
+      'navigation.course.calcValues.calcMethod',
       'notifications.navigation.arrivalCircleEntered',
       'notifications.navigation.perpendicularPassed',
       'navigation.course.activeRoute'
     ],
     timeouts: [
-      10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
+      10000, 10000, 10000, 10000, 10000, undefined, undefined, undefined, undefined
     ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, ace, pp, rte) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, ace, pp, rte) => {
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -60,7 +61,7 @@ module.exports = (app, plugin) => {
         "Course/Bearing reference" : 0,
         "Perpendicular Crossed" : pp != null,
         "Arrival Circle Entered" : ace != null,
-        "Calculation Type" : 1,
+        "Calculation Type" : calcMethod == "GreatCircle" ? 0 : 1,
         "ETA Time" : (WCV > 0) ? etaTime : undefined,
         "ETA Date": (WCV > 0) ? etaDate : undefined,
         "Bearing, Origin to Destination Waypoint" : bearingOriginToDest,
@@ -73,7 +74,7 @@ module.exports = (app, plugin) => {
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, {pointIndex: 5} ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", null, 1, {pointIndex: 5} ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -99,79 +100,5 @@ module.exports = (app, plugin) => {
         }
       }]
     }]
-  },
-  {
-    pgn: 129284,
-    title: 'Navigation Data Great Circle (129284)',
-    optionKey: 'navigationdatagc',
-    keys: [
-      'navigation.course.calcValues.distance',
-      'navigation.course.calcValues.bearingTrue',
-      'navigation.course.calcValues.bearingTrackTrue',
-      'navigation.course.nextPoint',
-      'navigation.course.calcValues.velocityMadeGood',
-      'notifications.navigation.arrivalCircleEntered',
-      'notifications.navigation.perpendicularPassed',
-      'navigation.course.activeRoute'
-    ],
-    timeouts: [
-      10000, 10000, 10000, 10000, 10000, undefined, undefined, 10000
-    ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, dest, WCV, ace, pp, rte) => {
-      var dateObj = new Date();
-      var secondsToGo = Math.trunc(distToDest / WCV);
-      var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
-      var etaTime = (dateObj.getUTCHours() * (60 * 60) +
-                     dateObj.getUTCMinutes() * 60 +
-                     dateObj.getUTCSeconds() +
-                     secondsToGo) % 86400;
-      let wpid = rte && typeof rte?.pointIndex === 'number' ? rte.pointIndex + 1 : 0;
-      return [{
-        pgn: 129284,
-        "SID" : 0x88,
-        "Distance to Waypoint" :  distToDest,
-        "Course/Bearing reference" : 0,
-        "Perpendicular Crossed" : pp != null,
-        "Arrival Circle Entered" : ace != null,
-        "Calculation Type" : 0,
-        "ETA Time" : (WCV > 0) ? etaTime : undefined,
-        "ETA Date": (WCV > 0) ? etaDate : undefined,
-        "Bearing, Origin to Destination Waypoint" : bearingOriginToDest,
-        "Bearing, Position to Destination Waypoint" : bearingToDest,
-        "Origin Waypoint Number" : undefined,
-        "Destination Waypoint Number" : parseInt(wpid),
-        "Destination Latitude" : dest?.position?.latitude,
-        "Destination Longitude" : dest?.position?.longitude,
-        "Waypoint Closing Velocity" : WCV,
-      }]
-    },
-    tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, null, 1, {pointIndex: 5} ],
-      expected: [{
-        "__preprocess__": (testResult) => {
-          //these change every time
-          delete testResult.fields["ETA Date"]
-          delete testResult.fields["ETA Time"]
-        },
-        "prio": 2,
-        "pgn": 129284,
-        "dst": 255,
-        "fields": {
-          "SID": 136,
-          "Distance to Waypoint": 12,
-          "Course/Bearing reference": "True",
-          "Perpendicular Crossed": "Yes",
-          "Arrival Circle Entered": "No",
-          "Calculation Type": "Great Circle",
-          "Bearing, Origin to Destination Waypoint": 3.1,
-          "Bearing, Position to Destination Waypoint": 1.23,
-          "Destination Waypoint Number": 6,
-          "Destination Latitude": 32.0631296,
-          "Destination Longitude": -75.487264,
-          "Waypoint Closing Velocity": 4
-        }
-      }]
-    }]
-  }
-]
+  }]
 }
