@@ -7,7 +7,7 @@ chai.Should()
 //chai.use(require('chai-things'))
 chai.use(require('chai-json-equal'));
 
-const parser = new FromPgn()
+const parser = new FromPgn({useCamel: false})
 
 let skSelfData = {}
 let skData = {}
@@ -96,6 +96,7 @@ describe('conversions work', () => {
                         delete pgn.src
                         delete pgn.timestamp
                         delete pgn.input
+                        delete pgn.id
 
                         let expected = test.expected[idx]
                         if ( typeof expected === 'function' ) {

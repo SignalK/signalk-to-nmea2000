@@ -30,7 +30,7 @@
     "url": "https://github.com/SignalK/signalk-to-nmea2000"
   },
   "devDependencies": {
-    "@canboat/canboatjs": "2.x",
+    "@canboat/canboatjs": "^3.x",
     "@signalk/github-create-release": "^1.2.1",
     "chai": "^4.1.2",
     "chai-json-equal": "^0.0.1",
