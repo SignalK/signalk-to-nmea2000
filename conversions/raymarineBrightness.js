@@ -47,10 +47,10 @@ module.exports = (app, plugin) => {
               "dst": 255,
               "Manufacturer Code": "Raymarine",
               "Industry Code": "Marine Industry",
-              "Proprietary ID": "0x0c8c",
-              "Group": group.instanceId,
-              "Unknown 1": 1,
+              "Proprietary ID": "Display",
+              "command1": "Settings",
               "Command": "Brightness",
+              "Group": group.instanceId,
               "Brightness": brightness * 100,
               "Unknown 2": 0
             }]
@@ -64,9 +64,9 @@ module.exports = (app, plugin) => {
               "fields": {
                 "Manufacturer Code": "Raymarine",
                 "Industry Code": "Marine Industry",
-                "Proprietary ID": "0x0c8c",
+                "Proprietary ID": "Display",
                 "Group": "Helm 2",
-                "Unknown 1": 1,
+                "command1": "Settings",
                 "Command": "Brightness",
                 "Brightness": 85,
                 "Unknown 2": 0
