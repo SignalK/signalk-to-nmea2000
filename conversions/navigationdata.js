@@ -1,3 +1,7 @@
+const path = require('node:path');
+const _ = require('lodash')
+
+const routeWPDataItemsPerPacket = 3
 
 module.exports = (app, plugin) => {
   return [{
@@ -100,5 +104,189 @@ module.exports = (app, plugin) => {
         }
       }]
     }]
+  },
+  {
+    title: 'Route/WP Information (129285)',
+    optionKey: 'routewpinformation',
+    conversions: (options) => {
+      return [{
+        interval: 10000,
+        sourceType: 'timer',
+        callback: async (app) => {
+          var course = await app.courseApi.getCourse()
+          if (!course.activeRoute?.href)
+            return null
+
+          route = await app.resourcesApi.getResource('routes', path.basename(course.activeRoute.href))
+          if (!route)
+            return null
+
+          coordinates = _.chunk(route.feature.geometry.coordinates, routeWPDataItemsPerPacket)
+          return coordinates.map((coords, i) => {
+            list = coords.map((coord, j) => {
+              waypointId = (routeWPDataItemsPerPacket * i) + j
+              return {
+                "WP ID": waypointId,
+                "WP Name": "Waypoint " + (waypointId + 1).toString(),
+                "WP Latitude": coord[0],
+                "WP Longitude": coord[1]
+              }
+            })
+
+            return {
+              pgn: 129285,
+              "prio": 7,
+              "Start RPS#" : i,
+              "nItems" : coords.length,
+              "Database ID" :  0,
+              "Route ID" :  0,
+              "Supplementary Route/WP data available" :  "Off",
+              "Reserved": "00",
+              "Route Name": course.activeRoute.name,
+              "list": list,
+              "Navigation direction in route" : course.activeRoute.reverse ? "Reverse" : "Forward",
+            }
+          })
+        },
+        tests: [{
+          input: [
+            mockApp,
+          ],
+          expected: [{
+            "prio": 7,
+            "pgn": 129285,
+            "dst": 255,
+            "fields": {
+              "Start RPS#": 0,
+              "nItems": 3,
+              "Database ID": 0,
+              "Route ID": 0,
+              "Route Name": "Test Route",
+              "Navigation direction in route": "Forward",
+              "Supplementary Route/WP data available": "Off",
+              "list": [
+                {
+                  "WP ID": 0,
+                  "WP Latitude": -76.4818398,
+                  "WP Longitude": 38.9749677,
+                  "WP Name": "Waypoint 1",
+                },
+                {
+                  "WP ID": 1,
+                  "WP Latitude": -76.4795366,
+                  "WP Longitude": 38.977234,
+                  "WP Name": "Waypoint 2",
+                },
+                {
+                  "WP ID": 2,
+                  "WP Latitude": -76.4726708,
+                  "WP Longitude": 38.9780512,
+                  "WP Name": "Waypoint 3",
+                },
+              ]
+            }
+          },{
+            "prio": 7,
+            "pgn": 129285,
+            "dst": 255,
+            "fields": {
+              "Start RPS#": 1,
+              "nItems": 3,
+              "Database ID": 0,
+              "Route ID": 0,
+              "Route Name": "Test Route",
+              "Navigation direction in route": "Forward",
+              "Supplementary Route/WP data available": "Off",
+              "list": [
+                {
+                  "WP ID": 3,
+                  "WP Latitude": -76.4818398,
+                  "WP Longitude": 38.9749677,
+                  "WP Name": "Waypoint 4",
+                },
+                {
+                  "WP ID": 4,
+                  "WP Latitude": -76.4795366,
+                  "WP Longitude": 38.977234,
+                  "WP Name": "Waypoint 5",
+                },
+                {
+                  "WP ID": 5,
+                  "WP Latitude": -76.4726708,
+                  "WP Longitude": 38.9780512,
+                  "WP Name": "Waypoint 6",
+                },
+              ]
+            }
+          }]
+        }]
+      }]
+    }
   }]
+}
+
+var mockApp = {
+  courseApi: {
+    getCourse: () => {
+      return {
+        nextPoint: {
+          "type": "RoutePoint",
+          "position": {
+            "latitude": 38.97496773616132,
+            "longitude": -76.48183979803126
+          }
+        },
+        activeRoute: {
+          "href": "mock",
+          "name": "Test Route",
+          "reverse": false,
+          "pointIndex": 0,
+          "pointTotal": 6
+        }
+      }
+    }
+  },
+  resourcesApi: {
+    getResource: () => {
+      return {
+        "name": "Test Route",
+        "description": "",
+        "distance": 211170,
+        "feature": {
+          "type": "Feature",
+          "geometry": {
+            "type": "LineString",
+            "coordinates": [
+              [
+                -76.48183979803126,
+                38.97496773616132
+              ],
+              [
+                -76.4795366274497,
+                38.97723402732939
+              ],
+              [
+                -76.47267084780538,
+                38.97805124659462
+              ],
+              [
+                -76.48183979803126,
+                38.97496773616132
+              ],
+              [
+                -76.4795366274497,
+                38.97723402732939
+              ],
+              [
+                -76.47267084780538,
+                38.97805124659462
+              ],
+            ]
+          },
+          "properties": {},
+          "id": ""
+        }
+      }
+    }
+  }
 }
