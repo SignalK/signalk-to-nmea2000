@@ -23,6 +23,7 @@
   "license": "ISC",
   "dependencies": {
     "baconjs": "^0.7.88",
+    "geolib": "^3.3.4",
     "lodash": "^4.17.4"
   },
   "repository": {
