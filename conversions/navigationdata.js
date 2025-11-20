@@ -42,14 +42,12 @@ module.exports = (app, plugin) => {
       'navigation.course.nextPoint',
       'navigation.course.calcValues.velocityMadeGood',
       'navigation.course.calcValues.calcMethod',
-      'notifications.navigation.arrivalCircleEntered',
-      'notifications.navigation.perpendicularPassed',
       'navigation.course.activeRoute'
     ],
     timeouts: [
-      10000, 10000, 10000, 10000, 10000, undefined, undefined, undefined, undefined
+      10000, 10000, 10000, 10000, 10000, undefined, undefined
     ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, ace, pp, rte) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, rte) => {
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -63,8 +61,8 @@ module.exports = (app, plugin) => {
         "SID" : 0x88,
         "Distance to Waypoint" :  distToDest,
         "Course/Bearing reference" : 0,
-        "Perpendicular Crossed" : pp != null,
-        "Arrival Circle Entered" : ace != null,
+        "Perpendicular Crossed" : false,
+        "Arrival Circle Entered" : false,
         "Calculation Type" : calcMethod == "GreatCircle" ? 0 : 1,
         "ETA Time" : (WCV > 0) ? etaTime : undefined,
         "ETA Date": (WCV > 0) ? etaDate : undefined,
@@ -78,7 +76,7 @@ module.exports = (app, plugin) => {
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", null, 1, {pointIndex: 5} ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", {pointIndex: 5} ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -92,7 +90,7 @@ module.exports = (app, plugin) => {
           "SID": 136,
           "Distance to Waypoint": 12,
           "Course/Bearing reference": "True",
-          "Perpendicular Crossed": "Yes",
+          "Perpendicular Crossed": "No",
           "Arrival Circle Entered": "No",
           "Calculation Type": "Rhumbline",
           "Bearing, Origin to Destination Waypoint": 3.1,
@@ -167,20 +165,20 @@ module.exports = (app, plugin) => {
               "list": [
                 {
                   "WP ID": 0,
-                  "WP Latitude": -76.4818398,
-                  "WP Longitude": 38.9749677,
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
                   "WP Name": "Waypoint 1",
                 },
                 {
                   "WP ID": 1,
-                  "WP Latitude": -76.4795366,
-                  "WP Longitude": 38.977234,
+                  "WP Latitude": 38.977234,
+                  "WP Longitude": -76.4795366,
                   "WP Name": "Waypoint 2",
                 },
                 {
                   "WP ID": 2,
-                  "WP Latitude": -76.4726708,
-                  "WP Longitude": 38.9780512,
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
                   "WP Name": "Waypoint 3",
                 },
               ]
@@ -200,20 +198,20 @@ module.exports = (app, plugin) => {
               "list": [
                 {
                   "WP ID": 3,
-                  "WP Latitude": -76.4818398,
-                  "WP Longitude": 38.9749677,
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
                   "WP Name": "Waypoint 4",
                 },
                 {
                   "WP ID": 4,
-                  "WP Latitude": -76.4795366,
-                  "WP Longitude": 38.977234,
+                  "WP Latitude": 38.977234,
+                  "WP Longitude": -76.4795366,
                   "WP Name": "Waypoint 5",
                 },
                 {
                   "WP ID": 5,
-                  "WP Latitude": -76.4726708,
-                  "WP Longitude": 38.9780512,
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
                   "WP Name": "Waypoint 6",
                 },
               ]
