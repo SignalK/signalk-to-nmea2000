@@ -128,8 +128,8 @@ module.exports = (app, plugin) => {
               return {
                 "WP ID": waypointId,
                 "WP Name": "Waypoint " + (waypointId + 1).toString(),
-                "WP Latitude": coord[0],
-                "WP Longitude": coord[1]
+                "WP Latitude": coord[1],
+                "WP Longitude": coord[0]
               }
             })
 
