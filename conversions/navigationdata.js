@@ -42,12 +42,14 @@ module.exports = (app, plugin) => {
       'navigation.course.nextPoint',
       'navigation.course.calcValues.velocityMadeGood',
       'navigation.course.calcValues.calcMethod',
+      'notifications.navigation.arrivalCircleEntered',
+      'notifications.navigation.perpendicularPassed',
       'navigation.course.activeRoute'
     ],
     timeouts: [
-      10000, 10000, 10000, 10000, 10000, undefined, undefined
+      10000, 10000, 10000, 10000, 10000, undefined, 1000, 1000, undefined
     ],
-    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, rte) => {
+    callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, ace, pp, rte) => {
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -61,8 +63,8 @@ module.exports = (app, plugin) => {
         "SID" : 0x88,
         "Distance to Waypoint" :  distToDest,
         "Course/Bearing reference" : 0,
-        "Perpendicular Crossed" : false,
-        "Arrival Circle Entered" : false,
+        "Perpendicular Crossed" : pp != null,
+        "Arrival Circle Entered" : ace != null,
         "Calculation Type" : calcMethod == "GreatCircle" ? 0 : 1,
         "ETA Time" : (WCV > 0) ? etaTime : undefined,
         "ETA Date": (WCV > 0) ? etaDate : undefined,
@@ -76,7 +78,7 @@ module.exports = (app, plugin) => {
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", {pointIndex: 5} ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", null, 1, {pointIndex: 5} ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -90,7 +92,7 @@ module.exports = (app, plugin) => {
           "SID": 136,
           "Distance to Waypoint": 12,
           "Course/Bearing reference": "True",
-          "Perpendicular Crossed": "No",
+          "Perpendicular Crossed": "Yes",
           "Arrival Circle Entered": "No",
           "Calculation Type": "Rhumbline",
           "Bearing, Origin to Destination Waypoint": 3.1,
