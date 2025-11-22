@@ -5,6 +5,71 @@ const routeWPDataItemsPerPacket = 3
 
 module.exports = (app, plugin) => {
   return [{
+    pgn: 127258,
+    title: 'Magnetic Variation (127258)',
+    optionKey: 'magneticvariation',
+    keys: [
+      'navigation.magneticVariation',
+      'navigation.magneticVariation.source',
+      'navigation.magneticVariation.ageOfService'
+    ],
+    callback: (variation, source, ageOfService) => {
+      // Map WMM source to NMEA2000 compatible value
+      // NMEA2000 standard only supports up to WMM 2020
+      // canboat library's MAGNETIC_VARIATION enum only supports up to WMM 2020
+      let formattedSource = "Manual";
+      if (source) {
+        if (source.startsWith('WMM-2020')) {
+          formattedSource = "WMM 2020";
+        } else if (source.startsWith('WMM-2015')) {
+          formattedSource = "WMM 2015";
+        } else if (source.startsWith('WMM-2010')) {
+          formattedSource = "WMM 2010";
+        } else if (source.startsWith('WMM-2005')) {
+          formattedSource = "WMM 2005";
+        } else if (source.startsWith('WMM-2000')) {
+          formattedSource = "WMM 2000";
+        }
+        // WMM-2025 and other unsupported versions default to "Manual"
+      }
+
+      // Convert ageOfService from "YYYY.MM.DD" to days since Jan 1, 1970
+      let ageOfServiceDays = undefined;
+      if (ageOfService) {
+        const parts = ageOfService.split('.');
+        if (parts.length === 3) {
+          const date = new Date(Date.UTC(
+            parseInt(parts[0]),
+            parseInt(parts[1]) - 1,
+            parseInt(parts[2])
+          ));
+          ageOfServiceDays = Math.floor(date.getTime() / 86400000);
+        }
+      }
+
+      return [{
+        pgn: 127258,
+        SID: 0xff,
+        Source: formattedSource,
+        ageOfService: ageOfServiceDays,
+        Variation: variation
+      }];
+    },
+    tests: [{
+      input: [ 0.2146, "WMM-2025", "2025.11.23" ],
+      expected: [{
+        "prio": 2,
+        "pgn": 127258,
+        "dst": 255,
+        "fields": {
+          "Source": "Manual",
+          "Age of service": "2025.11.23",
+          "Variation": 0.2146
+        }
+      }]
+    }]
+  },
+  {
     pgn: 129283,
     title: 'Cross Track Error (129283)',
     optionKey: 'xte',
