@@ -10,42 +10,18 @@ module.exports = (app, plugin) => {
     optionKey: 'magneticvariation',
     keys: [
       'navigation.magneticVariation',
-      'navigation.magneticVariation.source',
-      'navigation.magneticVariation.ageOfService'
+      'navigation.magneticVariation.source'
     ],
-    callback: (variation, source, ageOfService) => {
-      // Map WMM source to NMEA2000 compatible value
-      // NMEA2000 standard only supports up to WMM 2020
-      // canboat library's MAGNETIC_VARIATION enum only supports up to WMM 2020
-      let formattedSource = "Manual";
-      if (source) {
-        if (source.startsWith('WMM-2020')) {
-          formattedSource = "WMM 2020";
-        } else if (source.startsWith('WMM-2015')) {
-          formattedSource = "WMM 2015";
-        } else if (source.startsWith('WMM-2010')) {
-          formattedSource = "WMM 2010";
-        } else if (source.startsWith('WMM-2005')) {
-          formattedSource = "WMM 2005";
-        } else if (source.startsWith('WMM-2000')) {
-          formattedSource = "WMM 2000";
-        }
-        // WMM-2025 and other unsupported versions default to "Manual"
+    callback: (variation, source) => {
+      if (variation === null || variation === undefined) {
+        return [];
       }
 
-      // Convert ageOfService from "YYYY.MM.DD" to days since Jan 1, 1970
-      let ageOfServiceDays = undefined;
-      if (ageOfService) {
-        const parts = ageOfService.split('.');
-        if (parts.length === 3) {
-          const date = new Date(Date.UTC(
-            parseInt(parts[0]),
-            parseInt(parts[1]) - 1,
-            parseInt(parts[2])
-          ));
-          ageOfServiceDays = Math.floor(date.getTime() / 86400000);
-        }
-      }
+      // Age of Service = now (days since Jan 1, 1970)
+      const ageOfServiceDays = Math.floor(Date.now() / 86400000);
+
+      // Format source from "WMM-2025" to "WMM 2025"
+      const formattedSource = source ? source.replace('-', ' ') : "Manual";
 
       return [{
         pgn: 127258,
@@ -56,14 +32,17 @@ module.exports = (app, plugin) => {
       }];
     },
     tests: [{
-      input: [ 0.2146, "WMM-2025", "2025.11.23" ],
+      input: [ 0.2146, "WMM-2025" ],
       expected: [{
+        "__preprocess__": (testResult) => {
+          // Age of service changes every day
+          delete testResult.fields["Age of service"]
+        },
         "prio": 2,
         "pgn": 127258,
         "dst": 255,
         "fields": {
-          "Source": "Manual",
-          "Age of service": "2025.11.23",
+          "Source": "WMM 2025",
           "Variation": 0.2146
         }
       }]
