@@ -5,6 +5,50 @@ const routeWPDataItemsPerPacket = 3
 
 module.exports = (app, plugin) => {
   return [{
+    pgn: 127258,
+    title: 'Magnetic Variation (127258)',
+    optionKey: 'magneticvariation',
+    keys: [
+      'navigation.magneticVariation',
+      'navigation.magneticVariation.source'
+    ],
+    callback: (variation, source) => {
+      if (variation === null || variation === undefined) {
+        return [];
+      }
+
+      // Age of Service = now (days since Jan 1, 1970)
+      const ageOfServiceDays = Math.floor(Date.now() / 86400000);
+
+      // Format source from "WMM-2025" to "WMM 2025"
+      const formattedSource = source ? source.replace('-', ' ') : "Manual";
+
+      return [{
+        pgn: 127258,
+        SID: 0xff,
+        Source: formattedSource,
+        ageOfService: ageOfServiceDays,
+        Variation: variation
+      }];
+    },
+    tests: [{
+      input: [ 0.2146, "WMM-2025" ],
+      expected: [{
+        "__preprocess__": (testResult) => {
+          // Age of service changes every day
+          delete testResult.fields["Age of service"]
+        },
+        "prio": 2,
+        "pgn": 127258,
+        "dst": 255,
+        "fields": {
+          "Source": "WMM 2025",
+          "Variation": 0.2146
+        }
+      }]
+    }]
+  },
+  {
     pgn: 129283,
     title: 'Cross Track Error (129283)',
     optionKey: 'xte',
