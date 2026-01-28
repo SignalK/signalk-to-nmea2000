@@ -32,7 +32,7 @@ module.exports = (app, plugin) => {
       }];
     },
     tests: [{
-      input: [ 0.2146, "WMM-2025" ],
+      input: [ 0.2146, "WMM-2020" ],
       expected: [{
         "__preprocess__": (testResult) => {
           // Age of service changes every day
@@ -42,7 +42,7 @@ module.exports = (app, plugin) => {
         "pgn": 127258,
         "dst": 255,
         "fields": {
-          "Source": "WMM 2025",
+          "Source": "WMM 2020",
           "Variation": 0.2146
         }
       }]
