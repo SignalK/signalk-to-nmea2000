@@ -1,6 +1,7 @@
 const chai = require('chai')
 chai.should()
 const sinon = require('sinon')
+const _ = require('lodash')
 const { FromPgn } = require('@canboat/canboatjs')
 
 const Sk2n2K = require('../')
@@ -23,6 +24,16 @@ describe('Navigation data 129284', function () {
     const app = new Server().app
     app.providerStatistics = []
     app.debug = () => {}
+    // A bare server app lacks the plugin app's data access. The conversion
+    // reads the calculated values from the Signal K tree and the destination
+    // from the Course API, so provide both as the plugin app would.
+    app.getSelfPath = (aPath) => _.get(app.signalk.self, aPath)
+    app.courseApi = {
+      getCourse: async () => ({
+        nextPoint: app.getSelfPath('navigation.course.nextPoint')?.value,
+        activeRoute: app.getSelfPath('navigation.course.activeRoute')?.value
+      })
+    }
     const sent = []
     const parser = new FromPgn({ useCamel: false })
     app.on('nmea2000out', (line) => sent.push(parser.parseString(line)))
