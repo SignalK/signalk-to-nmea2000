@@ -94,6 +94,9 @@ module.exports = (app, plugin) => {
       10000, 10000, 10000, 10000, 10000, undefined, undefined, undefined, undefined
     ],
     callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, ace, pp, rte) => {
+      if (distToDest === null || bearingToDest === null || destPos === null || WCV === null) {
+        return []
+      }
       var dateObj = new Date();
       var secondsToGo = Math.trunc(distToDest / WCV);
       var etaDate = Math.trunc((dateObj.getTime() / 1000 + secondsToGo) / 86400);
@@ -172,8 +175,8 @@ module.exports = (app, plugin) => {
               return {
                 "WP ID": waypointId,
                 "WP Name": "Waypoint " + (waypointId + 1).toString(),
-                "WP Latitude": coord[0],
-                "WP Longitude": coord[1]
+                "WP Latitude": coord[1],
+                "WP Longitude": coord[0]
               }
             })
 
@@ -211,20 +214,20 @@ module.exports = (app, plugin) => {
               "list": [
                 {
                   "WP ID": 0,
-                  "WP Latitude": -76.4818398,
-                  "WP Longitude": 38.9749677,
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
                   "WP Name": "Waypoint 1",
                 },
                 {
                   "WP ID": 1,
-                  "WP Latitude": -76.4795366,
-                  "WP Longitude": 38.977234,
+                  "WP Latitude": 38.977234,
+                  "WP Longitude": -76.4795366,
                   "WP Name": "Waypoint 2",
                 },
                 {
                   "WP ID": 2,
-                  "WP Latitude": -76.4726708,
-                  "WP Longitude": 38.9780512,
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
                   "WP Name": "Waypoint 3",
                 },
               ]
@@ -244,20 +247,20 @@ module.exports = (app, plugin) => {
               "list": [
                 {
                   "WP ID": 3,
-                  "WP Latitude": -76.4818398,
-                  "WP Longitude": 38.9749677,
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
                   "WP Name": "Waypoint 4",
                 },
                 {
                   "WP ID": 4,
-                  "WP Latitude": -76.4795366,
-                  "WP Longitude": 38.977234,
+                  "WP Latitude": 38.977234,
+                  "WP Longitude": -76.4795366,
                   "WP Name": "Waypoint 5",
                 },
                 {
                   "WP ID": 5,
-                  "WP Latitude": -76.4726708,
-                  "WP Longitude": 38.9780512,
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
                   "WP Name": "Waypoint 6",
                 },
               ]
