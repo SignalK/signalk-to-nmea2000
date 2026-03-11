@@ -10,7 +10,7 @@ module.exports = (app:ServerAPI, plugin:Plugin) => {
     callback: (belowTransducer:number): PGN_128267[]|undefined => {
       var surfaceToTransducer = app.getSelfPath('environment.depth.surfaceToTransducer.value')
       var transducerToKeel = app.getSelfPath('environment.depth.transducerToKeel.value')
-      var offset = _.isUndefined(surfaceToTransducer) ? (_.isUndefined(transducerToKeel) ? 0 : transducerToKeel) : surfaceToTransducer
+      var offset: number = _.isUndefined(surfaceToTransducer) ? (_.isUndefined(transducerToKeel) ? 0 : (transducerToKeel as number)) : (surfaceToTransducer as number)
       try {
         return [
           new PGN_128267({
