@@ -22,15 +22,18 @@
   ],
   "license": "ISC",
   "dependencies": {
-    "baconjs": "^0.7.88",
     "geolib": "^3.3.4",
     "lodash": "^4.17.4"
+  },
+  "peerDependencies": {
+    "baconjs": "^3.0.0"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/SignalK/signalk-to-nmea2000"
   },
   "devDependencies": {
+    "baconjs": "^3.0.0",
     "@canboat/canboatjs": "^3.x",
     "@signalk/github-create-release": "^1.2.1",
     "chai": "^4.1.2",
