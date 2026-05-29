@@ -133,7 +133,9 @@ module.exports = (app, plugin) => {
           "AIS Transceiver information": "Channel A VDL reception",
           "Heading": 5.6199,
           "Rate of Turn": 0,
-          "Nav Status": "Under way using engine"
+          "Nav Status": "Under way using engine",
+          "Repeat Indicator": "Final retransmission",
+          "Special Maneuver Indicator": "Reserved"
         }
       },{
         "prio": 2,
@@ -153,7 +155,8 @@ module.exports = (app, plugin) => {
           "AIS version indicator": "ITU-R M.1371-1",
           "DTE": "Available",
           "Reserved1": 1,
-          "AIS Transceiver information": "Channel A VDL reception"
+          "AIS Transceiver information": "Channel A VDL reception",
+          "Repeat Indicator": "Final retransmission"
         }
       }]
     },{
