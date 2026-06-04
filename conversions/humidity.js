@@ -12,7 +12,7 @@ module.exports = (app, plugin) => {
         pgn: 130313,
         "Instance": 100,
         "Source": "Outside",
-        "Actual Humidity": humidity,
+        "Actual Humidity": humidity == null ? undefined : humidity * 100,
       }]
     },
     tests: [{
@@ -24,7 +24,7 @@ module.exports = (app, plugin) => {
         "fields": {
           "Instance": 100,
           "Source": "Outside",
-          "Actual Humidity": .50
+          "Actual Humidity": 50
         }
       }]
     }]
@@ -40,7 +40,7 @@ module.exports = (app, plugin) => {
         pgn: 130313,
         "Instance": 100,
         "Source": "Inside",
-        "Actual Humidity": humidity,
+        "Actual Humidity": humidity == null ? undefined : humidity * 100,
       }]
     },
     tests: [{
@@ -52,7 +52,7 @@ module.exports = (app, plugin) => {
         "fields": {
           "Instance": 100,
           "Source": "Inside",
-          "Actual Humidity": 1.0
+          "Actual Humidity": 100
         }
       }]
     }]
