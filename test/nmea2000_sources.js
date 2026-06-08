@@ -306,6 +306,57 @@ describe('Data from NMEA 2000 sources', function () {
         }, done)
     })
   })
+
+  describe('battery mapping by source', function () {
+    const VOLTAGE = 'electrical.batteries.house.voltage'
+    const VENUS = { label: 'venus', type: 'NMEA0183', talker: 'II' }
+    const BMV = { label: 'bmv', type: 'NMEA0183', talker: 'II' }
+    const N2K_BATTERY = { ...N2K_SOURCE, pgn: 127508 }
+    const voltagesByInstance = n2kSpy => n2kSpy.getCalls()
+      .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+      .filter(pgn => pgn && pgn.pgn === 127508)
+      .reduce((acc, pgn) => {
+        const instance = pgn.fields.Instance
+        acc[instance] = [...(acc[instance] || []), pgn.fields.Voltage]
+        return acc
+      }, {})
+    const batteries = batteries => ({ BATTERYv2: { enabled: true, batteries } })
+
+    it('sends each source as its own instance', function (done) {
+      run(batteries([
+        { signalkId: 'house', source: 'venus.II', instanceId: 1 },
+        { signalkId: 'house', source: 'bmv.II', instanceId: 2 }
+      ]), [
+        { path: VOLTAGE, value: 12.5, source: VENUS },
+        { path: VOLTAGE, value: 13.1, source: BMV }
+      ], n2kSpy => {
+        voltagesByInstance(n2kSpy).should.deep.equal({ 1: [12.5], 2: [13.1] })
+      }, done)
+    })
+
+    it('takes every source when the source is empty', function (done) {
+      run(batteries([
+        { signalkId: 'house', source: 'venus.II', instanceId: 1 },
+        { signalkId: 'house', source: '', instanceId: 2 }
+      ]), [
+        { path: VOLTAGE, value: 12.5, source: VENUS },
+        { path: VOLTAGE, value: 13.1, source: BMV }
+      ], n2kSpy => {
+        voltagesByInstance(n2kSpy).should.deep.equal({ 1: [12.5], 2: [12.5, 13.1] })
+      }, done)
+    })
+
+    it('does not send an NMEA 2000 source back as another instance', function (done) {
+      run(batteries([
+        { signalkId: 'house', source: 'can0.35', instanceId: 7 }
+      ]), [
+        { path: VOLTAGE, value: 12.5, source: N2K_BATTERY },
+        { path: VOLTAGE, value: 12.6, source: N2K_BATTERY }
+      ], n2kSpy => {
+        n2kSpy.callCount.should.equal(0)
+      }, done)
+    })
+  })
 })
 
 function runRaw (options, delta, check, done) {

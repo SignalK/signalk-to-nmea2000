@@ -33,3 +33,35 @@ Two settings change this per conversion:
 
 - **Source for …**: a source chosen here is always used, including an NMEA 2000 one.
 - **Also send data that came from NMEA 2000**: turns the check off. Only useful for bridging between separate NMEA 2000 networks, with each connection's output event configured so data does not go back to the network it came from.
+
+## Battery mapping by source
+
+Each entry in `BATTERYv2.batteries` can set an optional `source`, so the same Signal K battery id published by different sources can be sent as different NMEA 2000 battery instances.
+
+Example:
+
+```json
+{
+  "BATTERYv2": {
+    "enabled": true,
+    "batteries": [
+      {
+        "signalkId": "house",
+        "source": "venus.com.ttyO1",
+        "instanceId": 1
+      },
+      {
+        "signalkId": "house",
+        "source": "bmv.ttyUSB0",
+        "instanceId": 2
+      }
+    ]
+  }
+}
+```
+
+With this setup instance 1 only carries data from `venus.com.ttyO1` and instance 2 only data from `bmv.ttyUSB0`.
+
+- An empty `source` means no filtering: that entry takes the battery's data from every source. Give each entry its own `source` when several entries share a Signal K battery id, or the entry without one will also send the other entries' data.
+- The `source` applies to all of the battery's values (voltage, current, temperature, state of charge, time remaining, state of health and ripple). If one source sends the voltage and another the state of charge, setting a `source` leaves the other source's values out, and they are sent as not available.
+- A `source` that is an NMEA 2000 device is not sent back to the bus, the same as any other data that came from NMEA 2000 (see above). Use the device's own configuration to change its battery instance.

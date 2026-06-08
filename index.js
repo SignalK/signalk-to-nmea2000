@@ -37,6 +37,9 @@ module.exports = function(app) {
     (notifications skips notifications.nmea.*) and gets all its data.
     A conversion can limit the keys whose NMEA 2000 data withholds its PGNs
     with withholdingKeys; NMEA 2000 data for its other keys is ignored.
+    A conversion can set sourceRefs, an object from key to $source, to use
+    only that source's data for the key. Unlike a source picked in the
+    options, an NMEA 2000 source given in sourceRefs is still withheld.
    */
 
   var sourceTypes = {
@@ -255,7 +258,8 @@ module.exports = function(app) {
         unsubscribes,
         options,
         sendsNmea2000Data(conversion, options),
-        conversion.withholdingKeys
+        conversion.withholdingKeys,
+        conversion
       )
         .onValue(values => {
           if ( values === WITHHELD ) {
@@ -345,7 +349,8 @@ module.exports = function(app) {
     unsubscribes,
     options,
     allowNmea2000,
-    withholdingKeys = keys
+    withholdingKeys = keys,
+    conversion
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -359,7 +364,9 @@ module.exports = function(app) {
     }, {})
     const combinedBus = new Bacon.Bus()
     keys.map(skKey => {
-      const sourceRef = options[pathToPropName(skKey)]
+      const mappedSource = _.get(conversion, ['sourceRefs', skKey])
+      const pickedSource = options[pathToPropName(skKey)]
+      const sourceRef = mappedSource || pickedSource
       app.debug(`${skKey} ${sourceRef}`)
 
       let bus = streambundle.getSelfBus(skKey)
@@ -367,8 +374,10 @@ module.exports = function(app) {
         bus = bus.filter( x => x.$source === sourceRef)
       }
       bus.onValue(({ value, source }) => {
-        // A source the user picked explicitly is sent even if it is NMEA 2000
-        const fromNmea2000 = !sourceRef && !allowNmea2000 && isNmea2000Source(source)
+        // A source the user picked explicitly is sent even if it is NMEA 2000;
+        // a conversion's sourceRefs only select between sources
+        const explicitlyPicked = !mappedSource && pickedSource
+        const fromNmea2000 = !explicitlyPicked && !allowNmea2000 && isNmea2000Source(source)
         if ( fromNmea2000 && !withholdingKeys.includes(skKey) ) {
           return
         }
