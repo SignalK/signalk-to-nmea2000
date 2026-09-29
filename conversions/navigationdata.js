@@ -94,8 +94,10 @@ module.exports = (app, plugin) => {
       'notifications.navigation.course.perpendicularPassed',
       'navigation.course.activeRoute'
     ],
+    // nextPoint is sent when the destination is set or changed, not
+    // repeatedly, so it must not time out like the calculated values.
     timeouts: [
-      10000, 10000, 10000, 10000, 10000, undefined, undefined, undefined, undefined
+      10000, 10000, 10000, undefined, 10000, undefined, undefined, undefined, undefined
     ],
     callback: (distToDest, bearingToDest, bearingOriginToDest, destPos, WCV, calcMethod, ace, pp, rte) => {
       var dateObj = new Date();
