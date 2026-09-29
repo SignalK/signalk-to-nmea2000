@@ -3,6 +3,10 @@ const _ = require('lodash')
 
 const routeWPDataItemsPerPacket = 3
 
+// A course notification counts while it is raised; the course provider clears
+// it by setting the value to null.
+const isRaised = (notification) => notification != null && notification.state !== 'normal'
+
 module.exports = (app, plugin) => {
   return [{
     pgn: 127258,
@@ -86,8 +90,8 @@ module.exports = (app, plugin) => {
       'navigation.course.nextPoint',
       'navigation.course.calcValues.velocityMadeGood',
       'navigation.course.calcValues.calcMethod',
-      'notifications.navigation.arrivalCircleEntered',
-      'notifications.navigation.perpendicularPassed',
+      'notifications.navigation.course.arrivalCircleEntered',
+      'notifications.navigation.course.perpendicularPassed',
       'navigation.course.activeRoute'
     ],
     timeouts: [
@@ -107,8 +111,8 @@ module.exports = (app, plugin) => {
         "SID" : 0x88,
         "Distance to Waypoint" :  distToDest,
         "Course/Bearing reference" : 0,
-        "Perpendicular Crossed" : pp != null,
-        "Arrival Circle Entered" : ace != null,
+        "Perpendicular Crossed" : isRaised(pp) ? "Yes" : "No",
+        "Arrival Circle Entered" : isRaised(ace) ? "Yes" : "No",
         "Calculation Type" : calcMethod == "GreatCircle" ? 0 : 1,
         "ETA Time" : (WCV > 0) ? etaTime : undefined,
         "ETA Date": (WCV > 0) ? etaDate : undefined,
@@ -122,7 +126,7 @@ module.exports = (app, plugin) => {
       }]
     },
     tests: [{
-      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", null, 1, {pointIndex: 5} ],
+      input: [ 12, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "Rhumbline", null, {state: "alert", method: ["visual"], message: "Perpendicular passed"}, {pointIndex: 5} ],
       expected: [{
         "__preprocess__": (testResult) => {
           //these change every time
@@ -142,6 +146,31 @@ module.exports = (app, plugin) => {
           "Bearing, Origin to Destination Waypoint": 3.1,
           "Bearing, Position to Destination Waypoint": 1.23,
           "Destination Waypoint Number": 6,
+          "Destination Latitude": 32.0631296,
+          "Destination Longitude": -75.487264,
+          "Waypoint Closing Velocity": 4
+        }
+      }]
+    }, {
+      input: [ 80, 1.23, 3.1, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 4.0, "GreatCircle", {state: "alert", method: ["visual"], message: "Entered arrival zone"}, {state: "normal", method: [], message: ""}, {pointIndex: 0} ],
+      expected: [{
+        "__preprocess__": (testResult) => {
+          delete testResult.fields["ETA Date"]
+          delete testResult.fields["ETA Time"]
+        },
+        "prio": 2,
+        "pgn": 129284,
+        "dst": 255,
+        "fields": {
+          "SID": 136,
+          "Distance to Waypoint": 80,
+          "Course/Bearing reference": "True",
+          "Perpendicular Crossed": "No",
+          "Arrival Circle Entered": "Yes",
+          "Calculation Type": "Great Circle",
+          "Bearing, Origin to Destination Waypoint": 3.1,
+          "Bearing, Position to Destination Waypoint": 1.23,
+          "Destination Waypoint Number": 1,
           "Destination Latitude": 32.0631296,
           "Destination Longitude": -75.487264,
           "Waypoint Closing Velocity": 4
