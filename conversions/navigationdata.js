@@ -107,7 +107,8 @@ module.exports = (app, plugin) => {
                      dateObj.getUTCMinutes() * 60 +
                      dateObj.getUTCSeconds() +
                      secondsToGo) % 86400;
-      let wpid = rte && typeof rte?.pointIndex === 'number' ? rte.pointIndex + 1 : 0;
+      // A single destination is waypoint 1 of the two-point route sent in 129285
+      let wpid = rte && typeof rte?.pointIndex === 'number' ? rte.pointIndex + 1 : 1;
       return [{
         pgn: 129284,
         "SID" : 0x88,
@@ -178,6 +179,28 @@ module.exports = (app, plugin) => {
           "Waypoint Closing Velocity": 4
         }
       }]
+    }, {
+      // single destination, no route
+      input: [ 500, 1.23, 1.25, {position: { longitude: -75.487264, latitude: 32.0631296 }} , 0, "GreatCircle", null, null, null ],
+      expected: [{
+        "prio": 2,
+        "pgn": 129284,
+        "dst": 255,
+        "fields": {
+          "SID": 136,
+          "Distance to Waypoint": 500,
+          "Course/Bearing reference": "True",
+          "Perpendicular Crossed": "No",
+          "Arrival Circle Entered": "No",
+          "Calculation Type": "Great Circle",
+          "Bearing, Origin to Destination Waypoint": 1.25,
+          "Bearing, Position to Destination Waypoint": 1.23,
+          "Destination Waypoint Number": 1,
+          "Destination Latitude": 32.0631296,
+          "Destination Longitude": -75.487264,
+          "Waypoint Closing Velocity": 0
+        }
+      }]
     }]
   },
   {
@@ -189,8 +212,31 @@ module.exports = (app, plugin) => {
         sourceType: 'timer',
         callback: async (app) => {
           var course = await app.courseApi.getCourse()
-          if (!course.activeRoute?.href)
+          if (!course?.nextPoint?.position)
             return null
+          if (!course.activeRoute?.href) {
+            // A single destination goes out as a two-point route, from where
+            // the course started to the destination.
+            const origin = course.previousPoint?.position
+            const dest = course.nextPoint.position
+            return [{
+              pgn: 129285,
+              "prio": 7,
+              "nItems": origin ? 2 : 1,
+              "Database ID": 0,
+              "Supplementary Route/WP data available": "Off",
+              "Navigation direction in route": "Forward",
+              "list": [
+                ...(origin ? [{ "WP Latitude": origin.latitude, "WP Longitude": origin.longitude }] : []),
+                {
+                  "WP ID": 1,
+                  "WP Name": course.nextPoint.name || "Waypoint 1",
+                  "WP Latitude": dest.latitude,
+                  "WP Longitude": dest.longitude
+                }
+              ]
+            }]
+          }
 
           route = await app.resourcesApi.getResource('routes', path.basename(course.activeRoute.href))
           if (!route)
@@ -296,6 +342,33 @@ module.exports = (app, plugin) => {
               ]
             }
           }]
+        }, {
+          input: [
+            mockGotoApp,
+          ],
+          expected: [{
+            "prio": 7,
+            "pgn": 129285,
+            "dst": 255,
+            "fields": {
+              "nItems": 2,
+              "Database ID": 0,
+              "Navigation direction in route": "Forward",
+              "Supplementary Route/WP data available": "Off",
+              "list": [
+                {
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
+                },
+                {
+                  "WP ID": 1,
+                  "WP Name": "DP",
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
+                },
+              ]
+            }
+          }]
         }]
       }]
     }
@@ -362,6 +435,31 @@ var mockApp = {
           },
           "properties": {},
           "id": ""
+        }
+      }
+    }
+  }
+}
+
+var mockGotoApp = {
+  courseApi: {
+    getCourse: () => {
+      return {
+        activeRoute: null,
+        previousPoint: {
+          "type": "VesselPosition",
+          "position": {
+            "latitude": 38.97496773616132,
+            "longitude": -76.48183979803126
+          }
+        },
+        nextPoint: {
+          "type": "Location",
+          "name": "DP",
+          "position": {
+            "latitude": 38.97805124659462,
+            "longitude": -76.47267084780538
+          }
         }
       }
     }
