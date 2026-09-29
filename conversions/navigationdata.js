@@ -199,19 +199,21 @@ module.exports = (app, plugin) => {
           coordinates = _.chunk(route.feature.geometry.coordinates, routeWPDataItemsPerPacket)
           return coordinates.map((coords, i) => {
             list = coords.map((coord, j) => {
-              waypointId = (routeWPDataItemsPerPacket * i) + j
+              // Numbered from 1, as 129284's Destination Waypoint Number is
+              waypointId = (routeWPDataItemsPerPacket * i) + j + 1
               return {
                 "WP ID": waypointId,
-                "WP Name": "Waypoint " + (waypointId + 1).toString(),
-                "WP Latitude": coord[0],
-                "WP Longitude": coord[1]
+                "WP Name": "Waypoint " + waypointId.toString(),
+                // GeoJSON coordinates are [longitude, latitude]
+                "WP Latitude": coord[1],
+                "WP Longitude": coord[0]
               }
             })
 
             return {
               pgn: 129285,
               "prio": 7,
-              "Start RPS#" : i,
+              "Start RPS#" : routeWPDataItemsPerPacket * i,
               "nItems" : coords.length,
               "Database ID" :  0,
               "Route ID" :  0,
@@ -241,21 +243,21 @@ module.exports = (app, plugin) => {
               "Supplementary Route/WP data available": "Off",
               "list": [
                 {
-                  "WP ID": 0,
-                  "WP Latitude": -76.4818398,
-                  "WP Longitude": 38.9749677,
+                  "WP ID": 1,
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
                   "WP Name": "Waypoint 1",
                 },
                 {
-                  "WP ID": 1,
-                  "WP Latitude": -76.4795366,
-                  "WP Longitude": 38.977234,
+                  "WP ID": 2,
+                  "WP Latitude": 38.977234,
+                  "WP Longitude": -76.4795366,
                   "WP Name": "Waypoint 2",
                 },
                 {
-                  "WP ID": 2,
-                  "WP Latitude": -76.4726708,
-                  "WP Longitude": 38.9780512,
+                  "WP ID": 3,
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
                   "WP Name": "Waypoint 3",
                 },
               ]
@@ -265,7 +267,7 @@ module.exports = (app, plugin) => {
             "pgn": 129285,
             "dst": 255,
             "fields": {
-              "Start RPS#": 1,
+              "Start RPS#": 3,
               "nItems": 3,
               "Database ID": 0,
               "Route ID": 0,
@@ -274,21 +276,21 @@ module.exports = (app, plugin) => {
               "Supplementary Route/WP data available": "Off",
               "list": [
                 {
-                  "WP ID": 3,
-                  "WP Latitude": -76.4818398,
-                  "WP Longitude": 38.9749677,
+                  "WP ID": 4,
+                  "WP Latitude": 38.9749677,
+                  "WP Longitude": -76.4818398,
                   "WP Name": "Waypoint 4",
                 },
                 {
-                  "WP ID": 4,
-                  "WP Latitude": -76.4795366,
-                  "WP Longitude": 38.977234,
+                  "WP ID": 5,
+                  "WP Latitude": 38.977234,
+                  "WP Longitude": -76.4795366,
                   "WP Name": "Waypoint 5",
                 },
                 {
-                  "WP ID": 5,
-                  "WP Latitude": -76.4726708,
-                  "WP Longitude": 38.9780512,
+                  "WP ID": 6,
+                  "WP Latitude": 38.9780512,
+                  "WP Longitude": -76.4726708,
                   "WP Name": "Waypoint 6",
                 },
               ]
