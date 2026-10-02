@@ -24,3 +24,31 @@ or you can configure your N2K connection to use canboatjs in the server admin us
 
 
 Note that if you're using an NGT-1 to transmit AIS, then you need to use their Windows [NMEA Reader](https://www.actisense.com/wp-content/uploads/2017/07/Actisense-NMEA-Reader-v1.517-Setup.exe_.zip) software to add the pgns (129794, 129038, 129041) in the transmitted list. 
+
+## Battery mapping by source
+
+`BATTERYv2.batteries` now supports an optional `source` field so you can map multiple Signal K battery IDs from different sources to different N2K instances.
+
+Example:
+
+```json
+{
+  "BATTERYv2": {
+    "enabled": true,
+    "batteries": [
+      {
+        "signalkId": "house",
+        "source": "venus.com.ttyO1",
+        "instanceId": 1
+      },
+      {
+        "signalkId": "house",
+        "source": "",
+        "instanceId": 2
+      }
+    ]
+  }
+}
+```
+
+With this setup, each mapping only listens to updates from its own `source`, so source + Signal K battery ID selects the N2K battery instance.

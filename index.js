@@ -213,7 +213,8 @@ module.exports = function(app) {
         conversion.timeouts,
         app.streambundle,
         unsubscribes,
-        options
+        options,
+        conversion
       )
         .map(values => conversion.callback.call(this, ...values))
         .onValue(pgns => {
@@ -282,7 +283,8 @@ module.exports = function(app) {
     timeouts = [],
     streambundle,
     unsubscribes,
-    options
+    options,
+    conversion
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -295,7 +297,7 @@ module.exports = function(app) {
     }, {})
     const combinedBus = new Bacon.Bus()
     keys.map(skKey => {
-      const sourceRef = options[pathToPropName(skKey)]
+      const sourceRef = _.get(conversion, ['sourceRefs', skKey]) || options[pathToPropName(skKey)]
       app.debug(`${skKey} ${sourceRef}`)
 
       let bus = streambundle.getSelfBus(skKey)

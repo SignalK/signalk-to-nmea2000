@@ -27,6 +27,11 @@ module.exports = (app, plugin) => {
               title: 'Signal K battery id',
               type: 'string'
             },
+            source: {
+              title: 'Signal K source',
+              description: 'Use battery data only from this source (for example: venus.com.ttyO1)',
+              type: 'string'
+            },
             instanceId: {
               title: 'NMEA2000 Battery Instance Id',
               type: 'number'
@@ -52,8 +57,15 @@ module.exports = (app, plugin) => {
         return null
       }
       return options.BATTERYv2.batteries.map(battery => {
+        const keys = batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`)
         return {
-          keys: batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`),
+          keys,
+          sourceRefs: battery.source
+            ? keys.reduce((acc, key) => {
+                acc[key] = battery.source
+                return acc
+              }, {})
+            : undefined,
           timeouts: batteryKeys.map(key => 60000),
           callback: (voltage, current, temperature, stateOfCharge, timeRemaining, stateOfHealth, ripple) => {
             var res = []
