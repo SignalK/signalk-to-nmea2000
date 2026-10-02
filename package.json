@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "mocha --timeout 10000",
+    "prettier": "prettier --write .",
+    "ci-format": "prettier --check .",
     "create-release": "github-create-release --owner signalk --repository signalk-to-nmea2000",
     "release": "git tag -d v$npm_package_version ; git tag v$npm_package_version && git push --tags && git push && npm run create-release"
   },
@@ -40,7 +42,8 @@
     "chai-json-equal": "^0.0.1",
     "mocha": "^5.0.0",
     "signalk-server": "^1.4.0",
-    "sinon": "^4.1.6"
+    "sinon": "^4.1.6",
+    "prettier": "^3.9.9"
   },
   "engines": {
     "node": ">=10"
