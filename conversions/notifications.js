@@ -1,10 +1,10 @@
 const _ = require('lodash')
 
 const alertTypes = {
-  "emergency": "Emergency Alarm",
-  "alarm": "Alarm",
-  "warn": "Warning",
-  "alert": "Caution"
+  emergency: 'Emergency Alarm',
+  alarm: 'Alarm',
+  warn: 'Warning',
+  alert: 'Caution'
 }
 
 const alertCategory = 'Technical'
@@ -18,11 +18,10 @@ module.exports = (app, plugin) => {
   return {
     title: 'Notifications (126983, 126985)',
     optionKey: 'NOTIFICATIONS',
-    keys: ["notifications.*"],
+    keys: ['notifications.*'],
     context: 'vessels.self',
-    'sourceType': 'subscription',
+    sourceType: 'subscription',
     callback: (delta) => {
-
       const update = delta.updates[0].values[0]
       const value = update.value
       const type = alertTypes[value.state]
@@ -38,12 +37,11 @@ module.exports = (app, plugin) => {
         app.debug(`Using existing alertId ${alertId} for ${update.path}`)
 
         //remove the pgns and reprocess them for changes
-        pgns = pgns.filter(function(obj) {
-          return obj['Alert ID'] !== alertId;
-        });
+        pgns = pgns.filter(function (obj) {
+          return obj['Alert ID'] !== alertId
+        })
 
         if (value.state !== 'normal') {
-
           const method = value.method || []
           let state
           if (value.state === 'normal') {
@@ -51,7 +49,7 @@ module.exports = (app, plugin) => {
           } else if (method.length == 0) {
             state = 'Acknowledged'
           } else if (method.indexOf('sound') === -1) {
-              state = 'Silenced'
+            state = 'Silenced'
           } else {
             state = 'Active'
           }
@@ -83,8 +81,10 @@ module.exports = (app, plugin) => {
             'Data Source Instance': 0,
             'Data Source Index-Source': 0,
             'Alert Occurrence Number': 0,
-            'Temporary Silence Status': value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
-            'Acknowledge Status': !value.method || value.method.length == 0 ? 1 : 0,
+            'Temporary Silence Status':
+              value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
+            'Acknowledge Status':
+              !value.method || value.method.length == 0 ? 1 : 0,
             'Escalation Status': 0,
             'Temporary Silence Support': 1,
             'Acknowledge Support': 1,
@@ -103,7 +103,7 @@ module.exports = (app, plugin) => {
         } else {
           alertId = ++idCounter
           ids[update.path] = {
-            "alertId": alertId
+            alertId: alertId
           }
           app.debug(`Assigning new alertId ${alertId} to ${update.path}`)
         }
@@ -113,7 +113,7 @@ module.exports = (app, plugin) => {
         delta.updates[0].values[0].value.alertCategory = alertCategory
         delta.updates[0].values[0].value.alertSystem = alertSystem
         delta.updates[0].values[0].value.alertId = alertId
-        app.debug("New delta with alertId: " + JSON.stringify(delta))
+        app.debug('New delta with alertId: ' + JSON.stringify(delta))
 
         app.handleMessage(plugin.id, delta)
       }
@@ -124,63 +124,74 @@ module.exports = (app, plugin) => {
         console.error(err)
       }
     },
-    tests: [{
-      input: [ {
-        "context":"vessels.urn:mrn:imo:mmsi:367301250",
-        "updates":[{"values":[
+    tests: [
+      {
+        input: [
           {
-            "path":"notifications.environment.inside.refrigerator.temperature",
-            "value": {
-              "state": "alert",
-              "message": "The Fridge Temperature is high",
-              "alertId": 1
+            context: 'vessels.urn:mrn:imo:mmsi:367301250',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'notifications.environment.inside.refrigerator.temperature',
+                    value: {
+                      state: 'alert',
+                      message: 'The Fridge Temperature is high',
+                      alertId: 1
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 2,
+            pgn: 126985,
+            dst: 255,
+            fields: {
+              'Alert Type': 'Caution',
+              'Alert Category': 'Technical',
+              'Alert System': 5,
+              'Alert Sub-System': 0,
+              'Alert ID': 1,
+              'Data Source Network ID NAME': 1,
+              'Data Source Instance': 0,
+              'Data Source Index-Source': 0,
+              'Alert Occurrence Number': 0,
+              'Language ID': 'English (US)',
+              'Alert Text Description': 'The Fridge Temperature is high'
+            }
+          },
+          {
+            prio: 2,
+            pgn: 126983,
+            dst: 255,
+            fields: {
+              'Alert Type': 'Caution',
+              'Alert Category': 'Technical',
+              'Alert System': 5,
+              'Alert Sub-System': 0,
+              'Alert ID': 1,
+              'Data Source Network ID NAME': 1,
+              'Data Source Instance': 0,
+              'Data Source Index-Source': 0,
+              'Alert Occurrence Number': 0,
+              'Temporary Silence Status': 'No',
+              'Acknowledge Status': 'Yes',
+              'Escalation Status': 'No',
+              'Temporary Silence Support': 'Yes',
+              'Acknowledge Support': 'Yes',
+              'Escalation Support': 'No',
+              'Trigger Condition': 'Auto',
+              'Threshold Status': 'Threshold Exceeded',
+              'Alert Priority': 0,
+              'Alert State': 'Acknowledged'
             }
           }
-        ]}]
-      }],
-      expected: [{
-        "prio": 2,
-        "pgn": 126985,
-        "dst": 255,
-        "fields": {
-          "Alert Type": "Caution",
-          "Alert Category": "Technical",
-          "Alert System": 5,
-          "Alert Sub-System": 0,
-          "Alert ID": 1,
-          "Data Source Network ID NAME": 1,
-          "Data Source Instance": 0,
-          "Data Source Index-Source": 0,
-          "Alert Occurrence Number": 0,
-          "Language ID": "English (US)",
-          "Alert Text Description": "The Fridge Temperature is high"
-        }
-      },{
-        "prio": 2,
-        "pgn": 126983,
-        "dst": 255,
-        "fields": {
-          "Alert Type": "Caution",
-          "Alert Category": "Technical",
-          "Alert System": 5,
-          "Alert Sub-System": 0,
-          "Alert ID": 1,
-          "Data Source Network ID NAME": 1,
-          "Data Source Instance": 0,
-          "Data Source Index-Source": 0,
-          "Alert Occurrence Number": 0,
-          "Temporary Silence Status": "No",
-          "Acknowledge Status": "Yes",
-          "Escalation Status": "No",
-          "Temporary Silence Support": "Yes",
-          "Acknowledge Support": "Yes",
-          "Escalation Support": "No",
-          "Trigger Condition": "Auto",
-          "Threshold Status": "Threshold Exceeded",
-          "Alert Priority": 0,
-          "Alert State": "Acknowledged"
-        }
-      }]
-    }]
+        ]
+      }
+    ]
   }
 }

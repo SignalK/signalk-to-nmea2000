@@ -28,6 +28,6 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           body: ${{steps.github_release.outputs.changelog}}
-          artifacts: "signalk-to-influxdb2*.tgz"
+          artifacts: 'signalk-to-influxdb2*.tgz'
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_PAT }}

@@ -1,18 +1,15 @@
 const _ = require('lodash')
 
-
 let pgns = []
 
 module.exports = (app, plugin) => {
   return {
     title: 'Raymarine (Seatalk) Alarms (65288)',
     optionKey: 'RAYMARINE',
-    keys: ['notifications.navigation.anchor',
-           'notifications.mob'],
+    keys: ['notifications.navigation.anchor', 'notifications.mob'],
     context: 'vessels.self',
     sourceType: 'subscription',
     callback: (delta) => {
-
       const update = delta.updates[0].values[0]
       const path = update.path
       const value = update.value
@@ -24,9 +21,9 @@ module.exports = (app, plugin) => {
       }
 
       // remove the pgns and reprocess them for changes
-      pgns = pgns.filter(function(obj) {
+      pgns = pgns.filter(function (obj) {
         return obj['path'] !== path
-      });
+      })
 
       let state
       const method = value.method || []
@@ -50,17 +47,17 @@ module.exports = (app, plugin) => {
         alarmId = 'MOB'
       }
 
-      if ((state) && (alarmId)) {
+      if (state && alarmId) {
         pgns.push({
-          'pgn': 65288,
-	  'path': path,
-	  'SID': 1,
+          pgn: 65288,
+          path: path,
+          SID: 1,
           'Alarm Status': state,
           'Alarm ID': alarmId,
-	  'Alarm Group': 'Instrument',
-	  'Alarm Priority': 1,
-	  'Manufacturer Code': 'Raymarine',
-	  'Industry Code': 'Marine Industry'
+          'Alarm Group': 'Instrument',
+          'Alarm Priority': 1,
+          'Manufacturer Code': 'Raymarine',
+          'Industry Code': 'Marine Industry'
         })
       }
 
@@ -69,35 +66,44 @@ module.exports = (app, plugin) => {
       } catch (err) {
         console.error(err)
       }
-
     },
-    tests: [{
-      input: [ {
-        "context":"vessels.urn:mrn:imo:mmsi:367301250",
-        "updates":[{"values":[
+    tests: [
+      {
+        input: [
           {
-            "path":"notifications.navigation.anchor",
-            "value": {
-              "state": "alert",
-              "method": [ "sound" ]
+            context: 'vessels.urn:mrn:imo:mmsi:367301250',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'notifications.navigation.anchor',
+                    value: {
+                      state: 'alert',
+                      method: ['sound']
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 2,
+            pgn: 65288,
+            dst: 255,
+            fields: {
+              'Manufacturer Code': 'Raymarine',
+              'Industry Code': 'Marine Industry',
+              SID: 1,
+              'Alarm Status': 'Alarm condition met and not silenced',
+              'Alarm ID': 'Deep Anchor',
+              'Alarm Group': 'Instrument',
+              'Alarm Priority': 1
             }
           }
-        ]}]
-      }],
-      expected: [{
-        "prio": 2,
-        "pgn": 65288,
-        "dst": 255,
-        "fields": {
-          "Manufacturer Code": "Raymarine",
-          "Industry Code": "Marine Industry",
-          "SID": 1,
-          "Alarm Status": "Alarm condition met and not silenced",
-          "Alarm ID": "Deep Anchor",
-          "Alarm Group": "Instrument",
-          "Alarm Priority": 1
-        }
-      }]
-    }]
+        ]
+      }
+    ]
   }
 }

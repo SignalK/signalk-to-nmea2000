@@ -14,11 +14,11 @@ module.exports = (app, plugin) => {
           properties: {
             signalkId: {
               title: 'Signal K Group id',
-              type: 'string',
+              type: 'string'
             },
             instanceId: {
               title: 'NMEA2000 Group Instance Id',
-              type: 'string',
+              type: 'string'
             }
           }
         }
@@ -27,10 +27,12 @@ module.exports = (app, plugin) => {
 
     testOptions: {
       RAYMARINE: {
-        groups: [{
-          signalkId: 'helm2',
-          instanceId: 'Helm 2'
-        }]
+        groups: [
+          {
+            signalkId: 'helm2',
+            instanceId: 'Helm 2'
+          }
+        ]
       }
     },
 
@@ -38,41 +40,47 @@ module.exports = (app, plugin) => {
       if (!_.get(options, 'RAYMARINE.groups')) {
         return null
       }
-      return options.RAYMARINE.groups.map(group => {
+      return options.RAYMARINE.groups.map((group) => {
         return {
           keys: [`electrical.displays.raymarine.${group.signalkId}.brightness`],
           callback: (brightness) => {
-            return [{
-              pgn: 126720,
-              "dst": 255,
-              "Manufacturer Code": "Raymarine",
-              "Industry Code": "Marine Industry",
-              "Proprietary ID": "Display",
-              "command1": "Settings",
-              "Command": "Brightness",
-              "Group": group.instanceId,
-              "Brightness": brightness * 100,
-              "Unknown 2": 0
-            }]
-          },
-          tests: [{
-            input: [0.85],
-            expected: [{
-              "prio": 2,
-              "pgn": 126720,
-              "dst": 255,
-              "fields": {
-                "Manufacturer Code": "Raymarine",
-                "Industry Code": "Marine Industry",
-                "Proprietary ID": "Display",
-                "Group": "Helm 2",
-                "command1": "Settings",
-                "Command": "Brightness",
-                "Brightness": 85,
-                "Unknown 2": 0
+            return [
+              {
+                pgn: 126720,
+                dst: 255,
+                'Manufacturer Code': 'Raymarine',
+                'Industry Code': 'Marine Industry',
+                'Proprietary ID': 'Display',
+                command1: 'Settings',
+                Command: 'Brightness',
+                Group: group.instanceId,
+                Brightness: brightness * 100,
+                'Unknown 2': 0
               }
-            }]
-          }]
+            ]
+          },
+          tests: [
+            {
+              input: [0.85],
+              expected: [
+                {
+                  prio: 2,
+                  pgn: 126720,
+                  dst: 255,
+                  fields: {
+                    'Manufacturer Code': 'Raymarine',
+                    'Industry Code': 'Marine Industry',
+                    'Proprietary ID': 'Display',
+                    Group: 'Helm 2',
+                    command1: 'Settings',
+                    Command: 'Brightness',
+                    Brightness: 85,
+                    'Unknown 2': 0
+                  }
+                }
+              ]
+            }
+          ]
         }
       })
     }
