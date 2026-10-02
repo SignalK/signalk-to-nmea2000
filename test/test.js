@@ -7,6 +7,13 @@ chai.Should()
 //chai.use(require('chai-things'))
 chai.use(require('chai-json-equal'));
 
+function normalizeMmsi (pgn) {
+  const fields = pgn && pgn.fields
+  if (fields && typeof fields['User ID'] === 'number') {
+    fields['User ID'] = String(fields['User ID']).padStart(9, '0')
+  }
+}
+
 const parser = new FromPgn({useCamel: false})
 
 let skSelfData = {}
@@ -108,6 +115,11 @@ describe('conversions work', () => {
                           delete expected["__preprocess__"]
                         }
                         //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
+                        // canboatjs decodes an MMSI as a 9-digit string from
+                        // canboat/canboatjs#394 on, as a number before; compare
+                        // it as the string either way.
+                        normalizeMmsi(pgn)
+                        normalizeMmsi(expected)
                         pgn.should.jsonEqual(expected)
                       } catch ( e ) {
                         error = e
