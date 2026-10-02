@@ -3,27 +3,27 @@ name: Publish to npm
 # https://stackoverflow.com/questions/69063452/github-actions-on-release-created-workflow-trigger-not-working
 on:
   workflow_run:
-    workflows: ["Release on tag"]
+    workflows: ['Release on tag']
     types: [completed]
 
 permissions:
-  id-token: write  # Required for OIDC
+  id-token: write # Required for OIDC
   contents: read
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
-    - uses: actions/setup-node@v6
-      with:
-        node-version: '22.x'
-    - run: npm install -g npm@latest
-    - run: npm --version
-    - run: |
-        if [[ "${{ steps.vars.outputs.tag }}" == *beta* ]];
-          then
-            npm publish --access public --tag beta
-          else
-            npm publish --access public
-        fi
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.x'
+      - run: npm install -g npm@latest
+      - run: npm --version
+      - run: |
+          if [[ "${{ steps.vars.outputs.tag }}" == *beta* ]];
+            then
+              npm publish --access public --tag beta
+            else
+              npm publish --access public
+          fi

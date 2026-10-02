@@ -5,7 +5,9 @@ const sinon = require('sinon')
 const Sk2n2K = require('../')
 const Server = require('signalk-server/lib/')
 
-'electrical.batteries.house.voltage', 'electrical.batteries.house.current', 'electrical.batteries.house.temperature'
+;('electrical.batteries.house.voltage',
+  'electrical.batteries.house.current',
+  'electrical.batteries.house.temperature')
 
 describe('Battery status 127508', function () {
   it('sequence with some missing data works', function (done) {
@@ -44,12 +46,12 @@ describe('Battery status 127508', function () {
     }, 1500)
     const sk2n2k = new Sk2n2K(app)
     sk2n2k.start({
-      "BATTERYv2": {
-        "enabled": true,
-        "batteries": [
+      BATTERYv2: {
+        enabled: true,
+        batteries: [
           {
-            "signalkId": "house",
-            "instanceId": 1
+            signalkId: 'house',
+            instanceId: 1
           }
         ]
       }
@@ -58,9 +60,9 @@ describe('Battery status 127508', function () {
   })
 })
 
-function sendDeltas (app, deltas) {
+function sendDeltas(app, deltas) {
   let cumulativeTimeout = 0
-  deltas.forEach(deltaSpec => {
+  deltas.forEach((deltaSpec) => {
     cumulativeTimeout += deltaSpec.interval
     setTimeout(() => {
       app.handleMessage('testInput', {
