@@ -67,6 +67,16 @@ describe('Data from NMEA 2000 sources', function () {
     }, done)
   })
 
+  it('stops resending a PGN once an NMEA 2000 input withholds it', function (done) {
+    run({ COG_SOGv2: { enabled: true, resend: 1, resendTime: 30 } }, [
+      { path: COG, value: 1 },
+      { path: SOG, value: 2, source: N2K_SOURCE }
+    ], (n2kSpy, sentBefore) => {
+      sentBefore.should.equal(1)
+      n2kSpy.callCount.should.equal(sentBefore)
+    }, done, 1500)
+  })
+
   describe('AIS', function () {
     const aisDelta = source => ({
       context: 'vessels.urn:mrn:imo:mmsi:230123456',
@@ -115,11 +125,12 @@ function runRaw (options, delta, check, done) {
 }
 
 // Sends the first delta, records how many PGNs went out, then sends the rest
-// and lets check() inspect the spy once the 10 ms debounce has settled.
-function run (options, deltas, check, done) {
+// and lets check() inspect the spy after `wait` ms.
+function run (options, deltas, check, done, wait = SETTLE_MS) {
   const app = new Server().app
   app.providerStatistics = []
   app.debug = () => {}
+  app.debug.enabled = true
   const n2kSpy = sinon.spy()
   app.on('nmea2000JsonOut', n2kSpy)
   new Sk2n2K(app).start(options)
@@ -136,7 +147,7 @@ function run (options, deltas, check, done) {
       } catch (err) {
         done(err)
       }
-    }, SETTLE_MS)
+    }, wait)
   }, SETTLE_MS)
 }
 

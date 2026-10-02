@@ -225,9 +225,16 @@ module.exports = function(app) {
         unsubscribes,
         options
       )
-        .map(values => conversion.callback.call(this, ...values))
-        .onValue(pgns => {
-          processOutput(conversion, options, pgns)
+        .onValue(values => {
+          if ( values === WITHHELD ) {
+            // The last PGN no longer reflects the inputs; stop resending it
+            if ( conversion.resendTimer ) {
+              clearResendInterval(conversion.resendTimer)
+              conversion.resendTimer = undefined
+            }
+            return
+          }
+          processOutput(conversion, options, conversion.callback.call(this, ...values))
         })
     );
   }
@@ -342,6 +349,7 @@ module.exports = function(app) {
         // One NMEA 2000 input withholds the whole PGN: sending the others with
         // that field unavailable would compete with the device already on the bus
         if ( current.some(entry => entry && entry.value != null && entry.fromNmea2000) ) {
+          combinedBus.push(WITHHELD)
           return
         }
         combinedBus.push(current.map(entry => entry ? entry.value : null))
@@ -349,7 +357,7 @@ module.exports = function(app) {
     })
     const result = combinedBus.debounce(10)
     if (app.debug.enabled) {
-      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${x}`)))
+      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${String(x)}`)))
     }
     return result
   }
@@ -362,6 +370,9 @@ function pathToPropName(path) {
 }
 
 const isNmea2000Source = source => source?.type === 'NMEA2000'
+
+// Pushed instead of values when an NMEA 2000 input withholds the PGN
+const WITHHELD = Symbol('withheld')
 
 // The delta with its NMEA 2000 updates removed, or undefined if none remain
 function withoutNmea2000Updates(delta) {
