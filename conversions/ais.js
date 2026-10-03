@@ -358,6 +358,42 @@ module.exports = (app, plugin) => {
           "AtoN Name": "78A"
         }
       }]
+    },{
+      input: [{
+        "context": "atons.urn:mrn:imo:mmsi:993672085",
+        "updates": [{"values": [
+          {"path": "", "value": {"name": "78A"}},
+          {"path": "navigation.position", "value": {"longitude": -76.4313882, "latitude": 38.5783333}},
+          {"path": "atonType", "value": {"id": 14, "name": "Beacon, Starboard Hand"}},
+          {"path": "", "value": {"mmsi": "993672085"}},
+          {"path": "design.length", "value": {"overall": NaN}},
+          {"path": "design.beam", "value": 2},
+          // canboatjs would send NaN as 0: left out
+          {"path": "sensors.ais.fromCenter", "value": NaN}
+        ]}]
+      }],
+      expected: [{
+        "prio": 2,
+        "pgn": 129041,
+        "dst": 255,
+        "fields": {
+          "Message ID": 0,
+          "Repeat Indicator": "Initial",
+          "User ID": 993672085,
+          "Longitude": -76.4313882,
+          "Latitude": 38.5783333,
+          "Position Accuracy": "Low",
+          "RAIM": "not in use",
+          "Time Stamp": "0",
+          "Beam/Diameter": 2,
+          "AtoN Type": "Fixed beacon: starboard hand",
+          "Off Position Indicator": "Yes",
+          "Virtual AtoN Flag": "Yes",
+          "Assigned Mode Flag": "Assigned mode",
+          "Spare": 1,
+          "AtoN Name": "78A"
+        }
+      }]
     }]
   }
 }
@@ -366,8 +402,8 @@ function generateStatic(vessel, mmsi, delta) {
   var name = findDeltaValue(vessel, delta, 'name');
   var type = _.get(findDeltaValue(vessel, delta, "design.aisShipType"), "id")
   var callsign = findDeltaValue(vessel, delta, "communication.callsignVhf")
-  var length = _.get(findDeltaValue(vessel, delta, 'design.length'), 'overall')
-  var beam = findDeltaValue(vessel, delta, 'design.beam')
+  var length = finite(_.get(findDeltaValue(vessel, delta, 'design.length'), 'overall'))
+  var beam = finite(findDeltaValue(vessel, delta, 'design.beam'))
   var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
   var fromBow = findDeltaValue(vessel, delta, 'sensors.ais.fromBow')
   var draft = _.get(findDeltaValue(vessel, delta, 'design.draft'), 'maximum')
@@ -440,7 +476,7 @@ function generateStatic(vessel, mmsi, delta) {
 // fromCenter is positive to starboard, as n2k-signalk and nmea0183-signalk
 // decode it
 function distanceFromStarboard(fromCenter, beam) {
-  if ( !_.isNumber(beam) || !_.isNumber(fromCenter) ) {
+  if ( !Number.isFinite(beam) || !Number.isFinite(fromCenter) ) {
     return undefined
   }
   return distanceOnHull(beam / 2 - fromCenter, beam)
@@ -449,13 +485,18 @@ function distanceFromStarboard(fromCenter, beam) {
 // The reference fields are unsigned: a point off the hull would wrap around
 // to a huge distance, so leave it out instead
 function distanceOnHull(distance, size) {
-  if ( !_.isNumber(distance) || distance < 0 ) {
+  if ( !Number.isFinite(distance) || distance < 0 ) {
     return undefined
   }
-  if ( _.isNumber(size) && distance > size ) {
+  if ( Number.isFinite(size) && distance > size ) {
     return undefined
   }
   return distance
+}
+
+// canboatjs encodes NaN as 0, which is a real distance: leave it out instead
+function finite(value) {
+  return Number.isFinite(value) ? value : undefined
 }
 
 function generatePosition(vessel, mmsi, delta) {
@@ -563,8 +604,8 @@ function generateAtoN(vessel, mmsi, delta) {
   if ( position && position.latitude && position.longitude ) {
     var name = _.get(vessel, "name") || findDeltaValue(vessel, delta, 'name');
     var type = _.get(findDeltaValue(vessel, delta, "atonType"), "id")
-    var length = _.get(findDeltaValue(vessel, delta, 'design.length'), 'overall')
-    var beam = findDeltaValue(vessel, delta, 'design.beam')
+    var length = finite(_.get(findDeltaValue(vessel, delta, 'design.length'), 'overall'))
+    var beam = finite(findDeltaValue(vessel, delta, 'design.beam'))
     var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
     var latitude = position.latitude * 10000000;
     var longitude = position.longitude * 10000000;
