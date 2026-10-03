@@ -1,6 +1,7 @@
 const chai = require('chai')
 chai.should()
 const sinon = require('sinon')
+const { FromPgn } = require('@canboat/canboatjs')
 
 const Sk2n2K = require('../')
 const Server = require('signalk-server/lib/')
@@ -23,7 +24,8 @@ describe('Navigation data 129284', function () {
     app.providerStatistics = []
     app.debug = () => {}
     const sent = []
-    app.on('nmea2000JsonOut', (pgn) => sent.push(pgn))
+    const parser = new FromPgn({ useCamel: false })
+    app.on('nmea2000out', (line) => sent.push(parser.parseString(line)))
 
     const sk2n2k = new Sk2n2K(app)
     sk2n2k.start({ navigationdata: { enabled: true } })
@@ -50,7 +52,7 @@ describe('Navigation data 129284', function () {
     clock.tick(20)
     await flush()
 
-    const last = sent.filter((p) => p.pgn === 129284).pop()
+    const last = sent.filter((p) => p.pgn === 129284).pop().fields
     last['Distance to Waypoint'].should.equal(940)
     last['Destination Latitude'].should.equal(32.0631296)
     last['Destination Longitude'].should.equal(-75.487264)
