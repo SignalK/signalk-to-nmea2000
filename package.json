@@ -22,6 +22,7 @@
   ],
   "license": "ISC",
   "dependencies": {
+    "@canboat/canboatjs": "^4.0.0",
     "geolib": "^3.3.4",
     "lodash": "^4.17.4"
   },
@@ -34,7 +35,6 @@
   },
   "devDependencies": {
     "baconjs": "^3.0.0",
-    "@canboat/canboatjs": "^4.0.0",
     "@signalk/github-create-release": "^1.2.1",
     "chai": "^4.1.2",
     "chai-json-equal": "^0.0.1",

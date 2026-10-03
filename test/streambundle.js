@@ -1,3 +1,4 @@
+const { FromPgn } = require('@canboat/canboatjs')
 const Bacon = require('baconjs')
 const chai = require('chai')
 const assert = chai.assert
@@ -24,8 +25,9 @@ function makeApp() {
     signalk: { self: {}, on: () => {} },
     selfId: 'urn:mrn:signalk:uuid:test',
     emit: (event, pgn) => {
-      if (event === 'nmea2000JsonOut') {
-        emitted.push(pgn)
+      // The plugin sends Actisense lines; keep them decoded.
+      if (event === 'nmea2000out') {
+        emitted.push(new FromPgn({ useCamel: false }).parseString(pgn))
       }
     },
     streambundle: {
@@ -55,8 +57,8 @@ describe('onValueChange conversions over the streambundle', () => {
     await new Promise((resolve) => setTimeout(resolve, 50))
     plugin.stop()
 
-    assert.deepEqual(app.emitted, [
-      { pgn: 128267, SID: 0xff, Depth: 4.5, Offset: 1 }
-    ])
+    assert.equal(app.emitted.length, 1)
+    assert.equal(app.emitted[0].pgn, 128267)
+    assert.deepEqual(app.emitted[0].fields, { Depth: 4.5, Offset: 1 })
   })
 })
