@@ -21,8 +21,9 @@ module.exports = (app, plugin) => {
     keys: ["notifications.*"],
     context: 'vessels.self',
     'sourceType': 'subscription',
-    // Alerts made from NMEA 2000 data (engine status, DSC) are sent; ones
-    // received as alerts are skipped below
+    // Alerts received from the bus land in notifications.nmea.*, which the
+    // callback skips, so sending one back cannot loop; alerts made from
+    // other NMEA 2000 data (engine status, DSC) are new to the bus.
     preventsNmea2000Echo: true,
     callback: (delta) => {
 
@@ -32,7 +33,7 @@ module.exports = (app, plugin) => {
 
       //dont create a loop by sending out notifications we recieved from NMEA
       if (update.path.includes('notifications.nmea')) {
-        return pgns
+        return []
       }
 
       let alertId

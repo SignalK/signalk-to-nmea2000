@@ -128,6 +128,21 @@ describe('Data from NMEA 2000 sources', function () {
         }, done)
     })
 
+    it('sends nothing for a received alert, not even earlier ones', function (done) {
+      const value = { state: 'alarm', method: ['visual', 'sound'], message: 'Low oil pressure' }
+      run({ NOTIFICATIONS: { enabled: true } }, [
+        { path: 'notifications.propulsion.port.lowOilPressure', value },
+        {
+          path: 'notifications.nmea.bilge',
+          value: { ...value, message: 'High bilge' },
+          source: { ...N2K_SOURCE, pgn: 126983 }
+        }
+      ], (n2kSpy, sentBefore) => {
+        sentBefore.should.be.above(0)
+        n2kSpy.callCount.should.equal(sentBefore)
+      }, done)
+    })
+
     it('does not resend alerts received over NMEA 2000', function (done) {
       runRaw({ NOTIFICATIONS: { enabled: true } },
         alarm('notifications.nmea.bilge', { ...N2K_SOURCE, pgn: 126983 }, 'High bilge'),
