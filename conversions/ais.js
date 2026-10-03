@@ -214,6 +214,84 @@ module.exports = (app, plugin) => {
           "AtoN Name": "78A"
         }
       }]
+    },{
+      input: [{
+        "context": "atons.urn:mrn:imo:mmsi:993672085",
+        "updates": [{"values": [
+          {"path": "", "value": {"name": "78A"}},
+          {"path": "navigation.position", "value": {"longitude": -76.4313882, "latitude": 38.5783333}},
+          {"path": "atonType", "value": {"id": 14, "name": "Beacon, Starboard Hand"}},
+          {"path": "", "value": {"mmsi": "993672085"}},
+          {"path": "design.length", "value": {"overall": 2}},
+          {"path": "design.beam", "value": 2},
+          {"path": "sensors.ais.fromCenter", "value": 0.5},
+          {"path": "sensors.ais.fromBow", "value": 1}
+        ]}]
+      }],
+      expected: [{
+        "prio": 2,
+        "pgn": 129041,
+        "dst": 255,
+        "fields": {
+          "Message ID": 0,
+          "Repeat Indicator": "Initial",
+          "User ID": 993672085,
+          "Longitude": -76.4313882,
+          "Latitude": 38.5783333,
+          "Position Accuracy": "Low",
+          "RAIM": "not in use",
+          "Time Stamp": "0",
+          "Length/Diameter": 2,
+          "Beam/Diameter": 2,
+          "Position Reference from Starboard Edge": 0.5,
+          "Position Reference from True North Facing Edge": 1,
+          "AtoN Type": "Fixed beacon: starboard hand",
+          "Off Position Indicator": "Yes",
+          "Virtual AtoN Flag": "Yes",
+          "Assigned Mode Flag": "Assigned mode",
+          "Spare": 1,
+          "AtoN Name": "78A"
+        }
+      }]
+    },{
+      input: [{
+        "context": "atons.urn:mrn:imo:mmsi:993672085",
+        "updates": [{"values": [
+          {"path": "", "value": {"name": "78A"}},
+          {"path": "navigation.position", "value": {"longitude": -76.4313882, "latitude": 38.5783333}},
+          {"path": "atonType", "value": {"id": 14, "name": "Beacon, Starboard Hand"}},
+          {"path": "", "value": {"mmsi": "993672085"}},
+          {"path": "design.length", "value": {"overall": 2}},
+          {"path": "design.beam", "value": 2},
+          // 3 m to starboard is off the structure: left out, not wrapped around
+          {"path": "sensors.ais.fromCenter", "value": 3},
+          {"path": "sensors.ais.fromBow", "value": 0}
+        ]}]
+      }],
+      expected: [{
+        "prio": 2,
+        "pgn": 129041,
+        "dst": 255,
+        "fields": {
+          "Message ID": 0,
+          "Repeat Indicator": "Initial",
+          "User ID": 993672085,
+          "Longitude": -76.4313882,
+          "Latitude": 38.5783333,
+          "Position Accuracy": "Low",
+          "RAIM": "not in use",
+          "Time Stamp": "0",
+          "Length/Diameter": 2,
+          "Beam/Diameter": 2,
+          "Position Reference from True North Facing Edge": 0,
+          "AtoN Type": "Fixed beacon: starboard hand",
+          "Off Position Indicator": "Yes",
+          "Virtual AtoN Flag": "Yes",
+          "Assigned Mode Flag": "Assigned mode",
+          "Spare": 1,
+          "AtoN Name": "78A"
+        }
+      }]
     }]
   }
 }
@@ -245,11 +323,8 @@ function generateStatic(vessel, mmsi, delta) {
     imo = Number(parts[parts.length-1])
   }
 
-  var fromStarboard
-  if ( !_.isUndefined(beam) && !_.isUndefined(fromCenter) ) {
-    fromStarboard = (beam / 2 - fromCenter)
-  }
-  fromBow = fromBow ? fromBow : undefined
+  var fromStarboard = distanceFromStarboard(fromCenter, beam)
+  fromBow = distanceOnHull(fromBow, length)
 
   //2017-04-15T14:58:37.625Z,6,129794,43,255,76,05,28,e0,42,0f,0f,ee,8c,00,39,48,41,33,37,39,35,41,54,4c,41,4e,54,49,43,20,50,52,4f,4a,45,43,54,20,49,49,40,4f,8a,07,18,01,8c,00,fe,06,de,44,00,cc,bf,19,e8,03,52,55,20,4c,45,44,20,3e,20,55,53,20,42,41,4c,40,40,40,40,40,04,00,ff
 
@@ -294,6 +369,27 @@ function generateStatic(vessel, mmsi, delta) {
   
   return { pgn: static_pgn, buffer:data }
 */
+}
+
+// fromCenter is positive to starboard, as n2k-signalk and nmea0183-signalk
+// decode it
+function distanceFromStarboard(fromCenter, beam) {
+  if ( !_.isNumber(beam) || !_.isNumber(fromCenter) ) {
+    return undefined
+  }
+  return distanceOnHull(beam / 2 - fromCenter, beam)
+}
+
+// The reference fields are unsigned: a point off the hull would wrap around
+// to a huge distance, so leave it out instead
+function distanceOnHull(distance, size) {
+  if ( !_.isNumber(distance) || distance < 0 ) {
+    return undefined
+  }
+  if ( _.isNumber(size) && distance > size ) {
+    return undefined
+  }
+  return distance
 }
 
 function generatePosition(vessel, mmsi, delta) {
@@ -415,11 +511,8 @@ function generateAtoN(vessel, mmsi, delta) {
     beam = beam ? beam * 10 : 0xffff;
     */
 
-    var fromStarboard
-    if ( !_.isUndefined(beam) && !_.isUndefined(fromCenter) ) {
-      fromStarboard = (beam / 2 - fromCenter)
-    }
-    fromBow = fromBow ? fromBow * 10 : undefined
+    var fromStarboard = distanceFromStarboard(fromCenter, beam)
+    fromBow = distanceOnHull(fromBow, length)
 
       /*
   2017-04-15T15:15:08.461Z,4,129041,43,255,49,15,
