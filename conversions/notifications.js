@@ -15,10 +15,15 @@ const alertSystem = 5
 // notifications with every message, e.g. 26 of them twice a second for 127489.
 const REPEAT_UNCHANGED_MS = 5000
 
+// A cleared alert is sent as Normal along with the alerts for this long, so
+// that a device that misses one message still learns that it is over.
+const REPEAT_CLEARED_MS = 15000
+
 module.exports = (app, plugin) => {
   let idCounter = 0
   let ids = {}
   let pgns = []
+  let cleared = {}
   let lastSent = 0
 
   return {
@@ -55,12 +60,11 @@ module.exports = (app, plugin) => {
         });
 
         if (value.state !== 'normal') {
+          delete cleared[alertId]
 
           const method = value.method || []
           let state
-          if (value.state === 'normal') {
-            state = 'Normal'
-          } else if (method.length == 0) {
+          if (method.length == 0) {
             state = 'Acknowledged'
           } else if (method.indexOf('sound') === -1) {
               state = 'Silenced'
@@ -106,6 +110,19 @@ module.exports = (app, plugin) => {
             'Alert Priority': 0,
             'Alert State': state
           })
+        } else {
+          const active = before.find(obj => obj.pgn === 126983)
+          if (active) {
+            cleared[alertId] = {
+              pgn: {
+                ...active,
+                'Alert State': 'Normal',
+                'Temporary Silence Status': 0,
+                'Acknowledge Status': 0
+              },
+              until: Date.now() + REPEAT_CLEARED_MS
+            }
+          }
         }
 
         const after = pgns.filter(obj => obj['Alert ID'] === alertId)
@@ -144,7 +161,9 @@ module.exports = (app, plugin) => {
       }
 
       try {
-        return pgns
+        const now = Date.now()
+        cleared = _.pickBy(cleared, c => c.until > now)
+        return pgns.concat(_.map(cleared, 'pgn'))
       } catch (err) {
         console.error(err)
       }

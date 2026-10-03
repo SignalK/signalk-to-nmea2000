@@ -175,6 +175,63 @@ describe('Data from NMEA 2000 sources', function () {
       }, done)
     })
 
+    describe('when cleared', function () {
+      const path = 'notifications.propulsion.port.lowOilPressure'
+      const source = { ...N2K_SOURCE, pgn: 127489 }
+      const alarmValue = { state: 'alarm', method: ['visual', 'sound'], message: 'Low oil pressure' }
+      const normalValue = { state: 'normal', method: ['visual'], message: 'Low oil pressure is Normal' }
+      const settle = () => new Promise(resolve => setTimeout(resolve, SETTLE_MS))
+      const alertStates = n2kSpy =>
+        n2kSpy.getCalls()
+          .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+          .filter(pgn => pgn && pgn.pgn === 126983)
+          .map(pgn => pgn.fields['Alert State'])
+      let clock
+
+      beforeEach(function () {
+        clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+      })
+
+      afterEach(function () {
+        clock.restore()
+      })
+
+      it('is sent as Normal, and repeated for a while', async function () {
+        const app = new Server().app
+        app.providerStatistics = []
+        app.debug = () => {}
+        const n2kSpy = sinon.spy()
+        app.on('nmea2000out', n2kSpy)
+        new Sk2n2K(app).start({ NOTIFICATIONS: { enabled: true } })
+
+        send(app, { path, value: alarmValue, source })
+        await settle()
+        alertStates(n2kSpy).should.deep.equal(['Active'])
+
+        n2kSpy.resetHistory()
+        send(app, { path, value: normalValue, source })
+        await settle()
+        alertStates(n2kSpy).should.deep.equal(['Normal'])
+
+        // Repeated with the other alerts every 5 s
+        n2kSpy.resetHistory()
+        send(app, { path, value: normalValue, source })
+        await settle()
+        alertStates(n2kSpy).should.deep.equal([])
+        clock.tick(6000)
+        send(app, { path, value: normalValue, source })
+        await settle()
+        alertStates(n2kSpy).should.deep.equal(['Normal'])
+
+        // and no longer after 15 s
+        n2kSpy.resetHistory()
+        clock.tick(20000)
+        send(app, { path, value: normalValue, source })
+        await settle()
+        alertStates(n2kSpy).should.deep.equal([])
+      })
+    })
+
     it('does not resend alerts received over NMEA 2000', function (done) {
       runRaw({ NOTIFICATIONS: { enabled: true } },
         alarm('notifications.nmea.bilge', { ...N2K_SOURCE, pgn: 126983 }, 'High bilge'),
