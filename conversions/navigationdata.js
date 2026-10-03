@@ -37,15 +37,22 @@ async function routeWPInformation(app) {
     }]
   }
 
-  route = await app.resourcesApi.getResource('routes', path.basename(course.activeRoute.href))
+  const { href, name, reverse } = course.activeRoute
+  const route = await app.resourcesApi.getResource('routes', path.basename(href))
   if (!route)
     return null
+  // The course can change while the route is read; a route that is no longer
+  // the active one is not sent.
+  const activeRoute = (await app.courseApi.getCourse())?.activeRoute
+  if (activeRoute?.href !== href || activeRoute.name !== name ||
+      Boolean(activeRoute.reverse) !== Boolean(reverse))
+    return null
 
-  coordinates = _.chunk(route.feature.geometry.coordinates, routeWPDataItemsPerPacket)
+  const coordinates = _.chunk(route.feature.geometry.coordinates, routeWPDataItemsPerPacket)
   return coordinates.map((coords, i) => {
-    list = coords.map((coord, j) => {
+    const list = coords.map((coord, j) => {
       // Numbered from 1, as 129284's Destination Waypoint Number is
-      waypointId = (routeWPDataItemsPerPacket * i) + j + 1
+      const waypointId = (routeWPDataItemsPerPacket * i) + j + 1
       return {
         "WP ID": waypointId,
         "WP Name": "Waypoint " + waypointId.toString(),
@@ -64,9 +71,9 @@ async function routeWPInformation(app) {
       "Route ID" :  0,
       "Supplementary Route/WP data available" :  "Off",
       "Reserved": "00",
-      "Route Name": course.activeRoute.name,
+      "Route Name": name,
       "list": list,
-      "Navigation direction in route" : course.activeRoute.reverse ? "Reverse" : "Forward",
+      "Navigation direction in route" : reverse ? "Reverse" : "Forward",
     }
   })
 }
@@ -374,6 +381,12 @@ module.exports = (app, plugin) => {
               ]
             }
           }]
+        }, {
+          // another route activated while the route is read
+          input: [
+            mockRouteChangedApp,
+          ],
+          expected: []
         }]
       }, {
         // Also sent as soon as the course changes, so that a device told to
@@ -490,3 +503,22 @@ var mockGotoApp = {
     }
   }
 }
+
+// Activates another route while the route resource is read
+var mockRouteChangedApp = (() => {
+  let course = mockApp.courseApi.getCourse()
+  return {
+    courseApi: {
+      getCourse: () => course
+    },
+    resourcesApi: {
+      getResource: async (...args) => {
+        course = {
+          ...course,
+          activeRoute: { ...course.activeRoute, href: course.activeRoute.href + '-next' }
+        }
+        return mockApp.resourcesApi.getResource(...args)
+      }
+    }
+  }
+})()
