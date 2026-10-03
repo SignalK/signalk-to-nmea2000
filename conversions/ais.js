@@ -53,7 +53,7 @@ module.exports = (app, plugin) => {
     callback: (delta) => {
       var selfContext = 'vessels.' + app.selfId
 
-      if ( delta.context == selfContext || isN2K(delta) ) {
+      if ( delta.context == selfContext ) {
         return null
       }
 
@@ -551,18 +551,4 @@ function fillASCII(theString, len)
     res.push(0x40)
   }
   return new Buffer(new Uint8Array(res).buffer);
-}
-
-function isN2K(delta) {
-  return false
-  var res = false
-  if ( delta.updates ) {
-    delta.updates.forEach(update => {
-      var type = _.get(update, 'source.type')
-      if ( type && type == 'NMEA2000' ) {
-        res = true
-      }
-    });
-  }
-  return res
 }

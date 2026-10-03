@@ -3,6 +3,7 @@ const util = require("util");
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
+const { pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
 
 module.exports = function(app) {
   var plugin = {};
@@ -28,6 +29,10 @@ module.exports = function(app) {
 
     sourceType defaults to 'onValueChange'
     outputType defaults to 'to-n2k'
+
+    Data whose source is NMEA 2000 is not sent unless the conversion's
+    allowNmea2000Sources option is set: the output goes to every NMEA 2000
+    connection, so it would be echoed back onto the bus it came from.
    */
 
   var sourceTypes = {
@@ -77,6 +82,12 @@ module.exports = function(app) {
             title: 'Resend Duration (seconds)',
             description:'The value will be resent for the given #number of seconds',
             default: 30
+          },
+          allowNmea2000Sources: {
+            type: 'boolean',
+            title: 'Also send data that came from NMEA 2000',
+            description: 'Leave off unless bridging separate NMEA 2000 networks: the output goes to every NMEA 2000 connection, including the one the data came from',
+            default: false
           }
         }
       }
@@ -157,13 +168,36 @@ module.exports = function(app) {
     }).filter(converter => { return typeof converter !== 'undefined'; });
   }
 
+  // The conversions give values in SI, as Signal K has them. Encode them
+  // here with this plugin's own canboatjs (4 or later, which takes SI) and
+  // send the frame as an Actisense line, which every NMEA 2000 connection
+  // handles as it does a PGN object. The server's canboatjs, of whatever
+  // version, then only passes the frame on and never sees the values.
+  // A PGN that cannot be encoded here is dropped, not handed to the server
+  // as JSON: a server on canboatjs 3 would read its SI values in the old
+  // units and put wrong values on the bus.
+  function emitPgn(pgn) {
+    let line
+    try {
+      line = pgnToActisenseSerialFormat(pgn)
+    } catch (err) {
+      app.error(`cannot encode PGN ${pgn.pgn}: ${err.message}`)
+      return
+    }
+    if (!line) {
+      app.error(`cannot encode PGN ${pgn.pgn}`)
+      return
+    }
+    app.debug(`emit nmea2000out ${line}`)
+    app.emit('nmea2000out', line)
+  }
+
   function processToN2K(values) {
     if (values) {
       Promise.all(values).then(pgns => {
         pgns.filter(pgn => pgn != null).forEach(pgn => {
           try {
-            app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
-            app.emit("nmea2000JsonOut", pgn);
+            emitPgn(pgn)
           }
           catch ( err ) {
             console.error(`error writing pgn ${JSON.stringify(pgn)}`)
@@ -215,15 +249,28 @@ module.exports = function(app) {
         unsubscribes,
         options
       )
-        .map(values => conversion.callback.call(this, ...values))
-        .onValue(pgns => {
-          processOutput(conversion, options, pgns)
+        .onValue(values => {
+          if ( values === WITHHELD ) {
+            // The last PGN no longer reflects the inputs; stop resending it
+            if ( conversion.resendTimer ) {
+              clearResendInterval(conversion.resendTimer)
+              conversion.resendTimer = undefined
+            }
+            return
+          }
+          processOutput(conversion, options, conversion.callback.call(this, ...values))
         })
     );
   }
 
   function mapOnDelta(conversion, options) {
     app.signalk.on('delta', (delta) => {
+      if ( !options.allowNmea2000Sources ) {
+        delta = withoutNmea2000Updates(delta)
+        if ( !delta ) {
+          return
+        }
+      }
       try {
         processOutput(conversion, options, conversion.callback(delta))
       } catch ( err ) {
@@ -269,6 +316,12 @@ module.exports = function(app) {
       unsubscribes,
       subscription_error,
       delta => {
+        if ( !options.allowNmea2000Sources ) {
+          delta = withoutNmea2000Updates(delta)
+          if ( !delta ) {
+            return
+          }
+        }
         try {
           processOutput(mapping, options, mapping.callback(delta))
         } catch ( err ) {
@@ -289,7 +342,8 @@ module.exports = function(app) {
     const lastValues = keys.reduce((acc, key) => {
       acc[key] = {
         timestamp: new Date().getTime(),
-        value: null
+        value: null,
+        fromNmea2000: false
       }
       return acc
     }, {})
@@ -302,26 +356,32 @@ module.exports = function(app) {
       if (sourceRef) {
         bus = bus.filter( x => x.$source === sourceRef)
       }
-      bus.map('.value').onValue(value => {
+      bus.onValue(({ value, source }) => {
         lastValues[skKey] = {
           timestamp: new Date().getTime(),
-          value
+          value,
+          // A source the user picked explicitly is sent even if it is NMEA 2000
+          fromNmea2000: !sourceRef && !options.allowNmea2000Sources && isNmea2000Source(source)
         }
         const now = new Date().getTime()
 
-        combinedBus.push(
-          keys.map((key, i) => {
-            return notDefined(timeouts[i]) ||
-              lastValues[key].timestamp + timeouts[i] > now
-              ? lastValues[key].value
-              : null
-          })
+        const current = keys.map((key, i) =>
+          notDefined(timeouts[i]) || lastValues[key].timestamp + timeouts[i] > now
+            ? lastValues[key]
+            : null
         )
+        // One NMEA 2000 input withholds the whole PGN: sending the others with
+        // that field unavailable would compete with the device already on the bus
+        if ( current.some(entry => entry && entry.value != null && entry.fromNmea2000) ) {
+          combinedBus.push(WITHHELD)
+          return
+        }
+        combinedBus.push(current.map(entry => entry ? entry.value : null))
       })
     })
     const result = combinedBus.debounce(10)
     if (app.debug.enabled) {
-      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${x}`)))
+      unsubscribes.push(result.onValue(x => app.debug(`${keys}:${String(x)}`)))
     }
     return result
   }
@@ -331,6 +391,23 @@ module.exports = function(app) {
 function pathToPropName(path) {
   return path.replace(/\./g, '')
 
+}
+
+const isNmea2000Source = source => source?.type === 'NMEA2000'
+
+// Pushed instead of values when an NMEA 2000 input withholds the PGN
+const WITHHELD = Symbol('withheld')
+
+// The delta with its NMEA 2000 updates removed, or undefined if none remain
+function withoutNmea2000Updates(delta) {
+  if ( !delta.updates ) {
+    return delta
+  }
+  const updates = delta.updates.filter(update => !isNmea2000Source(update.source))
+  if ( updates.length === 0 ) {
+    return undefined
+  }
+  return updates.length === delta.updates.length ? delta : { ...delta, updates }
 }
 
 

@@ -1,0 +1,93 @@
+# CodeRabbit configuration. Schema:
+#   https://coderabbit.ai/integrations/schema.v2.json
+
+language: en-US
+
+reviews:
+  profile: assertive
+  # Advisory only: a bot must not hold a maintainer's PR closed.
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_instructions: |
+    Write all summaries in present tense.
+    Describe what the code does, not what it did.
+    Example: "This PR adds feature X" instead of "This PR added feature X"
+  poem: false
+  collapse_walkthrough: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_filters:
+    - "!package-lock.json"
+
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        ## Echo comments
+        Flag any comment that merely restates what the code already says.
+        These add noise without adding meaning. Request removal or replacement
+        with a comment explaining *why*, not *what*.
+
+        ## Leftover crumbs from intermediate commits
+        Flag any comments, docs, or code that refer to something not present in
+        the current state of the branch: removed variables, old function names,
+        deleted files, superseded approaches.
+
+        ## Bug-history comments in code
+        Flag any code comment that narrates what the code used to do, why a
+        previous version was wrong, or what a fix changed. That history belongs
+        in the commit message and PR description, not in the source. Keep only
+        current-state rationale.
+
+        ## Unchecked items in test plans
+        If a PR description or any .md file contains a checklist with unchecked
+        items, flag it.
+
+        ## Scope
+        Think carefully about how changes interact with existing code — not
+        just the diff in isolation.
+
+    - path: "conversions/**"
+      instructions: |
+        Each module converts Signal K data to NMEA 2000 PGNs, which canboatjs
+        encodes and the server sends to every NMEA 2000 connection.
+
+        - Field names must match the canboat definition of that PGN exactly.
+          canboatjs encodes an unknown field name as "not available" without
+          an error, so a typo silently drops the value.
+        - Values must be in the unit canboat defines for the field. That is
+          usually the Signal K SI unit (radians, m/s, Kelvin, Pascal), but not
+          always: for example, canboat uses percent where Signal K uses a
+          ratio. Flag missing or double conversions.
+        - PGN definitions, field layouts and lookup tables belong in canboat
+          (https://github.com/canboat/canboat), not here. Flag new tables of
+          PGN values, such as instance names, that this plugin would be the only
+          one to know about.
+        - Data instances must come from the user's configuration, not be
+          hard-coded, unless the PGN fixes them.
+        - Data that came from NMEA 2000 must not be sent back onto the bus.
+          Flag conversions that could echo bus data, such as AIS targets or
+          notifications received from NMEA 2000.
+        - `optionKey` and option property names are stored in users' plugin
+          configuration. Renaming or removing one silently disables or resets
+          existing setups; flag it unless the PR handles the migration.
+        - New or changed conversions need `tests` entries; test/test.js
+          encodes them with canboatjs and compares the decoded result.
+
+    - path: "index.js"
+      instructions: |
+        The plugin core: it builds the configuration schema from the
+        conversions and feeds them Signal K data by source type (onValueChange,
+        onDelta, subscription, timer). A change here affects every conversion;
+        check all four source types and the resend handling, not only the one
+        the PR is about.
+
+    - path: ".github/workflows/**"
+      instructions: |
+        Note whether a change alters which events trigger a workflow or which
+        commits get checked.
+
+chat:
+  auto_reply: true
