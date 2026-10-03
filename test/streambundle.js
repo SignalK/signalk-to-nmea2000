@@ -25,7 +25,6 @@ function makeApp() {
     signalk: { self: {}, on: () => {} },
     selfId: 'urn:mrn:signalk:uuid:test',
     emit: (event, pgn) => {
-      // The plugin sends Actisense lines; keep them decoded.
       if (event === 'nmea2000out') {
         emitted.push(new FromPgn({ useCamel: false }).parseString(pgn))
       }

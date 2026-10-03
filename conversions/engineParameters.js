@@ -151,9 +151,7 @@ module.exports = (app, plugin) => {
                 "Fuel Pressure": orUndefined(fuelPres),
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
-                "Percent Engine Load": orUndefined(engLoad),
                 "Engine Load": orUndefined(engLoad),
-                "Percent Engine Torque": orUndefined(engTorque),
                 "Engine Torque": orUndefined(engTorque)
             }]
           },

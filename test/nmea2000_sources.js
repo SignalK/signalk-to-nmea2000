@@ -1,6 +1,7 @@
 const _ = require('lodash')
 const should = require('chai').should()
 const sinon = require('sinon')
+const { FromPgn } = require('@canboat/canboatjs')
 
 const Sk2n2K = require('../')
 const Server = require('signalk-server/lib/')
@@ -158,9 +159,6 @@ function send (app, { path, value, source }) {
   }
   app.handleMessage(source ? source.label : 'testInput', { updates: [update] })
 }
-
-// The plugin sends Actisense lines; decode the last one sent.
-const { FromPgn } = require('@canboat/canboatjs')
 
 function lastFields (n2kSpy) {
   return new FromPgn({ useCamel: false }).parseString(n2kSpy.lastCall.args[0])
