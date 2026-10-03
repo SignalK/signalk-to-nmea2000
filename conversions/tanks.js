@@ -82,8 +82,10 @@ module.exports = (app, plugin) => {
                   pgn: 127505,
                   "Instance": tank.instanceId,
                   Type: type,
-                  Level: currentLevel * 100,
-                  Capacity: capacity * 1000
+                  // canboatjs 4 takes the level as a ratio and the capacity
+                  // in m3, as Signal K gives them.
+                  Level: currentLevel == null ? undefined : currentLevel,
+                  Capacity: capacity == null ? undefined : capacity
                 })
               }
               
@@ -98,8 +100,8 @@ module.exports = (app, plugin) => {
                 "fields": {
                   "Instance": 1,
                   "Type": "Fuel",
-                  "Level": 35,
-                  "Capacity": 12
+                  "Level": 0.35,
+                  "Capacity": 0.012
                 }
               }]
             }]

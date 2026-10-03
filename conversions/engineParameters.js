@@ -1,5 +1,6 @@
 const _ = require('lodash')
 
+const orUndefined = value => (value === null ? undefined : value)
 const DEFAULT_TIMEOUT = 10000  // ms
 
 module.exports = (app, plugin) => {
@@ -139,42 +140,45 @@ module.exports = (app, plugin) => {
                 pgn: 127489,
                 "Engine Instance": engine.instanceId,
                 "Instance": engine.instanceId,
-                "Oil pressure": oilPres === null ? undefined : oilPres / 100,
-                "Oil temperature": oilTemp === null ? undefined : oilTemp,
-                "Temperature": temp === null ? undefined : temp,
-                "Alternator Potential": altVolt === null ? undefined : altVolt,
-                "Fuel Rate": fuelRate ===null ? undefined : fuelRate * 3600 * 1000,
-                "Total Engine hours": runTime === null ? undefined : runTime,
-                "Coolant Pressure": coolPres === null ? undefined : coolPres / 100,
-                "Fuel Pressure": fuelPres === null ? undefined : fuelPres / 100,
+                // canboatjs 4 takes every value in SI, as Signal K gives it.
+                "Oil pressure": orUndefined(oilPres),
+                "Oil temperature": orUndefined(oilTemp),
+                "Temperature": orUndefined(temp),
+                "Alternator Potential": orUndefined(altVolt),
+                "Fuel Rate": orUndefined(fuelRate),
+                "Total Engine hours": orUndefined(runTime),
+                "Coolant Pressure": orUndefined(coolPres),
+                "Fuel Pressure": orUndefined(fuelPres),
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
-                "Percent Engine Load": engLoad === null ? undefined : engLoad * 100,
-                "Engine Load": engLoad === null ? undefined : engLoad * 100,
-                "Percent Engine Torque": engTorque === null ? undefined : engTorque * 100,
-                "Engine Torque": engTorque === null ? undefined : engTorque * 100
+                "Percent Engine Load": orUndefined(engLoad),
+                "Engine Load": orUndefined(engLoad),
+                "Percent Engine Torque": orUndefined(engTorque),
+                "Engine Torque": orUndefined(engTorque)
             }]
           },
           tests: [{
-            input: [ 102733, 210, 220, 13.1, 100, 201123, 202133, 11111111, 0.5, 1.0 ],
+            // 102700 Pa, 363.15 K, 353.15 K, 13.1 V, 100 L/h (in m3/s),
+            // 201123 s, 120000 Pa, 350000 Pa, 50 % and 100 %.
+            input: [ 102700, 363.15, 353.15, 13.1, 0.0000277778, 201123, 120000, 350000, 0.5, 1.0 ],
             expected: [{
               "prio": 2,
               "pgn": 127489,
               "dst": 255,
               "fields": {
                 "Instance": "Dual Engine Starboard",
-                "Oil pressure": 1000,
-                "Oil temperature": 210,
-                "Temperature": 220,
+                "Oil pressure": 102700,
+                "Oil temperature": 363.1,
+                "Temperature": 353.15,
                 "Alternator Potential": 13.1,
-                "Fuel Rate": -2355.2,
-                "Total Engine hours": "55:52:03",
-                "Coolant Pressure": 2000,
-                "Fuel Pressure": 111000,
+                "Fuel Rate": 0.0000277778,
+                "Total Engine hours": 201123,
+                "Coolant Pressure": 120000,
+                "Fuel Pressure": 350000,
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
-                "Engine Load": 50,
-                "Engine Torque": 100
+                "Engine Load": 0.5,
+                "Engine Torque": 1
               }
             }]
           }]
@@ -190,22 +194,24 @@ module.exports = (app, plugin) => {
                 pgn: 127488,
                 "Engine Instance": engine.instanceId,
                 "Instance": engine.instanceId,
-                "Speed": revolutions === null ? undefined : revolutions * 60,
-                "Boost Pressure": boostPressure === null ? undefined : boostPressure / 100,
-                "Tilt/Trim": trimState === null ? undefined : trimState * 100
+                // canboatjs 4 takes Hz, Pa and a ratio, as Signal K gives them.
+                "Speed": orUndefined(revolutions),
+                "Boost Pressure": orUndefined(boostPressure),
+                "Tilt/Trim": orUndefined(trimState)
             }]
           },
           tests: [{
-            input: [ 1001, 20345, 0.5 ],
+            // 1800 rpm (30 Hz), 120000 Pa, 50 %.
+            input: [ 30, 120000, 0.5 ],
             expected: [{
               "prio": 2,
               "pgn": 127488,
               "dst": 255,
               "fields": {
                 "Instance": "Dual Engine Starboard",
-                "Speed": 10908,
-                "Boost Pressure": 200,
-                "Tilt/Trim": 50
+                "Speed": 30,
+                "Boost Pressure": 120000,
+                "Tilt/Trim": 0.5
               }
             }]
           }]

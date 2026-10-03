@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "baconjs": "^3.0.0",
-    "@canboat/canboatjs": "^3.x",
+    "@canboat/canboatjs": "^4.0.0",
     "@signalk/github-create-release": "^1.2.1",
     "chai": "^4.1.2",
     "chai-json-equal": "^0.0.1",

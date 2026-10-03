@@ -51,7 +51,8 @@ module.exports = (app, plugin) => {
               "command1": "Settings",
               "Command": "Brightness",
               "Group": group.instanceId,
-              "Brightness": brightness * 100,
+              // canboatjs 4 takes the brightness as a ratio.
+              "Brightness": brightness,
               "Unknown 2": 0
             }]
           },
@@ -68,7 +69,7 @@ module.exports = (app, plugin) => {
                 "Group": "Helm 2",
                 "command1": "Settings",
                 "Command": "Brightness",
-                "Brightness": 85,
+                "Brightness": 0.85,
                 "Unknown 2": 0
               }
             }]
