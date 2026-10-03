@@ -161,6 +161,74 @@ module.exports = (app, plugin) => {
       }]
     },{
       input: [{
+        "context":"vessels.urn:mrn:imo:mmsi:367301250",
+        "updates":[{"values":[
+          {
+            "path":"navigation.position",
+            "value": {"longitude":-76.3947165,"latitude":39.1296167}
+          },
+          {"path":"navigation.courseOverGroundTrue","value":1.501},
+          {"path":"navigation.speedOverGround","value":0.05},
+          {"path":"navigation.headingTrue","value":5.6199},
+          {"path":"navigation.rateOfTurn","value":0},
+          {"path":"navigation.state","value":"motoring"},
+          {"path":"navigation.destination.commonName","value":"BALTIMORE"},
+          // At the bow, on the starboard rail
+          {"path":"sensors.ais.fromBow","value":0},
+          {"path":"sensors.ais.fromCenter","value":3.5},
+          {"path": "design.draft", "value": { "maximum": 4.2 }},
+          {"path": "design.length","value": {"overall": 30}},
+          {"path": "design.aisShipType", "value": {"id": 52, "name": "Tug"}},
+          {"path": "design.beam","value": 7},
+          {"path":"","value":{"mmsi":"367301250"}},
+          {"path":"","value":{"name":"SOME BOAT"}}
+        ]}
+      ]}],
+      expected: [{
+        "prio": 2,
+        "pgn": 129038,
+        "dst": 255,
+        "fields": {
+          "Message ID": "Scheduled Class A position report",
+          "User ID": 367301250,
+          "Longitude": -76.3947165,
+          "Latitude": 39.1296167,
+          "Position Accuracy": "Low",
+          "RAIM": "not in use",
+          "Time Stamp": "0",
+          "COG": 1.501,
+          "SOG": 0.05,
+          "AIS Transceiver information": "Channel A VDL reception",
+          "Heading": 5.6199,
+          "Rate of Turn": 0,
+          "Nav Status": "Under way using engine",
+          "Repeat Indicator": "Final retransmission",
+          "Special Maneuver Indicator": "Reserved"
+        }
+      },{
+        "prio": 2,
+        "pgn": 129794,
+        "dst": 255,
+        "fields": {
+          "Message ID": "Static and voyage related data",
+          "User ID": 367301250,
+          "Name": "SOME BOAT",
+          "Type of ship": "Tug",
+          "Length": 30,
+          "Beam": 7,
+          "Position reference from Bow": 0,
+          "Position reference from Starboard": 0,
+          "Draft": 4.2,
+          "Destination": "BALTIMORE",
+          "AIS version indicator": "ITU-R M.1371-1",
+          "DTE": "Available",
+          "Reserved1": 1,
+          "AIS Transceiver information": "Channel A VDL reception",
+          "Repeat Indicator": "Final retransmission"
+        }
+      }]
+    },{
+      input: [{
         "context": "atons.urn:mrn:imo:mmsi:993672085",
         "updates": [
           {
@@ -225,6 +293,7 @@ module.exports = (app, plugin) => {
           {"path": "design.length", "value": {"overall": 2}},
           {"path": "design.beam", "value": 2},
           {"path": "sensors.ais.fromCenter", "value": 0.5},
+          // Not sent for an AtoN
           {"path": "sensors.ais.fromBow", "value": 1}
         ]}]
       }],
@@ -244,7 +313,6 @@ module.exports = (app, plugin) => {
           "Length/Diameter": 2,
           "Beam/Diameter": 2,
           "Position Reference from Starboard Edge": 0.5,
-          "Position Reference from True North Facing Edge": 1,
           "AtoN Type": "Fixed beacon: starboard hand",
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
@@ -264,8 +332,7 @@ module.exports = (app, plugin) => {
           {"path": "design.length", "value": {"overall": 2}},
           {"path": "design.beam", "value": 2},
           // 3 m to starboard is off the structure: left out, not wrapped around
-          {"path": "sensors.ais.fromCenter", "value": 3},
-          {"path": "sensors.ais.fromBow", "value": 0}
+          {"path": "sensors.ais.fromCenter", "value": 3}
         ]}]
       }],
       expected: [{
@@ -283,7 +350,6 @@ module.exports = (app, plugin) => {
           "Time Stamp": "0",
           "Length/Diameter": 2,
           "Beam/Diameter": 2,
-          "Position Reference from True North Facing Edge": 0,
           "AtoN Type": "Fixed beacon: starboard hand",
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
@@ -500,7 +566,6 @@ function generateAtoN(vessel, mmsi, delta) {
     var length = _.get(findDeltaValue(vessel, delta, 'design.length'), 'overall')
     var beam = findDeltaValue(vessel, delta, 'design.beam')
     var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
-    var fromBow = findDeltaValue(vessel, delta, 'sensors.ais.fromBow')
     var latitude = position.latitude * 10000000;
     var longitude = position.longitude * 10000000;
 
@@ -512,7 +577,8 @@ function generateAtoN(vessel, mmsi, delta) {
     */
 
     var fromStarboard = distanceFromStarboard(fromCenter, beam)
-    fromBow = distanceOnHull(fromBow, length)
+    // No fromBow: an AtoN has no bow, and 129041 measures from its true north
+    // facing edge instead. n2k-signalk does not map that field either.
 
       /*
   2017-04-15T15:15:08.461Z,4,129041,43,255,49,15,
@@ -549,7 +615,6 @@ function generateAtoN(vessel, mmsi, delta) {
       'Length/Diameter': length,
       'Beam/Diameter': beam,
       'Position Reference from Starboard Edge': fromStarboard,
-      'Position Reference from True North Facing Edge': fromBow,
       'AtoN Type': type,
       'AtoN Name': name
     }
