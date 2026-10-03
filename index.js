@@ -3,6 +3,7 @@ const util = require("util");
 const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
+const { pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
 
 module.exports = function(app) {
   var plugin = {};
@@ -167,13 +168,36 @@ module.exports = function(app) {
     }).filter(converter => { return typeof converter !== 'undefined'; });
   }
 
+  // The conversions give values in SI, as Signal K has them. Encode them
+  // here with this plugin's own canboatjs (4 or later, which takes SI) and
+  // send the frame as an Actisense line, which every NMEA 2000 connection
+  // handles as it does a PGN object. The server's canboatjs, of whatever
+  // version, then only passes the frame on and never sees the values.
+  // A PGN that cannot be encoded here is dropped, not handed to the server
+  // as JSON: a server on canboatjs 3 would read its SI values in the old
+  // units and put wrong values on the bus.
+  function emitPgn(pgn) {
+    let line
+    try {
+      line = pgnToActisenseSerialFormat(pgn)
+    } catch (err) {
+      app.error(`cannot encode PGN ${pgn.pgn}: ${err.message}`)
+      return
+    }
+    if (!line) {
+      app.error(`cannot encode PGN ${pgn.pgn}`)
+      return
+    }
+    app.debug(`emit nmea2000out ${line}`)
+    app.emit('nmea2000out', line)
+  }
+
   function processToN2K(values) {
     if (values) {
       Promise.all(values).then(pgns => {
         pgns.filter(pgn => pgn != null).forEach(pgn => {
           try {
-            app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
-            app.emit("nmea2000JsonOut", pgn);
+            emitPgn(pgn)
           }
           catch ( err ) {
             console.error(`error writing pgn ${JSON.stringify(pgn)}`)

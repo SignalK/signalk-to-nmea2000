@@ -74,8 +74,9 @@ module.exports = (app, plugin) => {
                  || timeRemaining != null
                  || stateOfHealth != null
                  || ripple != null ) {
-              stateOfCharge = _.isUndefined(stateOfCharge) || stateOfCharge == null ? undefined : stateOfCharge*100
-              stateOfHealth = _.isUndefined(stateOfHealth) || stateOfHealth == null ? undefined : stateOfHealth*100
+              // canboatjs 4 takes the states as ratios, as Signal K gives them.
+              stateOfCharge = stateOfCharge == null ? undefined : stateOfCharge
+              stateOfHealth = stateOfHealth == null ? undefined : stateOfHealth
               
               res.push({
                 pgn: 127506,
@@ -109,9 +110,9 @@ module.exports = (app, plugin) => {
               "fields": {
                 "Instance": 1,
                 "DC Type": "Battery",
-                "State of Charge": 93,
-                "State of Health": 60,
-                "Time Remaining": "03:26:00",
+                "State of Charge": 0.93,
+                "State of Health": 0.6,
+                "Time Remaining": 12360,
                 "Ripple Voltage": 12
               }
             }]

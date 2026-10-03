@@ -1,6 +1,7 @@
 const _ = require('lodash')
 const should = require('chai').should()
 const sinon = require('sinon')
+const { FromPgn } = require('@canboat/canboatjs')
 
 const Sk2n2K = require('../')
 const Server = require('signalk-server/lib/')
@@ -111,7 +112,7 @@ function runRaw (options, delta, check, done) {
   // Provided by the plugin API in a running server, not by the bare test app
   app.getPath = path => _.get(app.signalk.retrieve(), path)
   const n2kSpy = sinon.spy()
-  app.on('nmea2000JsonOut', n2kSpy)
+  app.on('nmea2000out', n2kSpy)
   new Sk2n2K(app).start(options)
   app.handleMessage(delta.updates[0].source ? 'can0' : 'testInput', delta)
   setTimeout(() => {
@@ -132,7 +133,7 @@ function run (options, deltas, check, done, wait = SETTLE_MS) {
   app.debug = () => {}
   app.debug.enabled = true
   const n2kSpy = sinon.spy()
-  app.on('nmea2000JsonOut', n2kSpy)
+  app.on('nmea2000out', n2kSpy)
   new Sk2n2K(app).start(options)
 
   const [first, ...rest] = deltas
@@ -160,6 +161,6 @@ function send (app, { path, value, source }) {
 }
 
 function lastFields (n2kSpy) {
-  const pgn = n2kSpy.lastCall.args[0]
-  return pgn.fields || pgn
+  return new FromPgn({ useCamel: false }).parseString(n2kSpy.lastCall.args[0])
+    .fields
 }

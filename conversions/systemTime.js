@@ -29,7 +29,7 @@ module.exports = (app, plugin) => {
         "dst": 255,
         "fields": {
           "Date": "2017.04.15",
-          "Time": "14:59:53"
+          "Time": 53993
         }
       }]
     }]
