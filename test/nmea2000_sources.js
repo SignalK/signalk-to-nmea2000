@@ -116,9 +116,9 @@ describe('Data from NMEA 2000 sources', function () {
     })
     const alertTexts = n2kSpy =>
       n2kSpy.getCalls()
-        .map(call => call.args[0])
-        .filter(pgn => pgn.pgn === 126985)
-        .map(pgn => pgn['Alert Text Description'])
+        .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+        .filter(pgn => pgn && pgn.pgn === 126985)
+        .map(pgn => pgn.fields['Alert Text Description'])
 
     it('sends alerts made from NMEA 2000 data', function (done) {
       runRaw({ NOTIFICATIONS: { enabled: true } },
