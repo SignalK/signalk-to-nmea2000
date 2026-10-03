@@ -143,6 +143,38 @@ describe('Data from NMEA 2000 sources', function () {
       }, done)
     })
 
+    it('sends an alert once while NMEA 2000 keeps repeating it unchanged', function (done) {
+      const value = { state: 'alarm', method: ['visual', 'sound'], message: 'Low oil pressure' }
+      const repeat = {
+        path: 'notifications.propulsion.port.lowOilPressure',
+        value,
+        source: { ...N2K_SOURCE, pgn: 127489 }
+      }
+      const normal = {
+        path: 'notifications.propulsion.port.overTemperature',
+        value: { state: 'normal', method: ['visual'], message: 'Over Temperature is Normal' },
+        source: { ...N2K_SOURCE, pgn: 127489 }
+      }
+      run({ NOTIFICATIONS: { enabled: true } },
+        [repeat, ..._.times(10, () => [repeat, normal]).flat()],
+        (n2kSpy, sentBefore) => {
+          sentBefore.should.equal(2)
+          n2kSpy.callCount.should.equal(sentBefore)
+        }, done)
+    })
+
+    it('sends an alert again when it changes', function (done) {
+      const value = { state: 'alarm', method: ['visual', 'sound'], message: 'Low oil pressure' }
+      const path = 'notifications.propulsion.port.lowOilPressure'
+      const source = { ...N2K_SOURCE, pgn: 127489 }
+      run({ NOTIFICATIONS: { enabled: true } }, [
+        { path, value, source },
+        { path, value: { ...value, method: [] }, source }
+      ], (n2kSpy, sentBefore) => {
+        n2kSpy.callCount.should.be.above(sentBefore)
+      }, done)
+    })
+
     it('does not resend alerts received over NMEA 2000', function (done) {
       runRaw({ NOTIFICATIONS: { enabled: true } },
         alarm('notifications.nmea.bilge', { ...N2K_SOURCE, pgn: 126983 }, 'High bilge'),
