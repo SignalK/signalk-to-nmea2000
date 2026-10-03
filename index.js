@@ -33,6 +33,8 @@ module.exports = function(app) {
     Data whose source is NMEA 2000 is not sent unless the conversion's
     allowNmea2000Sources option is set: the output goes to every NMEA 2000
     connection, so it would be echoed back onto the bus it came from.
+    A conversion that sets preventsNmea2000Echo keeps its own loops out
+    (notifications skips notifications.nmea.*) and gets all its data.
    */
 
   var sourceTypes = {
@@ -83,12 +85,14 @@ module.exports = function(app) {
             description:'The value will be resent for the given #number of seconds',
             default: 30
           },
-          allowNmea2000Sources: {
-            type: 'boolean',
-            title: 'Also send data that came from NMEA 2000',
-            description: 'Leave off unless bridging separate NMEA 2000 networks: the output goes to every NMEA 2000 connection, including the one the data came from',
-            default: false
-          }
+        }
+      }
+      if ( !conversion.preventsNmea2000Echo ) {
+        obj.properties.allowNmea2000Sources = {
+          type: 'boolean',
+          title: 'Also send data that came from NMEA 2000',
+          description: 'Leave off unless bridging separate NMEA 2000 networks: the output goes to every NMEA 2000 connection, including the one the data came from',
+          default: false
         }
       }
       const safeKeys = conversion.keys || []
@@ -247,7 +251,8 @@ module.exports = function(app) {
         conversion.timeouts,
         app.streambundle,
         unsubscribes,
-        options
+        options,
+        sendsNmea2000Data(conversion, options)
       )
         .onValue(values => {
           if ( values === WITHHELD ) {
@@ -265,7 +270,7 @@ module.exports = function(app) {
 
   function mapOnDelta(conversion, options) {
     app.signalk.on('delta', (delta) => {
-      if ( !options.allowNmea2000Sources ) {
+      if ( !sendsNmea2000Data(conversion, options) ) {
         delta = withoutNmea2000Updates(delta)
         if ( !delta ) {
           return
@@ -316,7 +321,7 @@ module.exports = function(app) {
       unsubscribes,
       subscription_error,
       delta => {
-        if ( !options.allowNmea2000Sources ) {
+        if ( !sendsNmea2000Data(mapping, options) ) {
           delta = withoutNmea2000Updates(delta)
           if ( !delta ) {
             return
@@ -335,7 +340,8 @@ module.exports = function(app) {
     timeouts = [],
     streambundle,
     unsubscribes,
-    options
+    options,
+    allowNmea2000
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -361,7 +367,7 @@ module.exports = function(app) {
           timestamp: new Date().getTime(),
           value,
           // A source the user picked explicitly is sent even if it is NMEA 2000
-          fromNmea2000: !sourceRef && !options.allowNmea2000Sources && isNmea2000Source(source)
+          fromNmea2000: !sourceRef && !allowNmea2000 && isNmea2000Source(source)
         }
         const now = new Date().getTime()
 
@@ -394,6 +400,9 @@ function pathToPropName(path) {
 }
 
 const isNmea2000Source = source => source?.type === 'NMEA2000'
+
+const sendsNmea2000Data = (conversion, options) =>
+  Boolean(options.allowNmea2000Sources || conversion.preventsNmea2000Echo)
 
 // Pushed instead of values when an NMEA 2000 input withholds the PGN
 const WITHHELD = Symbol('withheld')

@@ -10,17 +10,27 @@ const alertTypes = {
 const alertCategory = 'Technical'
 const alertSystem = 5
 
-let idCounter = 0
-let ids = {}
-let pgns = []
+// An unchanged alert is repeated no more often than this, so that a device
+// joining the bus later still learns about it. NMEA 2000 sources repeat their
+// notifications with every message, e.g. 26 of them twice a second for 127489.
+const REPEAT_UNCHANGED_MS = 5000
 
 module.exports = (app, plugin) => {
+  let idCounter = 0
+  let ids = {}
+  let pgns = []
+  let lastSent = 0
+
   return {
     title: 'Notifications (126983, 126985)',
     optionKey: 'NOTIFICATIONS',
     keys: ["notifications.*"],
     context: 'vessels.self',
     'sourceType': 'subscription',
+    // Alerts received from the bus land in notifications.nmea.*, which the
+    // callback skips, so sending one back cannot loop; alerts made from
+    // other NMEA 2000 data (engine status, DSC) are new to the bus.
+    preventsNmea2000Echo: true,
     callback: (delta) => {
 
       const update = delta.updates[0].values[0]
@@ -29,13 +39,15 @@ module.exports = (app, plugin) => {
 
       //dont create a loop by sending out notifications we recieved from NMEA
       if (update.path.includes('notifications.nmea')) {
-        return pgns
+        return []
       }
 
       let alertId
       if (value.hasOwnProperty('alertId')) {
         alertId = value.alertId
         app.debug(`Using existing alertId ${alertId} for ${update.path}`)
+
+        const before = pgns.filter(obj => obj['Alert ID'] === alertId)
 
         //remove the pgns and reprocess them for changes
         pgns = pgns.filter(function(obj) {
@@ -95,7 +107,18 @@ module.exports = (app, plugin) => {
             'Alert State': state
           })
         }
+
+        const after = pgns.filter(obj => obj['Alert ID'] === alertId)
+        if (_.isEqual(before, after) && Date.now() - lastSent < REPEAT_UNCHANGED_MS) {
+          return []
+        }
+        lastSent = Date.now()
       } else {
+        // Nothing to alert on, and no alert of this path to clear
+        if (value.state === 'normal' && !ids[update.path]) {
+          return []
+        }
+
         //add nmea2000 alert info so that the alarm can be silenced from a NMEA source
         if (ids[update.path] && ids[update.path].alertId) {
           alertId = ids[update.path].alertId
@@ -115,7 +138,9 @@ module.exports = (app, plugin) => {
         delta.updates[0].values[0].value.alertId = alertId
         app.debug("New delta with alertId: " + JSON.stringify(delta))
 
+        // The PGNs are sent for this delta, which comes back with the alertId
         app.handleMessage(plugin.id, delta)
+        return []
       }
 
       try {
