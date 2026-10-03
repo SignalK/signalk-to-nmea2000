@@ -60,4 +60,52 @@ describe('onValueChange conversions over the streambundle', () => {
     assert.equal(app.emitted[0].pgn, 128267)
     assert.deepEqual(app.emitted[0].fields, { Depth: 4.5, Offset: 1 })
   })
+
+  it('sends 129285 as soon as the course changes, once per change', async () => {
+    const app = makeApp()
+    let course = goto({ latitude: -35.5, longitude: 138.7 })
+    app.courseApi = { getCourse: async () => course }
+    const plugin = require('../index.js')(app)
+    plugin.start({ routewpinformation: { enabled: true } })
+
+    const publish = () =>
+      ['activeRoute', 'nextPoint', 'previousPoint'].forEach((key) =>
+        app.buses[`navigation.course.${key}`].push({
+          path: `navigation.course.${key}`,
+          value: course[key],
+          $source: 'courseApi'
+        })
+      )
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
+    const routeInfo = () => app.emitted.filter((pgn) => pgn.pgn === 129285)
+
+    try {
+      publish()
+      await settle()
+      assert.equal(routeInfo().length, 1)
+
+      publish()
+      await settle()
+      assert.equal(routeInfo().length, 1, 'an unchanged course is not resent')
+
+      course = goto({ latitude: -35.6, longitude: 138.8 })
+      publish()
+      await settle()
+      assert.equal(routeInfo().length, 2)
+      assert.equal(routeInfo()[1].fields.list[1]['WP Latitude'], -35.6)
+    } finally {
+      plugin.stop()
+    }
+  })
 })
+
+function goto(destination) {
+  return {
+    activeRoute: null,
+    previousPoint: {
+      type: 'VesselPosition',
+      position: { latitude: -35.45, longitude: 138.0 }
+    },
+    nextPoint: { type: 'Location', name: 'DP', position: destination }
+  }
+}

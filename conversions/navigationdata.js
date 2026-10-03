@@ -7,6 +7,70 @@ const routeWPDataItemsPerPacket = 3
 // it by setting the value to null.
 const isRaised = (notification) => notification != null && notification.state !== 'normal'
 
+// The route or single destination of the active course as 129285 messages,
+// null without one
+async function routeWPInformation(app) {
+  var course = await app.courseApi.getCourse()
+  if (!course?.nextPoint?.position)
+    return null
+  if (!course.activeRoute?.href) {
+    // A single destination goes out as a two-point route, from where
+    // the course started to the destination.
+    const origin = course.previousPoint?.position
+    const dest = course.nextPoint.position
+    return [{
+      pgn: 129285,
+      "prio": 7,
+      "nItems": origin ? 2 : 1,
+      "Database ID": 0,
+      "Supplementary Route/WP data available": "Off",
+      "Navigation direction in route": "Forward",
+      "list": [
+        ...(origin ? [{ "WP Latitude": origin.latitude, "WP Longitude": origin.longitude }] : []),
+        {
+          "WP ID": 1,
+          "WP Name": course.nextPoint.name || "Waypoint 1",
+          "WP Latitude": dest.latitude,
+          "WP Longitude": dest.longitude
+        }
+      ]
+    }]
+  }
+
+  route = await app.resourcesApi.getResource('routes', path.basename(course.activeRoute.href))
+  if (!route)
+    return null
+
+  coordinates = _.chunk(route.feature.geometry.coordinates, routeWPDataItemsPerPacket)
+  return coordinates.map((coords, i) => {
+    list = coords.map((coord, j) => {
+      // Numbered from 1, as 129284's Destination Waypoint Number is
+      waypointId = (routeWPDataItemsPerPacket * i) + j + 1
+      return {
+        "WP ID": waypointId,
+        "WP Name": "Waypoint " + waypointId.toString(),
+        // GeoJSON coordinates are [longitude, latitude]
+        "WP Latitude": coord[1],
+        "WP Longitude": coord[0]
+      }
+    })
+
+    return {
+      pgn: 129285,
+      "prio": 7,
+      "Start RPS#" : routeWPDataItemsPerPacket * i,
+      "nItems" : coords.length,
+      "Database ID" :  0,
+      "Route ID" :  0,
+      "Supplementary Route/WP data available" :  "Off",
+      "Reserved": "00",
+      "Route Name": course.activeRoute.name,
+      "list": list,
+      "Navigation direction in route" : course.activeRoute.reverse ? "Reverse" : "Forward",
+    }
+  })
+}
+
 module.exports = (app, plugin) => {
   return [{
     pgn: 127258,
@@ -207,70 +271,11 @@ module.exports = (app, plugin) => {
     title: 'Route/WP Information (129285)',
     optionKey: 'routewpinformation',
     conversions: (options) => {
+      let lastCourse
       return [{
-        interval: 10000,
+        interval: 2000,
         sourceType: 'timer',
-        callback: async (app) => {
-          var course = await app.courseApi.getCourse()
-          if (!course?.nextPoint?.position)
-            return null
-          if (!course.activeRoute?.href) {
-            // A single destination goes out as a two-point route, from where
-            // the course started to the destination.
-            const origin = course.previousPoint?.position
-            const dest = course.nextPoint.position
-            return [{
-              pgn: 129285,
-              "prio": 7,
-              "nItems": origin ? 2 : 1,
-              "Database ID": 0,
-              "Supplementary Route/WP data available": "Off",
-              "Navigation direction in route": "Forward",
-              "list": [
-                ...(origin ? [{ "WP Latitude": origin.latitude, "WP Longitude": origin.longitude }] : []),
-                {
-                  "WP ID": 1,
-                  "WP Name": course.nextPoint.name || "Waypoint 1",
-                  "WP Latitude": dest.latitude,
-                  "WP Longitude": dest.longitude
-                }
-              ]
-            }]
-          }
-
-          route = await app.resourcesApi.getResource('routes', path.basename(course.activeRoute.href))
-          if (!route)
-            return null
-
-          coordinates = _.chunk(route.feature.geometry.coordinates, routeWPDataItemsPerPacket)
-          return coordinates.map((coords, i) => {
-            list = coords.map((coord, j) => {
-              // Numbered from 1, as 129284's Destination Waypoint Number is
-              waypointId = (routeWPDataItemsPerPacket * i) + j + 1
-              return {
-                "WP ID": waypointId,
-                "WP Name": "Waypoint " + waypointId.toString(),
-                // GeoJSON coordinates are [longitude, latitude]
-                "WP Latitude": coord[1],
-                "WP Longitude": coord[0]
-              }
-            })
-
-            return {
-              pgn: 129285,
-              "prio": 7,
-              "Start RPS#" : routeWPDataItemsPerPacket * i,
-              "nItems" : coords.length,
-              "Database ID" :  0,
-              "Route ID" :  0,
-              "Supplementary Route/WP data available" :  "Off",
-              "Reserved": "00",
-              "Route Name": course.activeRoute.name,
-              "list": list,
-              "Navigation direction in route" : course.activeRoute.reverse ? "Reverse" : "Forward",
-            }
-          })
-        },
+        callback: routeWPInformation,
         tests: [{
           input: [
             mockApp,
@@ -369,6 +374,26 @@ module.exports = (app, plugin) => {
               ]
             }
           }]
+        }]
+      }, {
+        // Also sent as soon as the course changes, so that a device told to
+        // follow it has its waypoints without waiting for the timer.
+        keys: [
+          'navigation.course.activeRoute',
+          'navigation.course.nextPoint',
+          'navigation.course.previousPoint'
+        ],
+        callback: (activeRoute, nextPoint, previousPoint) => {
+          const course = [activeRoute, nextPoint, previousPoint]
+          if (_.isEqual(course, lastCourse))
+            return null
+          lastCourse = course
+          return nextPoint ? routeWPInformation(app) : null
+        },
+        tests: [{
+          // no course
+          input: [null, null, null],
+          expected: []
         }]
       }]
     }
