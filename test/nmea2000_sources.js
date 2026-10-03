@@ -102,6 +102,40 @@ describe('Data from NMEA 2000 sources', function () {
       }, done)
     })
   })
+
+  describe('notifications', function () {
+    const alarm = (path, source, message = 'Low oil pressure') => ({
+      context: 'vessels.self',
+      updates: [{
+        ...(source ? { source } : {}),
+        values: [{
+          path,
+          value: { state: 'alarm', method: ['visual', 'sound'], message }
+        }]
+      }]
+    })
+    const alertTexts = n2kSpy =>
+      n2kSpy.getCalls()
+        .map(call => call.args[0])
+        .filter(pgn => pgn.pgn === 126985)
+        .map(pgn => pgn['Alert Text Description'])
+
+    it('sends alerts made from NMEA 2000 data', function (done) {
+      runRaw({ NOTIFICATIONS: { enabled: true } },
+        alarm('notifications.propulsion.port.lowOilPressure', { ...N2K_SOURCE, pgn: 127489 }),
+        n2kSpy => {
+          alertTexts(n2kSpy).should.include('Low oil pressure')
+        }, done)
+    })
+
+    it('does not resend alerts received over NMEA 2000', function (done) {
+      runRaw({ NOTIFICATIONS: { enabled: true } },
+        alarm('notifications.nmea.bilge', { ...N2K_SOURCE, pgn: 126983 }, 'High bilge'),
+        n2kSpy => {
+          alertTexts(n2kSpy).should.not.include('High bilge')
+        }, done)
+    })
+  })
 })
 
 function runRaw (options, delta, check, done) {

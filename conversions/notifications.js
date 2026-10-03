@@ -21,6 +21,9 @@ module.exports = (app, plugin) => {
     keys: ["notifications.*"],
     context: 'vessels.self',
     'sourceType': 'subscription',
+    // Alerts made from NMEA 2000 data (engine status, DSC) are sent; ones
+    // received as alerts are skipped below
+    preventsNmea2000Echo: true,
     callback: (delta) => {
 
       const update = delta.updates[0].values[0]
