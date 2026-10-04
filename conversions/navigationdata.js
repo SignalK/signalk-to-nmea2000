@@ -517,7 +517,9 @@ var mockGotoApp = {
   }
 }
 
-// Activates another route while the route resource is read
+// A route that is no longer active once read must not be sent: the Course
+// API can change while the resource is read, more so now that a course
+// change triggers the read at once
 var mockRouteChangedApp = (() => {
   let course = mockApp.courseApi.getCourse()
   return {
