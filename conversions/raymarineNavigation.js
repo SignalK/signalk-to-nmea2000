@@ -3,6 +3,8 @@ const geolib= require('geolib');
 const _ = require('lodash')
 
 module.exports = (app, plugin) => {
+  var sid130848 = 0;
+
   return [{
     title: 'Raymarine Route and Waypoint Information (130848, 130918)',
     optionKey: 'RAYMARINENAV',
@@ -13,7 +15,6 @@ module.exports = (app, plugin) => {
           'navigation.course.calcValues.distance',
           'navigation.course.calcValues.bearingTrue',
           'navigation.course.calcValues.bearingMagnetic',
-          'navigation.course.activeRoute',
         ],
         sourceType: 'timer',
         interval: 1000,
@@ -22,16 +23,22 @@ module.exports = (app, plugin) => {
           if (course.nextPoint == null)
             return null
 
-          let waypointId = course.activeRoute && 
-			typeof course.activeRoute?.pointIndex === 'number' ? 
-			  course.activeRoute?.pointIndex + 1 : 0;
+          let waypointId = 1
+          let waypointName = "Destination"
+          if (course.activeRoute && typeof course.activeRoute?.pointIndex === 'number')
+          {
+            waypointId = course.activeRoute.pointIndex + 1
+            waypointName = "Waypoint " + waypointId.toString()
+          }
+
+          sid130848 = sid130848 == 252 ? 0 : sid130848 + 1;
           return [{
             pgn: 130848,
             "dst": 255,
             "Manufacturer Code": "Raymarine",
             "Industry Code": "Marine Industry",
-            "SID": 0x88,
-            "Waypoint Name": "Waypoint " + waypointId.toString(),
+            "SID": sid130848,
+            "Waypoint Name": waypointName,
             "Waypoint Sequence": waypointId.toString().padStart(4, '0'),
             "Bearing to Waypoint, True": bearingTrue,
             "Bearing to Waypoint, Magnetic": bearingMagnetic,
@@ -41,13 +48,15 @@ module.exports = (app, plugin) => {
         tests: [{
           input: [ mockApp, 1915751, 0.1885, 0.3392, { pointIndex: 0, pointTotal: 6 } ],
           expected: [{
+            "__preprocess__": (testResult) => {
+                delete testResult.fields.SID
+            },
             "prio": 2,
             "pgn": 130848,
             "dst": 255,
             "fields": {
               "Industry Code": "Marine Industry",
               "Manufacturer Code": "Raymarine",
-              "SID": 0x88,
               "Waypoint Name": "Waypoint 1",
               "Waypoint Sequence": "0001",
               "Bearing to Waypoint, True": 0.1885,
@@ -71,6 +80,8 @@ module.exports = (app, plugin) => {
           if (course.nextPoint == null)
             return null
 
+          let currentWaypointId = 1
+          let currentWaypointName = "Destination"
           let nextWaypointId = 255
           let nextWaypointName = undefined
           let unknownFlags = 0
@@ -78,11 +89,8 @@ module.exports = (app, plugin) => {
           let bearingPositionToNext = undefined
           let distancePositionToNext = undefined
 
-          if (course.activeRoute == null)
+          if (course.activeRoute != null)
           {
-            currentWaypointId = 1
-            currentWaypointName = "Destination"
-          } else {
             currentWaypointId = course.activeRoute.pointIndex + 1
             currentWaypointName = "Waypoint " + currentWaypointId.toString()
           }
