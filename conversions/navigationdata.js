@@ -7,6 +7,10 @@ const routeWPDataItemsPerPacket = 3
 // it by setting the value to null.
 const isRaised = (notification) => notification != null && notification.state !== 'normal'
 
+// The course change path sends 129285 at most this often, whatever produces
+// the changes; the timer sends a course held back by it.
+const routeWPOnChangeMinInterval = 1000
+
 // The route or single destination of the active course as 129285 messages,
 // null without one
 async function routeWPInformation(app) {
@@ -279,6 +283,7 @@ module.exports = (app, plugin) => {
     optionKey: 'routewpinformation',
     conversions: (options) => {
       let lastCourse
+      let lastSentOnChange = 0
       return [{
         interval: 2000,
         sourceType: 'timer',
@@ -400,8 +405,16 @@ module.exports = (app, plugin) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
             return null
+          if (!nextPoint) {
+            lastCourse = course
+            return null
+          }
+          const now = Date.now()
+          if (now - lastSentOnChange < routeWPOnChangeMinInterval)
+            return null
           lastCourse = course
-          return nextPoint ? routeWPInformation(app) : null
+          lastSentOnChange = now
+          return routeWPInformation(app)
         },
         tests: [{
           // no course
