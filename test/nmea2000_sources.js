@@ -78,6 +78,34 @@ describe('Data from NMEA 2000 sources', function () {
     }, done, 1500)
   })
 
+  describe('position', function () {
+    const POSITION = 'navigation.position'
+    const position = { latitude: 52.37, longitude: 4.89 }
+    const pgns = n2kSpy => n2kSpy.getCalls()
+      .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]).pgn)
+
+    it('is not sent when it came from NMEA 2000', function (done) {
+      run({ GPS_LOCATIONv2: { enabled: true } }, [
+        { path: POSITION, value: position, source: N2K_SOURCE }
+      ], n2kSpy => {
+        n2kSpy.callCount.should.equal(0)
+      }, done)
+    })
+
+    it('is still sent when GNSS details come from NMEA 2000', function (done) {
+      run({ GPS_LOCATIONv2: { enabled: true } }, [
+        { path: 'navigation.gnss.satellites', value: 9, source: N2K_SOURCE },
+        { path: POSITION, value: position }
+      ], n2kSpy => {
+        pgns(n2kSpy).should.include.members([129025, 129029])
+        const gnss = n2kSpy.getCalls()
+          .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+          .find(pgn => pgn.pgn === 129029)
+        gnss.fields.should.not.have.property('Number of SVs')
+      }, done)
+    })
+  })
+
   describe('AIS', function () {
     const aisDelta = source => ({
       context: 'vessels.urn:mrn:imo:mmsi:230123456',

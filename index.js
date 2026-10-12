@@ -35,6 +35,8 @@ module.exports = function(app) {
     connection, so it would be echoed back onto the bus it came from.
     A conversion that sets preventsNmea2000Echo keeps its own loops out
     (notifications skips notifications.nmea.*) and gets all its data.
+    A conversion can limit the keys whose NMEA 2000 data withholds its PGNs
+    with withholdingKeys; NMEA 2000 data for its other keys is ignored.
    */
 
   var sourceTypes = {
@@ -252,7 +254,8 @@ module.exports = function(app) {
         app.streambundle,
         unsubscribes,
         options,
-        sendsNmea2000Data(conversion, options)
+        sendsNmea2000Data(conversion, options),
+        conversion.withholdingKeys
       )
         .onValue(values => {
           if ( values === WITHHELD ) {
@@ -341,7 +344,8 @@ module.exports = function(app) {
     streambundle,
     unsubscribes,
     options,
-    allowNmea2000
+    allowNmea2000,
+    withholdingKeys = keys
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -363,11 +367,15 @@ module.exports = function(app) {
         bus = bus.filter( x => x.$source === sourceRef)
       }
       bus.onValue(({ value, source }) => {
+        // A source the user picked explicitly is sent even if it is NMEA 2000
+        const fromNmea2000 = !sourceRef && !allowNmea2000 && isNmea2000Source(source)
+        if ( fromNmea2000 && !withholdingKeys.includes(skKey) ) {
+          return
+        }
         lastValues[skKey] = {
           timestamp: new Date().getTime(),
           value,
-          // A source the user picked explicitly is sent even if it is NMEA 2000
-          fromNmea2000: !sourceRef && !allowNmea2000 && isNmea2000Source(source)
+          fromNmea2000
         }
         const now = new Date().getTime()
 

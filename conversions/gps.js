@@ -69,6 +69,9 @@ module.exports = (app, plugin) => {
     timeouts: [
       undefined, ..._.times(10, () => GNSS_TIMEOUT)
     ],
+    // Only a position from NMEA 2000 withholds 129025/129029. GNSS details
+    // from NMEA 2000 come from another receiver, so they are left out.
+    withholdingKeys: [ 'navigation.position' ],
     callback: (position, altitude, type, methodQuality, integrity, satellites,
                hdop, pdop, geoidalSeparation, differentialAge, differentialReference) => {
       if (position == null) {
