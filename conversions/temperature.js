@@ -72,6 +72,11 @@ function makeTemperature(pgn, prefix, info)
 
 const temperatures = [
   {
+    n2kSource: "Sea Temperature",
+    source: 'environment.water.temperature',
+    option: 'SEA'
+  },
+  {
     n2kSource: "Outside Temperature",
     source: 'environment.outside.temperature',
     option: 'OUTSIDE'

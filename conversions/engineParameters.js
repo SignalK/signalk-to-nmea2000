@@ -25,75 +25,9 @@ module.exports = (app, plugin) => {
     'drive.trimState'
   ]
 
-  return [{
-    title: 'Temperature, exhaust (130312)',
-    optionKey: 'EXHAUST_TEMPERATURE',
-    context: 'vessels.self',
-    properties: {
-      engines: {
-        title: 'Engine Mapping',
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            signalkId: {
-              title: 'Signal K engine id',
-              type: 'string'
-            },
-            tempInstanceId: {
-              title: 'NMEA2000 Temperature Instance Id',
-              type: 'number'
-            }
-          }
-        }
-      }
-    },
-
-    testOptions: {
-      EXHAUST_TEMPERATURE: {
-        engines: [{
-          signalkId: 10,
-          tempInstanceId: 1
-        }]
-      }
-    },
-
-    conversions: (options) => {
-      if ( !_.get(options, 'EXHAUST_TEMPERATURE.engines') ) {
-        return null
-      }
-      return options.EXHAUST_TEMPERATURE.engines.map(engine => {
-        return {
-          keys: [
-            `propulsion.${engine.signalkId}.exhaustTemperature`
-          ],
-          callback: (temperature) => {
-            return [{
-              pgn: 130312,
-              SID: 0xff,
-              "Temperature Instance": engine.tempInstanceId,
-              "Instance": engine.tempInstanceId,
-              "Source": 14,
-              "Actual Temperature": temperature,
-            }]
-          },
-          tests: [{
-            input: [ 281.2 ],
-            expected: [{
-              "prio": 2,
-              "pgn": 130312,
-              "dst": 255,
-              "fields": {
-                "Instance": 1,
-                "Actual Temperature": 281.2,
-                "Source": "Exhaust Gas Temperature",
-              }
-            }]
-          }]
-        }
-      })
-    }
-  },
+  return [
+    exhaustTemperature(130312, 'EXHAUST_TEMPERATURE'),
+    exhaustTemperature(130316, 'EXHAUST_TEMPERATURE2'),
   {
     title: 'Engine Parameters (127489,127488)',
     optionKey: 'ENGINE_PARAMETERS',
@@ -219,4 +153,78 @@ module.exports = (app, plugin) => {
       return dyn.concat(rapid)
     }
   }]
+}
+
+// Exhaust gas temperature per engine. 130316 is the extended range version of
+// 130312, which some displays (e.g. Raymarine Axiom) read instead.
+function exhaustTemperature(pgn, optionKey) {
+  const temperatureField = pgn == 130316 ? 'Temperature' : 'Actual Temperature'
+  return {
+    title: `Temperature, exhaust (${pgn})`,
+    optionKey,
+    context: 'vessels.self',
+    properties: {
+      engines: {
+        title: 'Engine Mapping',
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            signalkId: {
+              title: 'Signal K engine id',
+              type: 'string'
+            },
+            tempInstanceId: {
+              title: 'NMEA2000 Temperature Instance Id',
+              type: 'number'
+            }
+          }
+        }
+      }
+    },
+
+    testOptions: {
+      [optionKey]: {
+        engines: [{
+          signalkId: 10,
+          tempInstanceId: 1
+        }]
+      }
+    },
+
+    conversions: (options) => {
+      if ( !_.get(options, [optionKey, 'engines']) ) {
+        return null
+      }
+      return options[optionKey].engines.map(engine => {
+        return {
+          keys: [
+            `propulsion.${engine.signalkId}.exhaustTemperature`
+          ],
+          callback: (temperature) => {
+            return [{
+              pgn,
+              SID: 0xff,
+              "Instance": engine.tempInstanceId,
+              "Source": "Exhaust Gas Temperature",
+              [temperatureField]: temperature,
+            }]
+          },
+          tests: [{
+            input: [ 281.2 ],
+            expected: [{
+              "prio": 2,
+              "pgn": pgn,
+              "dst": 255,
+              "fields": {
+                "Instance": 1,
+                [temperatureField]: 281.2,
+                "Source": "Exhaust Gas Temperature",
+              }
+            }]
+          }]
+        }
+      })
+    }
+  }
 }
