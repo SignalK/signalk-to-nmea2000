@@ -47,118 +47,96 @@ module.exports = (app, plugin) => {
         return []
       }
 
-      let alertId
-      if (value.hasOwnProperty('alertId')) {
-        alertId = value.alertId
-        app.debug(`Using existing alertId ${alertId} for ${update.path}`)
-
-        const before = pgns.filter(obj => obj['Alert ID'] === alertId)
-
-        //remove the pgns and reprocess them for changes
-        pgns = pgns.filter(function(obj) {
-          return obj['Alert ID'] !== alertId;
-        });
-
-        if (value.state !== 'normal') {
-          delete cleared[alertId]
-
-          const method = value.method || []
-          let state
-          if (method.length == 0) {
-            state = 'Acknowledged'
-          } else if (method.indexOf('sound') === -1) {
-              state = 'Silenced'
-          } else {
-            state = 'Active'
-          }
-
-          let idName = alertId.toString().padStart(16, '0')
-          pgns.push({
-            pgn: 126985,
-            'Alert ID': alertId,
-            'Alert Type': type,
-            'Alert Category': alertCategory,
-            'Alert System': alertSystem,
-            'Alert Sub-System': 0,
-            'Data Source Network ID NAME': idName,
-            'Data Source Instance': 0,
-            'Data Source Index-Source': 0,
-            'Alert Occurrence Number': 0,
-            'Language ID': 0,
-            'Alert Text Description': value.message
-          })
-          pgns.push({
-            pgn: 126983,
-            'Alert ID': alertId,
-            'Alert Type': type,
-            'Alert State': state,
-            'Alert Category': alertCategory,
-            'Alert System': alertSystem,
-            'Alert Sub-System': 0,
-            'Data Source Network ID NAME': idName,
-            'Data Source Instance': 0,
-            'Data Source Index-Source': 0,
-            'Alert Occurrence Number': 0,
-            'Temporary Silence Status': value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
-            'Acknowledge Status': !value.method || value.method.length == 0 ? 1 : 0,
-            'Escalation Status': 0,
-            'Temporary Silence Support': 1,
-            'Acknowledge Support': 1,
-            'Escalation Support': 0,
-            'Trigger Condition': 1,
-            'Threshold Status': 1,
-            'Alert Priority': 0,
-            'Alert State': state
-          })
-        } else {
-          const active = before.find(obj => obj.pgn === 126983)
-          if (active) {
-            cleared[alertId] = {
-              pgn: {
-                ...active,
-                'Alert State': 'Normal',
-                'Temporary Silence Status': 0,
-                'Acknowledge Status': 0
-              },
-              until: Date.now() + REPEAT_CLEARED_MS
-            }
-          }
-        }
-
-        const after = pgns.filter(obj => obj['Alert ID'] === alertId)
-        if (_.isEqual(before, after) && Date.now() - lastSent < REPEAT_UNCHANGED_MS) {
-          return []
-        }
-        lastSent = Date.now()
-      } else {
-        // Nothing to alert on, and no alert of this path to clear
-        if (value.state === 'normal' && !ids[update.path]) {
-          return []
-        }
-
-        //add nmea2000 alert info so that the alarm can be silenced from a NMEA source
-        if (ids[update.path] && ids[update.path].alertId) {
-          alertId = ids[update.path].alertId
-          app.debug(`Assiging existing alertId ${alertId} to ${update.path}`)
-        } else {
-          alertId = ++idCounter
-          ids[update.path] = {
-            "alertId": alertId
-          }
-          app.debug(`Assigning new alertId ${alertId} to ${update.path}`)
-        }
-
-        //send delta with alert details
-        delta.updates[0].values[0].value.alertType = type
-        delta.updates[0].values[0].value.alertCategory = alertCategory
-        delta.updates[0].values[0].value.alertSystem = alertSystem
-        delta.updates[0].values[0].value.alertId = alertId
-        app.debug("New delta with alertId: " + JSON.stringify(delta))
-
-        // The PGNs are sent for this delta, which comes back with the alertId
-        app.handleMessage(plugin.id, delta)
+      // Nothing to alert on, and no alert of this path to clear
+      if (value.state === 'normal' && ids[update.path] === undefined) {
         return []
       }
+
+      let alertId = ids[update.path]
+      if (alertId === undefined) {
+        alertId = ++idCounter
+        ids[update.path] = alertId
+        app.debug(`Assigning new alertId ${alertId} to ${update.path}`)
+      }
+
+      const before = pgns.filter(obj => obj['Alert ID'] === alertId)
+
+      //remove the pgns and reprocess them for changes
+      pgns = pgns.filter(function(obj) {
+        return obj['Alert ID'] !== alertId;
+      });
+
+      if (value.state !== 'normal') {
+        delete cleared[alertId]
+
+        const method = value.method || []
+        let state
+        if (method.length == 0) {
+          state = 'Acknowledged'
+        } else if (method.indexOf('sound') === -1) {
+          state = 'Silenced'
+        } else {
+          state = 'Active'
+        }
+
+        let idName = alertId.toString().padStart(16, '0')
+        pgns.push({
+          pgn: 126985,
+          'Alert ID': alertId,
+          'Alert Type': type,
+          'Alert Category': alertCategory,
+          'Alert System': alertSystem,
+          'Alert Sub-System': 0,
+          'Data Source Network ID NAME': idName,
+          'Data Source Instance': 0,
+          'Data Source Index-Source': 0,
+          'Alert Occurrence Number': 0,
+          'Language ID': 0,
+          'Alert Text Description': value.message
+        })
+        pgns.push({
+          pgn: 126983,
+          'Alert ID': alertId,
+          'Alert Type': type,
+          'Alert State': state,
+          'Alert Category': alertCategory,
+          'Alert System': alertSystem,
+          'Alert Sub-System': 0,
+          'Data Source Network ID NAME': idName,
+          'Data Source Instance': 0,
+          'Data Source Index-Source': 0,
+          'Alert Occurrence Number': 0,
+          'Temporary Silence Status': value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
+          'Acknowledge Status': !value.method || value.method.length == 0 ? 1 : 0,
+          'Escalation Status': 0,
+          'Temporary Silence Support': 1,
+          'Acknowledge Support': 1,
+          'Escalation Support': 0,
+          'Trigger Condition': 1,
+          'Threshold Status': 1,
+          'Alert Priority': 0,
+          'Alert State': state
+        })
+      } else {
+        const active = before.find(obj => obj.pgn === 126983)
+        if (active) {
+          cleared[alertId] = {
+            pgn: {
+              ...active,
+              'Alert State': 'Normal',
+              'Temporary Silence Status': 0,
+              'Acknowledge Status': 0
+            },
+            until: Date.now() + REPEAT_CLEARED_MS
+          }
+        }
+      }
+
+      const after = pgns.filter(obj => obj['Alert ID'] === alertId)
+      if (_.isEqual(before, after) && Date.now() - lastSent < REPEAT_UNCHANGED_MS) {
+        return []
+      }
+      lastSent = Date.now()
 
       try {
         const now = Date.now()
@@ -176,8 +154,7 @@ module.exports = (app, plugin) => {
             "path":"notifications.environment.inside.refrigerator.temperature",
             "value": {
               "state": "alert",
-              "message": "The Fridge Temperature is high",
-              "alertId": 1
+              "message": "The Fridge Temperature is high"
             }
           }
         ]}]
