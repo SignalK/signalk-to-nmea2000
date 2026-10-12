@@ -159,6 +159,8 @@ module.exports = (app, plugin) => {
 // 130312, which some displays (e.g. Raymarine Axiom) read instead.
 function exhaustTemperature(pgn, optionKey) {
   const temperatureField = pgn == 130316 ? 'Temperature' : 'Actual Temperature'
+  // 130312 goes up to 655.32 K, so test 130316 above that
+  const testTemperature = pgn == 130316 ? 700 : 281.2
   return {
     title: `Temperature, exhaust (${pgn})`,
     optionKey,
@@ -211,14 +213,14 @@ function exhaustTemperature(pgn, optionKey) {
             }]
           },
           tests: [{
-            input: [ 281.2 ],
+            input: [ testTemperature ],
             expected: [{
               "prio": 2,
               "pgn": pgn,
               "dst": 255,
               "fields": {
                 "Instance": 1,
-                [temperatureField]: 281.2,
+                [temperatureField]: testTemperature,
                 "Source": "Exhaust Gas Temperature",
               }
             }]
