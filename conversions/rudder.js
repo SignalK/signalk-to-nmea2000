@@ -12,7 +12,9 @@ module.exports = (app, plugin) => {
       instance: {
         title: 'N2K Rudder Instance',
         description: 'Tells apart several rudders; 0 for a single rudder',
-        type: 'number',
+        type: 'integer',
+        minimum: 0,
+        maximum: 252,
         default: defaultInstance
       }
     },
