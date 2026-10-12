@@ -122,7 +122,6 @@ module.exports = (app, plugin) => {
           'Geoidal Separation': geoidalSeparation ?? undefined,
           'Reference Stations': hasReference ? 1 : 0,
           list: hasReference ? [{
-            'Reference Station Type': gnssType,
             'Reference Station ID': differentialReference,
             'Age of DGNSS Corrections': differentialAge ?? undefined
           }] : []
@@ -131,7 +130,6 @@ module.exports = (app, plugin) => {
       return res
     },
     tests: [{
-      // a position only
       input: [ { longitude: -75.487264, latitude: 32.0631296 } ],
       expected: [{
         "prio": 2,
@@ -204,7 +202,6 @@ module.exports = (app, plugin) => {
         }
       }]
     }, {
-      // nothing in view
       input: [ { count: 0, satellites: [] } ],
       expected: []
     }]

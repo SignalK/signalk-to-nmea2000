@@ -39,7 +39,7 @@ describe('GNSS position data 129029', function () {
       'Reference Stations': 1
     })
     pgns[1].fields.list.should.deep.equal([{
-      'Reference Station Type': 'GPS',
+      // Signal K has no type for the reference station, so it is not available
       'Reference Station ID': 22,
       'Age of DGNSS Corrections': 3
     }])
