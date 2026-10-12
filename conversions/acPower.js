@@ -42,7 +42,11 @@ const mappingProperty = (title, idTitle, idDescription, ids) => ({
   }
 })
 
-// One line of 127503/127504 from the values of a phase, or null without any
+// The power fields of 127503/127504 are unsigned, so power flowing back (or
+// the negative reactive power of a capacitive load) cannot be sent there
+const unsigned = value => (value == null || value < 0 ? undefined : value)
+
+// A phase without any values is left out of the list
 const acLine = (line, [voltage, current, frequency, realPower, reactivePower, powerFactor]) => {
   if ( [voltage, current, frequency, realPower, reactivePower, powerFactor].every(v => v == null) ) {
     return null
@@ -52,8 +56,8 @@ const acLine = (line, [voltage, current, frequency, realPower, reactivePower, po
     'Voltage': voltage ?? undefined,
     'Current': current ?? undefined,
     'Frequency': frequency ?? undefined,
-    'Real Power': realPower ?? undefined,
-    'Reactive Power': reactivePower ?? undefined,
+    'Real Power': unsigned(realPower),
+    'Reactive Power': unsigned(reactivePower),
     'Power factor': powerFactor ?? undefined
   }
 }
@@ -118,13 +122,14 @@ module.exports = (app, plugin) => {
               list: lines
             }]
 
-            const phaseA = lines.find(line => line.Line == 'Line 1')
-            if ( options.AC_INPUT.phaseA && phaseA ) {
+            // Power is signed in 127744, so it is sent as Signal K has it
+            const [ , current, , realPower ] = threePhase[0] ? byPhase[1] : byPhase[0]
+            if ( options.AC_INPUT.phaseA && lines[0].Line == 'Line 1' ) {
               res.push({
                 pgn: 127744,
                 'Connection Number': bus.instanceId,
-                'AC RMS Current': phaseA.Current,
-                'Power': phaseA['Real Power']
+                'AC RMS Current': current ?? undefined,
+                'Power': realPower ?? undefined
               })
             }
             return res
@@ -158,6 +163,35 @@ module.exports = (app, plugin) => {
                 "Connection Number": 2,
                 "AC RMS Current": 12.3,
                 "Power": 2800
+              }
+            }]
+          }, {
+            // power fed back to shore, with a capacitive load
+            input: [ 230.1, 12.3, 50, -2800, -150, 0.98, ..._.times(18, () => null) ],
+            expected: [{
+              "prio": 2,
+              "pgn": 127503,
+              "dst": 255,
+              "fields": {
+                "Instance": 2,
+                "Number of Lines": 1,
+                "list": [{
+                  "Line": "Line 1",
+                  "Acceptability": "Good",
+                  "Voltage": 230.1,
+                  "Current": 12.3,
+                  "Frequency": 50,
+                  "Power factor": 0.98
+                }]
+              }
+            }, {
+              "prio": 2,
+              "pgn": 127744,
+              "dst": 255,
+              "fields": {
+                "Connection Number": 2,
+                "AC RMS Current": 12.3,
+                "Power": -2800
               }
             }]
           }, {
