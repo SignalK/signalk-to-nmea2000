@@ -16,20 +16,31 @@ module.exports = (app, plugin) => {
     title: 'Battery (127506 & 127508)',
     optionKey: 'BATTERYv2',
     context: 'vessels.self',
-    properties: {
-      batteries: {
-        title: 'Battery Mapping',
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            signalkId: {
-              title: 'Signal K battery id',
-              type: 'string'
-            },
-            instanceId: {
-              title: 'NMEA2000 Battery Instance Id',
-              type: 'number'
+    properties: () => {
+      const batteryIds =
+        typeof app.getSelfPath === 'function'
+          ? Object.keys(app.getSelfPath('electrical.batteries') || {}).filter(
+              id => id !== 'meta'
+            )
+          : []
+      return {
+        batteries: {
+          title: 'Battery Mapping',
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              signalkId: {
+                title: 'Signal K battery id',
+                description:
+                  'Pick a battery id currently present under electrical.batteries or enter one manually',
+                type: 'string',
+                examples: batteryIds
+              },
+              instanceId: {
+                title: 'NMEA2000 Battery Instance Id',
+                type: 'number'
+              }
             }
           }
         }
