@@ -232,6 +232,44 @@ describe('Data from NMEA 2000 sources', function () {
       })
     })
 
+    it('gives each notification path its own Alert ID', function (done) {
+      const value = { state: 'alarm', method: ['visual', 'sound'] }
+      run({ NOTIFICATIONS: { enabled: true } }, [
+        { path: 'notifications.propulsion.port.lowOilPressure', value: { ...value, message: 'Low oil pressure' } },
+        { path: 'notifications.environment.bilge', value: { ...value, message: 'High bilge' } }
+      ], n2kSpy => {
+        const ids = n2kSpy.getCalls()
+          .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+          .filter(pgn => pgn && pgn.pgn === 126985)
+          .map(pgn => [pgn.fields['Alert Text Description'], pgn.fields['Alert ID']])
+        _.fromPairs(ids).should.deep.equal({ 'Low oil pressure': 1, 'High bilge': 2 })
+      }, done)
+    })
+
+    it('does not send the notification back to Signal K', function (done) {
+      const app = new Server().app
+      app.providerStatistics = []
+      app.debug = () => {}
+      const n2kSpy = sinon.spy()
+      app.on('nmea2000out', n2kSpy)
+      const plugin = new Sk2n2K(app)
+      plugin.start({ NOTIFICATIONS: { enabled: true } })
+      const handleMessage = sinon.spy(app, 'handleMessage')
+      send(app, {
+        path: 'notifications.propulsion.port.lowOilPressure',
+        value: { state: 'alarm', method: ['visual', 'sound'], message: 'Low oil pressure' }
+      })
+      setTimeout(() => {
+        try {
+          alertTexts(n2kSpy).should.include('Low oil pressure')
+          handleMessage.getCalls().map(call => call.args[0]).should.not.include(plugin.id)
+          done()
+        } catch (err) {
+          done(err)
+        }
+      }, SETTLE_MS)
+    })
+
     it('does not resend alerts received over NMEA 2000', function (done) {
       runRaw({ NOTIFICATIONS: { enabled: true } },
         alarm('notifications.nmea.bilge', { ...N2K_SOURCE, pgn: 126983 }, 'High bilge'),
