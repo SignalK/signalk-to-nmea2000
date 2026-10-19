@@ -12,16 +12,23 @@ permissions:
 
 jobs:
   publish:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    env:
+      # for a tag push, head_branch is the tag name
+      TAG: ${{ github.event.workflow_run.head_branch }}
     steps:
     - uses: actions/checkout@v6
+      with:
+        ref: ${{ github.event.workflow_run.head_sha }}
     - uses: actions/setup-node@v6
       with:
-        node-version: '22.x'
-    - run: npm install -g npm@latest
+        # its bundled npm supports trusted publishing; npm@latest can
+        # require a newer Node than the runner has
+        node-version: '24.x'
     - run: npm --version
     - run: |
-        if [[ "${{ steps.vars.outputs.tag }}" == *beta* ]];
+        if [[ "$TAG" == *beta* ]];
           then
             npm publish --access public --tag beta
           else
