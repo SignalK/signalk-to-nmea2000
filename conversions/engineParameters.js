@@ -3,9 +3,42 @@ const _ = require('lodash')
 const orUndefined = value => (value === null ? undefined : value)
 const DEFAULT_TIMEOUT = 10000  // ms
 
+const engineStatus1 = [
+  ['checkEngine', 'Check Engine'],
+  ['overTemperature', 'Over Temperature'],
+  ['lowOilPressure', 'Low Oil Pressure'],
+  ['lowOilLevel', 'Low Oil Level'],
+  ['lowFuelPressure', 'Low Fuel Pressure'],
+  ['lowSystemVoltage', 'Low System Voltage'],
+  ['lowCoolantLevel', 'Low Coolant Level'],
+  ['waterFlow', 'Water Flow'],
+  ['waterInFuel', 'Water In Fuel'],
+  ['chargeIndicator', 'Charge Indicator'],
+  ['preheatIndicator', 'Preheat Indicator'],
+  ['highBoostPressure', 'High Boost Pressure'],
+  ['revLimitExceeded', 'Rev Limit Exceeded'],
+  ['egrSystem', 'EGR System'],
+  ['throttlePositionSensor', 'Throttle Position Sensor'],
+  ['emergencyStop', 'Emergency Stop']
+]
+
+const engineStatus2 = [
+  ['warningLevel1', 'Warning Level 1'],
+  ['warningLevel2', 'Warning Level 2'],
+  ['powerReduction', 'Power Reduction'],
+  ['maintenanceNeeded', 'Maintenance Needed'],
+  ['engineCommError', 'Engine Comm Error'],
+  ['subOrSecondaryThrottle', 'Sub or Secondary Throttle'],
+  ['neutralStartProtect', 'Neutral Start Protect'],
+  ['engineShuttingDown', 'Engine Shutting Down']
+]
+
+const activeEngineStatuses = (statuses, values) => statuses.flatMap(([, name], index) =>
+  values[index] && values[index].state && values[index].state !== 'normal' ? [name] : []
+)
+
 module.exports = (app, plugin) => {
 
-  // discrete status fields are not yet implemented
   const engParKeys = [
       'oilPressure',
       'oilTemperature',
@@ -66,10 +99,15 @@ module.exports = (app, plugin) => {
         return null
       }
       const dyn = options.ENGINE_PARAMETERS.engines.map(engine => {
+        const statusKeys = [...engineStatus1, ...engineStatus2]
+          .map(([key]) => `notifications.propulsion.${engine.signalkId}.${key}`)
+        const keys = engParKeys
+          .map(key => `propulsion.${engine.signalkId}.${key}`)
+          .concat(statusKeys)
         return {
-          keys: engParKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
-          timeouts: engParKeys.map(key => DEFAULT_TIMEOUT),
-          callback: (oilPres, oilTemp, temp, altVolt, fuelRate, runTime, coolPres, fuelPres, engLoad, engTorque) => {
+          keys,
+          timeouts: keys.map(() => DEFAULT_TIMEOUT),
+          callback: (oilPres, oilTemp, temp, altVolt, fuelRate, runTime, coolPres, fuelPres, engLoad, engTorque, ...statusValues) => {
             return [{
                 pgn: 127489,
                 "Engine Instance": engine.instanceId,
@@ -83,8 +121,8 @@ module.exports = (app, plugin) => {
                 "Total Engine hours": orUndefined(runTime),
                 "Coolant Pressure": orUndefined(coolPres),
                 "Fuel Pressure": orUndefined(fuelPres),
-                "Discrete Status 1": [],
-                "Discrete Status 2": [],
+                "Discrete Status 1": activeEngineStatuses(engineStatus1, statusValues),
+                "Discrete Status 2": activeEngineStatuses(engineStatus2, statusValues.slice(engineStatus1.length)),
                 "Engine Load": orUndefined(engLoad),
                 "Engine Torque": orUndefined(engTorque)
             }]
@@ -109,6 +147,33 @@ module.exports = (app, plugin) => {
                 "Fuel Pressure": 350000,
                 "Discrete Status 1": [],
                 "Discrete Status 2": [],
+                "Engine Load": 0.5,
+                "Engine Torque": 1
+              }
+            }]
+          }, {
+            // CANboat's ENGINE_STATUS_1/2 bit lookups are represented as active names.
+            input: [
+              102700, 363.15, 353.15, 13.1, 0.0000277778, 201123, 120000, 350000, 0.5, 1.0,
+              ...engineStatus1.map(([key]) => key === 'lowOilPressure' ? { state: 'alarm' } : null),
+              ...engineStatus2.map(([key]) => key === 'maintenanceNeeded' ? { state: 'warn' } : null)
+            ],
+            expected: [{
+              "prio": 2,
+              "pgn": 127489,
+              "dst": 255,
+              "fields": {
+                "Instance": "Dual Engine Starboard",
+                "Oil pressure": 102700,
+                "Oil temperature": 363.1,
+                "Temperature": 353.15,
+                "Alternator Potential": 13.1,
+                "Fuel Rate": 0.0000277778,
+                "Total Engine hours": 201123,
+                "Coolant Pressure": 120000,
+                "Fuel Pressure": 350000,
+                "Discrete Status 1": ["Low Oil Pressure"],
+                "Discrete Status 2": ["Maintenance Needed"],
                 "Engine Load": 0.5,
                 "Engine Torque": 1
               }

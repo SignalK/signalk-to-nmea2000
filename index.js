@@ -195,6 +195,7 @@ module.exports = function(app) {
       return
     }
     app.debug(`emit nmea2000out ${line}`)
+    app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
     app.emit('nmea2000out', line)
   }
 

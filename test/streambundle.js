@@ -11,7 +11,8 @@ const sinon = require('sinon')
 function makeApp() {
   const buses = {}
   const emitted = []
-  const debug = () => {}
+  const debugMessages = []
+  const debug = (message) => debugMessages.push(message)
   debug.enabled = false
   const selfData = {
     'environment.depth.surfaceToTransducer.value': 1
@@ -19,6 +20,7 @@ function makeApp() {
   return {
     emitted,
     buses,
+    debugMessages,
     debug,
     error: () => {},
     getSelfPath: (p) => selfData[p],
@@ -44,6 +46,7 @@ function makeApp() {
 describe('onValueChange conversions over the streambundle', () => {
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
+    app.debug.enabled = true
     const plugin = require('../index.js')(app)
     plugin.start({ DEPTHv2: { enabled: true } })
 
@@ -60,6 +63,12 @@ describe('onValueChange conversions over the streambundle', () => {
     assert.equal(app.emitted.length, 1)
     assert.equal(app.emitted[0].pgn, 128267)
     assert.deepEqual(app.emitted[0].fields, { Depth: 4.5, Offset: 1 })
+    assert.isTrue(app.debugMessages.some((message) =>
+      message.startsWith('emit nmea2000out ') && message.includes(',2,128267,')
+    ))
+    assert.isTrue(app.debugMessages.some((message) =>
+      message === 'emit nmea2000JsonOut {"pgn":128267,"SID":255,"Depth":4.5,"Offset":1}'
+    ))
   })
 
   it('sends 129285 as soon as the course changes, once per change', async () => {
