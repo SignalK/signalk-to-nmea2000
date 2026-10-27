@@ -243,6 +243,12 @@ describe('onValueChange conversions over the streambundle', () => {
     const enginePgn = app.emitted.find(pgn => pgn.pgn === 127489)
     assert.exists(enginePgn)
     assert.deepEqual(enginePgn.fields['Discrete Status 1'], [])
+    assert.isTrue(app.debugMessages.some((message) =>
+      message.startsWith('emit nmea2000out ') && message.includes(',2,128267,')
+    ))
+    assert.isTrue(app.debugMessages.some((message) =>
+      message === 'emit nmea2000JsonOut {"pgn":128267,"SID":255,"Depth":4.5,"Offset":1}'
+    ))
   })
 
   it('sends 129285 as soon as the course changes, once per change', async () => {
