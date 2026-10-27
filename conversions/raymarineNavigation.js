@@ -1,6 +1,7 @@
 const path = require('node:path');
 const geolib= require('geolib');
 const _ = require('lodash')
+const { courseOrigin } = require('../nmea2000Source')
 
 // The course change path sends these PGNs at most this often, whatever
 // produces the changes; the timer sends a value held back by it.
@@ -175,6 +176,8 @@ module.exports = (app, plugin) => {
     title: 'Raymarine Route and Waypoint Information (130848, 130918)',
     optionKey: 'RAYMARINENAV',
     conversions: (options) => {
+      const origin = courseOrigin(app, options?.RAYMARINENAV?.allowNmea2000Sources)
+
       // A timer and a course change both send through a rate-limited sender,
       // so a change just before a timer tick cannot put two of the same PGN on
       // the bus in the same second. A send that produces nothing does not
@@ -184,6 +187,8 @@ module.exports = (app, plugin) => {
         let lastChangeSentAt = 0
         let inFlight = false
         return async (app, onCourseChange) => {
+          if (origin.withheld())
+            return null
           // Reserve the slot before awaiting, so the timer and a course change
           // cannot both pass the check while the other's worker is pending.
           if (inFlight)
@@ -344,7 +349,7 @@ module.exports = (app, plugin) => {
           input: [null, null, null],
           expected: []
         }]
-      }]
+      }, origin.conversion]
     }
   }]
 }

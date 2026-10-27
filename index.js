@@ -4,6 +4,7 @@ const _ = require('lodash')
 const path = require('path')
 const fs = require('fs')
 const { pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
+const { isNmea2000Update } = require('./nmea2000Source')
 
 module.exports = function(app) {
   var plugin = {};
@@ -274,7 +275,7 @@ module.exports = function(app) {
   function mapOnDelta(conversion, options) {
     app.signalk.on('delta', (delta) => {
       if ( !sendsNmea2000Data(conversion, options) ) {
-        delta = withoutNmea2000Updates(delta)
+        delta = withoutNmea2000Updates(app, delta)
         if ( !delta ) {
           return
         }
@@ -325,7 +326,7 @@ module.exports = function(app) {
       subscription_error,
       delta => {
         if ( !sendsNmea2000Data(mapping, options) ) {
-          delta = withoutNmea2000Updates(delta)
+          delta = withoutNmea2000Updates(app, delta)
           if ( !delta ) {
             return
           }
@@ -366,9 +367,10 @@ module.exports = function(app) {
       if (sourceRef) {
         bus = bus.filter( x => x.$source === sourceRef)
       }
-      bus.onValue(({ value, source }) => {
+      bus.onValue(({ value, source, $source }) => {
         // A source the user picked explicitly is sent even if it is NMEA 2000
-        const fromNmea2000 = !sourceRef && !allowNmea2000 && isNmea2000Source(source)
+        const fromNmea2000 = !sourceRef && !allowNmea2000 &&
+          isNmea2000Update(app, { source, $source })
         if ( fromNmea2000 && !withholdingKeys.includes(skKey) ) {
           return
         }
@@ -407,8 +409,6 @@ function pathToPropName(path) {
 
 }
 
-const isNmea2000Source = source => source?.type === 'NMEA2000'
-
 const sendsNmea2000Data = (conversion, options) =>
   Boolean(options.allowNmea2000Sources || conversion.preventsNmea2000Echo)
 
@@ -416,11 +416,11 @@ const sendsNmea2000Data = (conversion, options) =>
 const WITHHELD = Symbol('withheld')
 
 // The delta with its NMEA 2000 updates removed, or undefined if none remain
-function withoutNmea2000Updates(delta) {
+function withoutNmea2000Updates(app, delta) {
   if ( !delta.updates ) {
     return delta
   }
-  const updates = delta.updates.filter(update => !isNmea2000Source(update.source))
+  const updates = delta.updates.filter(update => !isNmea2000Update(app, update))
   if ( updates.length === 0 ) {
     return undefined
   }

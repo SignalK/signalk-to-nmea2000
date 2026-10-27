@@ -29,6 +29,8 @@ Note that if you're using an NGT-1 to transmit AIS, then you need to use their W
 
 Values whose source is NMEA 2000 are not sent. The plugin's output goes to every NMEA 2000 connection, so sending them would echo data back onto the bus it came from, as a second copy competing with the device that sent it. A PGN built from several paths is not sent at all if any of its inputs came from NMEA 2000.
 
+The same holds for the active course. When a chartplotter on NMEA 2000 sets the destination, the server's Course API publishes it with that chartplotter as its source, and Cross Track Error (129283), Navigation Data (129284), Route/WP Information (129285) and the Raymarine route and waypoint PGNs (130848, 130918) are not sent until a course from another source replaces it. Servers since 2.12.0 publish this source; on older ones the course is always sent. The plugin learns the source when the course is set or changes, so after the plugin starts with such a course already active, it can be sent until the course next changes.
+
 Two settings change this per conversion:
 
 - **Source for …**: a source chosen here is always used, including an NMEA 2000 one.
