@@ -14,6 +14,17 @@ function normalizeMmsi (pgn) {
   }
 }
 
+// Reserved and spare fields are filled in by the encoder, not by the
+// conversions, so compare without them.
+function dropReservedAndSpare (pgn) {
+  const fields = pgn && pgn.fields
+  if (fields) {
+    Object.keys(fields)
+      .filter(key => /^(Reserved|Spare)\d*$/i.test(key))
+      .forEach(key => delete fields[key])
+  }
+}
+
 const parser = new FromPgn({useCamel: false})
 
 let skSelfData = {}
@@ -120,6 +131,7 @@ describe('conversions work', () => {
                         // it as the string either way.
                         normalizeMmsi(pgn)
                         normalizeMmsi(expected)
+                        dropReservedAndSpare(pgn)
                         pgn.should.jsonEqual(expected)
                       } catch ( e ) {
                         error = e
