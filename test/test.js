@@ -14,10 +14,8 @@ function normalizeMmsi (pgn) {
   }
 }
 
-// canboatjs leaves out a reserved field that is all ones and a spare
-// field that is all zeros, and writes a spare field it is not given as
-// zeros, from canboat/canboatjs#541 on; it gave them before. The
-// conversions never set them, so compare without them either way.
+// Reserved and spare fields are filled in by the encoder, not by the
+// conversions, so compare without them.
 function dropReservedAndSpare (pgn) {
   const fields = pgn && pgn.fields
   if (fields) {
