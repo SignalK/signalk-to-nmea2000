@@ -1,5 +1,6 @@
 const path = require('node:path');
 const _ = require('lodash')
+const { courseOrigin } = require('../nmea2000Source')
 
 const routeWPDataItemsPerPacket = 3
 
@@ -241,25 +242,36 @@ module.exports = (app, plugin) => {
     keys: [
       'navigation.course.calcValues.crossTrackError'
     ],
-    callback: (XTE) => [{
-      pgn: 129283,
-      XTE,
-      "XTE mode": "Autonomous",
-      "Navigation Terminated": "No"
-    }],
-    tests: [{
-      input: [ 0.12 ],
-      expected: [{
-        "prio": 2,
-        "pgn": 129283,
-        "dst": 255,
-        "fields": {
+    conversions: (options) => {
+      // A source picked for the cross track error is sent whatever the course
+      const origin = courseOrigin(app, options?.xte?.allowNmea2000Sources ||
+        Boolean(options?.xte?.navigationcoursecalcValuescrossTrackError))
+      return [{
+        keys: [
+          'navigation.course.calcValues.crossTrackError'
+        ],
+        withheld: origin.withheld,
+        callback: (XTE) => origin.withheld() ? null : [{
+          pgn: 129283,
+          XTE,
           "XTE mode": "Autonomous",
-          "Navigation Terminated": "No",
-          "XTE": 0.12
-        }
-      }]
-    }]
+          "Navigation Terminated": "No"
+        }],
+        tests: [{
+          input: [ 0.12 ],
+          expected: [{
+            "prio": 2,
+            "pgn": 129283,
+            "dst": 255,
+            "fields": {
+              "XTE mode": "Autonomous",
+              "Navigation Terminated": "No",
+              "XTE": 0.12
+            }
+          }]
+        }]
+      }, origin.conversion]
+    }
   }, 
   {
     pgn: 129284,
@@ -269,6 +281,7 @@ module.exports = (app, plugin) => {
       let lastCourse
       let lastChangeSentAt = 0
       let inFlight = false
+      const origin = courseOrigin(app, options?.navigationdata?.allowNmea2000Sources)
 
       // The timer and a course change both send through here. A course change
       // just before a timer tick must not put two 129284s on the bus in the
@@ -276,6 +289,8 @@ module.exports = (app, plugin) => {
       // delays a change, though: only course-change sends move the timestamp,
       // so a change is still immediate unless another change was just sent.
       async function sendNavigationData(app, onCourseChange) {
+        if (origin.withheld())
+          return null
         // Reserve the slot before awaiting, so the timer and a course change
         // cannot both pass the check while the other's worker is pending.
         if (inFlight)
@@ -399,6 +414,7 @@ module.exports = (app, plugin) => {
           'navigation.course.nextPoint',
           'navigation.course.previousPoint'
         ],
+        withheld: origin.withheld,
         callback: (activeRoute, nextPoint, previousPoint) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
@@ -413,7 +429,7 @@ module.exports = (app, plugin) => {
           input: [null, null, null],
           expected: []
         }]
-      }]
+      }, origin.conversion]
     }
   },
   {
@@ -422,10 +438,11 @@ module.exports = (app, plugin) => {
     conversions: (options) => {
       let lastCourse
       let lastSentOnChange = 0
+      const origin = courseOrigin(app, options?.routewpinformation?.allowNmea2000Sources)
       return [{
         interval: 2000,
         sourceType: 'timer',
-        callback: routeWPInformation,
+        callback: (app) => origin.withheld() ? null : routeWPInformation(app),
         tests: [{
           input: [
             mockApp,
@@ -539,6 +556,7 @@ module.exports = (app, plugin) => {
           'navigation.course.nextPoint',
           'navigation.course.previousPoint'
         ],
+        withheld: origin.withheld,
         callback: (activeRoute, nextPoint, previousPoint) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
@@ -559,7 +577,7 @@ module.exports = (app, plugin) => {
           input: [null, null, null],
           expected: []
         }]
-      }]
+      }, origin.conversion]
     }
   }]
 }
