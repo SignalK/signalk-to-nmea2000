@@ -22,8 +22,11 @@ const NEXT_POINT = 'navigation.course.nextPoint'
 // route or the values calculated for it would put a second copy of the
 // chartplotter's own course on the bus. The last update decides: the cache a
 // server without security replays when the subscription starts comes oldest
-// first. Until a nextPoint value arrives, and on a server whose Course API
-// does not publish its $source, the course is sent.
+// first. The origin is known only from a nextPoint update: a server with
+// security replays nothing to a plugin subscription, so a course from NMEA
+// 2000 that is already active when the plugin starts is sent until the course
+// next changes. A server whose Course API does not publish the $source
+// (before 2.12.0) never marks a course as from NMEA 2000, so it is sent.
 function courseOrigin(app, allowNmea2000) {
   let fromNmea2000 = false
   return {

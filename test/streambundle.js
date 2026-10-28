@@ -179,7 +179,8 @@ describe('a course that came from NMEA 2000', () => {
     replay(app, [{ $source, timestamp, value: course.nextPoint }])
   }
 
-  // The cross track error the server calculates for the active course
+  // XTE arrives from the server's course calculations, not from NMEA 2000, so
+  // only the course origin can hold 129283 back
   function publishXte(app) {
     app.buses['navigation.course.calcValues.crossTrackError'].push({
       path: 'navigation.course.calcValues.crossTrackError',
@@ -188,7 +189,7 @@ describe('a course that came from NMEA 2000', () => {
     })
   }
 
-  // nextPoint updates to the subscriptions, as the server's cache replays them
+  // The mock subscription manager has no cache, so a test replays it by hand
   function replay(app, updates) {
     app.subscribers
       .filter(({ subscription }) =>
@@ -226,6 +227,22 @@ describe('a course that came from NMEA 2000', () => {
       assert.isAbove(sent(app, 129284).length, 0, '129284')
       assert.equal(sent(app, 129283).length, 1, '129283')
       assert.isAbove(sent(app, 130848).length, 0, '130848')
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('is sent while no nextPoint update says where it came from', async function () {
+    this.timeout(5000)
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    // Already active when the plugin starts, with nothing replayed: as on a
+    // server with security, or one that does not publish the $source
+    const plugin = startPlugin(app, () => course)
+    try {
+      await settle(TIMER_WAIT)
+      assert.isAbove(sent(app, 129285).length, 0, '129285')
+      assert.isAbove(sent(app, 129284).length, 0, '129284')
     } finally {
       plugin.stop()
     }
