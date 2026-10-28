@@ -154,7 +154,6 @@ module.exports = (app, plugin) => {
           "Destination": "BALTIMORE",
           "AIS version indicator": "ITU-R M.1371-1",
           "DTE": "Available",
-          "Reserved1": 1,
           "AIS Transceiver information": "Channel A VDL reception",
           "Repeat Indicator": "Final retransmission"
         }
@@ -222,7 +221,6 @@ module.exports = (app, plugin) => {
           "Destination": "BALTIMORE",
           "AIS version indicator": "ITU-R M.1371-1",
           "DTE": "Available",
-          "Reserved1": 1,
           "AIS Transceiver information": "Channel A VDL reception",
           "Repeat Indicator": "Final retransmission"
         }
@@ -278,7 +276,6 @@ module.exports = (app, plugin) => {
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
           "Assigned Mode Flag": "Assigned mode",
-          "Spare": 1,
           "AtoN Name": "78A"
         }
       }]
@@ -317,7 +314,6 @@ module.exports = (app, plugin) => {
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
           "Assigned Mode Flag": "Assigned mode",
-          "Spare": 1,
           "AtoN Name": "78A"
         }
       }]
@@ -354,7 +350,6 @@ module.exports = (app, plugin) => {
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
           "Assigned Mode Flag": "Assigned mode",
-          "Spare": 1,
           "AtoN Name": "78A"
         }
       }]
@@ -390,7 +385,6 @@ module.exports = (app, plugin) => {
           "Off Position Indicator": "Yes",
           "Virtual AtoN Flag": "Yes",
           "Assigned Mode Flag": "Assigned mode",
-          "Spare": 1,
           "AtoN Name": "78A"
         }
       }]

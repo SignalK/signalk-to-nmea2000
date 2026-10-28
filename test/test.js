@@ -14,6 +14,19 @@ function normalizeMmsi (pgn) {
   }
 }
 
+// canboatjs leaves out a reserved field that is all ones and a spare
+// field that is all zeros, and writes a spare field it is not given as
+// zeros, from canboat/canboatjs#541 on; it gave them before. The
+// conversions never set them, so compare without them either way.
+function dropReservedAndSpare (pgn) {
+  const fields = pgn && pgn.fields
+  if (fields) {
+    Object.keys(fields)
+      .filter(key => /^(Reserved|Spare)\d*$/i.test(key))
+      .forEach(key => delete fields[key])
+  }
+}
+
 const parser = new FromPgn({useCamel: false})
 
 let skSelfData = {}
@@ -120,6 +133,7 @@ describe('conversions work', () => {
                         // it as the string either way.
                         normalizeMmsi(pgn)
                         normalizeMmsi(expected)
+                        dropReservedAndSpare(pgn)
                         pgn.should.jsonEqual(expected)
                       } catch ( e ) {
                         error = e
