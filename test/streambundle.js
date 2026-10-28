@@ -139,7 +139,7 @@ describe('a course that came from NMEA 2000', () => {
   const settle = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms))
   const sent = (app, pgn) => app.emitted.filter((msg) => msg.pgn === pgn)
 
-  function startPlugin(app, course, options = {}) {
+  function startPlugin(app, course, options = {}, xteOptions = {}) {
     app.sources.can0 = { label: 'can0', type: 'NMEA2000' }
     app.selfData['navigation.course.calcValues'] = {
       distance: { value: 1000 },
@@ -153,7 +153,7 @@ describe('a course that came from NMEA 2000', () => {
     plugin.start({
       navigationdata: { enabled: true, ...options },
       routewpinformation: { enabled: true, ...options },
-      xte: { enabled: true, ...options },
+      xte: { enabled: true, ...options, ...xteOptions },
       RAYMARINENAV: { enabled: true, ...options }
     })
     return plugin
@@ -243,6 +243,42 @@ describe('a course that came from NMEA 2000', () => {
       await settle(TIMER_WAIT)
       assert.isAbove(sent(app, 129285).length, 0, '129285')
       assert.isAbove(sent(app, 129284).length, 0, '129284')
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('stops a resend once the course turns out to come from NMEA 2000', async () => {
+    const app = makeApp()
+    let course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course, {}, { resend: 0.1, resendTime: 30 })
+    try {
+      publish(app, course, 'courseApi')
+      publishXte(app)
+      await settle(250)
+      assert.isAbove(sent(app, 129283).length, 1, 'resent')
+
+      course = goto({ latitude: -35.6, longitude: 138.8 })
+      publish(app, course, N2K_DEVICE)
+      await settle()
+      const before = sent(app, 129283).length
+      await settle(300)
+      assert.equal(sent(app, 129283).length, before)
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('sends the cross track error from a source picked for it', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course, {},
+      { navigationcoursecalcValuescrossTrackError: 'courseApi' })
+    try {
+      publish(app, course, N2K_DEVICE)
+      publishXte(app)
+      await settle()
+      assert.equal(sent(app, 129283).length, 1)
     } finally {
       plugin.stop()
     }

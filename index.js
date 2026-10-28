@@ -38,6 +38,8 @@ module.exports = function(app) {
     (notifications skips notifications.nmea.*) and gets all its data.
     A conversion can limit the keys whose NMEA 2000 data withholds its PGNs
     with withholdingKeys; NMEA 2000 data for its other keys is ignored.
+    A conversion whose output depends on more than its inputs gives a
+    withheld function; resending stops once it returns true.
    */
 
   var sourceTypes = {
@@ -233,6 +235,14 @@ module.exports = function(app) {
       }
       const startedAt = Date.now()
       conversion.resendTimer = setInterval(() => {
+        // The inputs can stop the PGN while it is being resent: the active
+        // course can turn out to come from NMEA 2000 without a new value
+        // replacing the one being resent
+        if ( conversion.withheld && conversion.withheld() ) {
+          clearResendInterval(conversion.resendTimer)
+          conversion.resendTimer = undefined
+          return
+        }
         Promise.resolve(output).then((values) => {
           outputTypes[conversion.outputType](values)
         })

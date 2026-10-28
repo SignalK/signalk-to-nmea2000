@@ -273,6 +273,7 @@ module.exports = (app, plugin) => {
         }]
       }, {
         keys: courseKeys,
+        withheld: origin.withheld,
         callback: onCourseChange(sendRouteWP),
         tests: [{
           // no course
@@ -343,6 +344,7 @@ module.exports = (app, plugin) => {
         }]
       }, {
         keys: courseKeys,
+        withheld: origin.withheld,
         callback: onCourseChange(sendRouteInfo),
         tests: [{
           // no course

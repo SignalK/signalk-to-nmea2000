@@ -243,11 +243,14 @@ module.exports = (app, plugin) => {
       'navigation.course.calcValues.crossTrackError'
     ],
     conversions: (options) => {
-      const origin = courseOrigin(app, options?.xte?.allowNmea2000Sources)
+      // A source picked for the cross track error is sent whatever the course
+      const origin = courseOrigin(app, options?.xte?.allowNmea2000Sources ||
+        Boolean(options?.xte?.navigationcoursecalcValuescrossTrackError))
       return [{
         keys: [
           'navigation.course.calcValues.crossTrackError'
         ],
+        withheld: origin.withheld,
         callback: (XTE) => origin.withheld() ? null : [{
           pgn: 129283,
           XTE,
@@ -411,6 +414,7 @@ module.exports = (app, plugin) => {
           'navigation.course.nextPoint',
           'navigation.course.previousPoint'
         ],
+        withheld: origin.withheld,
         callback: (activeRoute, nextPoint, previousPoint) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
@@ -552,6 +556,7 @@ module.exports = (app, plugin) => {
           'navigation.course.nextPoint',
           'navigation.course.previousPoint'
         ],
+        withheld: origin.withheld,
         callback: (activeRoute, nextPoint, previousPoint) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
