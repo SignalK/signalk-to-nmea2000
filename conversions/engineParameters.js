@@ -17,9 +17,9 @@ const engineStatus1 = [
   ['preheatIndicator', 'Preheat Indicator'],
   ['highBoostPressure', 'High Boost Pressure'],
   ['revLimitExceeded', 'Rev Limit Exceeded'],
-  ['egrSystem', 'EGR System'],
+  ['eGRSystem', 'EGR System'],
   ['throttlePositionSensor', 'Throttle Position Sensor'],
-  ['emergencyStop', 'Emergency Stop']
+  ['emergencyStopMode', 'Emergency Stop']
 ]
 
 const engineStatus2 = [
@@ -27,14 +27,15 @@ const engineStatus2 = [
   ['warningLevel2', 'Warning Level 2'],
   ['powerReduction', 'Power Reduction'],
   ['maintenanceNeeded', 'Maintenance Needed'],
-  ['engineCommError', 'Engine Comm Error'],
+  ['commError', 'Engine Comm Error'],
   ['subOrSecondaryThrottle', 'Sub or Secondary Throttle'],
   ['neutralStartProtect', 'Neutral Start Protect'],
-  ['engineShuttingDown', 'Engine Shutting Down']
+  ['shuttingDown', 'Engine Shutting Down']
 ]
 
 const activeEngineStatuses = (statuses, values) => statuses.flatMap(([, name], index) =>
-  values[index] && values[index].state && values[index].state !== 'normal' ? [name] : []
+  values[index] && values[index].state &&
+    values[index].state !== 'normal' && values[index].state !== 'nominal' ? [name] : []
 )
 
 module.exports = (app, plugin) => {
@@ -101,12 +102,13 @@ module.exports = (app, plugin) => {
       const dyn = options.ENGINE_PARAMETERS.engines.map(engine => {
         const statusKeys = [...engineStatus1, ...engineStatus2]
           .map(([key]) => `notifications.propulsion.${engine.signalkId}.${key}`)
-        const keys = engParKeys
-          .map(key => `propulsion.${engine.signalkId}.${key}`)
-          .concat(statusKeys)
+        const measurementKeys = engParKeys.map(key => `propulsion.${engine.signalkId}.${key}`)
+        const keys = measurementKeys.concat(statusKeys)
         return {
           keys,
-          timeouts: keys.map(() => DEFAULT_TIMEOUT),
+          timeouts: measurementKeys.map(() => DEFAULT_TIMEOUT).concat(statusKeys.map(() => undefined)),
+          withholdingKeys: measurementKeys,
+          initialValueKeys: statusKeys,
           callback: (oilPres, oilTemp, temp, altVolt, fuelRate, runTime, coolPres, fuelPres, engLoad, engTorque, ...statusValues) => {
             return [{
                 pgn: 127489,
@@ -155,8 +157,9 @@ module.exports = (app, plugin) => {
             // CANboat's ENGINE_STATUS_1/2 bit lookups are represented as active names.
             input: [
               102700, 363.15, 353.15, 13.1, 0.0000277778, 201123, 120000, 350000, 0.5, 1.0,
-              ...engineStatus1.map(([key]) => key === 'lowOilPressure' ? { state: 'alarm' } : null),
-              ...engineStatus2.map(([key]) => key === 'maintenanceNeeded' ? { state: 'warn' } : null)
+              null, null, { state: 'alarm' },
+              null, null, null, null, null, null, null, null, null, null, null, null, null,
+              null, null, null, { state: 'warn' }, null, null, null, null
             ],
             expected: [{
               "prio": 2,
