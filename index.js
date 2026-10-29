@@ -198,6 +198,7 @@ module.exports = function(app) {
       return
     }
     app.debug(`emit nmea2000out ${line}`)
+    app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
     app.emit('nmea2000out', line)
   }
 
@@ -266,7 +267,8 @@ module.exports = function(app) {
         unsubscribes,
         options,
         sendsNmea2000Data(conversion, options),
-        conversion.withholdingKeys
+        conversion.withholdingKeys,
+        conversion.initialValueKeys
       )
         .onValue(values => {
           if ( values === WITHHELD ) {
@@ -356,7 +358,8 @@ module.exports = function(app) {
     unsubscribes,
     options,
     allowNmea2000,
-    withholdingKeys = keys
+    withholdingKeys = keys,
+    initialValueKeys = []
   ) {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -369,9 +372,28 @@ module.exports = function(app) {
       return acc
     }, {})
     const combinedBus = new Bacon.Bus()
+    let hasInitialValue = false
     keys.map(skKey => {
       const sourceRef = options[pathToPropName(skKey)]
       app.debug(`${skKey} ${sourceRef}`)
+
+      if (initialValueKeys.includes(skKey)) {
+        const current = app.getSelfPath(skKey)
+        if (current && typeof current === 'object' && 'value' in current) {
+          const currentSourceId = current.$source
+          const selectedSourceMatches = !sourceRef || currentSourceId === sourceRef
+          const fromNmea2000 = !sourceRef && !allowNmea2000 &&
+            isNmea2000Update(app, current)
+          if (selectedSourceMatches && !(fromNmea2000 && !withholdingKeys.includes(skKey))) {
+            lastValues[skKey] = {
+              timestamp: new Date().getTime(),
+              value: current.value,
+              fromNmea2000
+            }
+            hasInitialValue = true
+          }
+        }
+      }
 
       let bus = streambundle.getSelfBus(skKey)
       if (sourceRef) {
@@ -405,7 +427,9 @@ module.exports = function(app) {
         combinedBus.push(current.map(entry => entry ? entry.value : null))
       })
     })
-    const result = combinedBus.debounce(10)
+    const result = hasInitialValue
+      ? Bacon.once(keys.map(key => lastValues[key].value)).concat(combinedBus).debounce(10)
+      : combinedBus.debounce(10)
     if (app.debug.enabled) {
       unsubscribes.push(result.onValue(x => app.debug(`${keys}:${String(x)}`)))
     }
