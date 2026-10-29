@@ -1,42 +1,67 @@
 const _ = require('lodash')
+const {
+  EngineStatus1,
+  EngineStatus2,
+  getBitEnumeration,
+  PGN_127489
+} = require('@canboat/ts-pgns')
 
 const orUndefined = value => (value === null ? undefined : value)
 const DEFAULT_TIMEOUT = 10000  // ms
 
 const engineStatus1 = [
-  ['checkEngine', 'Check Engine'],
-  ['overTemperature', 'Over Temperature'],
-  ['lowOilPressure', 'Low Oil Pressure'],
-  ['lowOilLevel', 'Low Oil Level'],
-  ['lowFuelPressure', 'Low Fuel Pressure'],
-  ['lowSystemVoltage', 'Low System Voltage'],
-  ['lowCoolantLevel', 'Low Coolant Level'],
-  ['waterFlow', 'Water Flow'],
-  ['waterInFuel', 'Water In Fuel'],
-  ['chargeIndicator', 'Charge Indicator'],
-  ['preheatIndicator', 'Preheat Indicator'],
-  ['highBoostPressure', 'High Boost Pressure'],
-  ['revLimitExceeded', 'Rev Limit Exceeded'],
-  ['eGRSystem', 'EGR System'],
-  ['throttlePositionSensor', 'Throttle Position Sensor'],
-  ['emergencyStopMode', 'Emergency Stop']
+  ['checkEngine', EngineStatus1.CheckEngine],
+  ['overTemperature', EngineStatus1.OverTemperature],
+  ['lowOilPressure', EngineStatus1.LowOilPressure],
+  ['lowOilLevel', EngineStatus1.LowOilLevel],
+  ['lowFuelPressure', EngineStatus1.LowFuelPressure],
+  ['lowSystemVoltage', EngineStatus1.LowSystemVoltage],
+  ['lowCoolantLevel', EngineStatus1.LowCoolantLevel],
+  ['waterFlow', EngineStatus1.WaterFlow],
+  ['waterInFuel', EngineStatus1.WaterInFuel],
+  ['chargeIndicator', EngineStatus1.ChargeIndicator],
+  ['preheatIndicator', EngineStatus1.PreheatIndicator],
+  ['highBoostPressure', EngineStatus1.HighBoostPressure],
+  ['revLimitExceeded', EngineStatus1.RevLimitExceeded],
+  ['eGRSystem', EngineStatus1.EgrSystem],
+  ['throttlePositionSensor', EngineStatus1.ThrottlePositionSensor],
+  ['emergencyStopMode', EngineStatus1.EmergencyStop]
 ]
 
 const engineStatus2 = [
-  ['warningLevel1', 'Warning Level 1'],
-  ['warningLevel2', 'Warning Level 2'],
-  ['powerReduction', 'Power Reduction'],
-  ['maintenanceNeeded', 'Maintenance Needed'],
-  ['commError', 'Engine Comm Error'],
-  ['subOrSecondaryThrottle', 'Sub or Secondary Throttle'],
-  ['neutralStartProtect', 'Neutral Start Protect'],
-  ['shuttingDown', 'Engine Shutting Down']
+  ['warningLevel1', EngineStatus2.WarningLevel1],
+  ['warningLevel2', EngineStatus2.WarningLevel2],
+  ['powerReduction', EngineStatus2.PowerReduction],
+  ['maintenanceNeeded', EngineStatus2.MaintenanceNeeded],
+  ['commError', EngineStatus2.EngineCommError],
+  ['subOrSecondaryThrottle', EngineStatus2.SubOrSecondaryThrottle],
+  ['neutralStartProtect', EngineStatus2.NeutralStartProtect],
+  ['shuttingDown', EngineStatus2.EngineShuttingDown]
 ]
 
-const activeEngineStatuses = (statuses, values) => statuses.flatMap(([, name], index) =>
-  values[index] && values[index].state &&
-    values[index].state !== 'normal' && values[index].state !== 'nominal' ? [name] : []
-)
+const pgn127489Fields = new PGN_127489().getDefinition().Fields
+const engineStatusLookups = ['discreteStatus1', 'discreteStatus2'].map(fieldId => {
+  const field = pgn127489Fields.find(({ Id }) => Id === fieldId)
+  if (!field || !field.LookupBitEnumeration) {
+    throw new Error(`Missing CANboat bit lookup for PGN 127489 field ${fieldId}`)
+  }
+  const lookup = getBitEnumeration(field.LookupBitEnumeration)
+  if (!lookup) {
+    throw new Error(`Unknown CANboat bit lookup ${field.LookupBitEnumeration}`)
+  }
+  return lookup
+})
+
+const activeEngineStatuses = (statuses, values, lookup) => {
+  const valuesByName = new Map(statuses.map(([, name], index) => [name, values[index]]))
+  return lookup.EnumBitValues
+    .filter(({ Name }) => {
+      const state = valuesByName.get(Name)?.state
+      return state && state !== 'normal' && state !== 'nominal'
+    })
+    .sort((a, b) => a.Bit - b.Bit)
+    .map(({ Name }) => Name)
+}
 
 module.exports = (app, plugin) => {
 
@@ -123,8 +148,12 @@ module.exports = (app, plugin) => {
                 "Total Engine hours": orUndefined(runTime),
                 "Coolant Pressure": orUndefined(coolPres),
                 "Fuel Pressure": orUndefined(fuelPres),
-                "Discrete Status 1": activeEngineStatuses(engineStatus1, statusValues),
-                "Discrete Status 2": activeEngineStatuses(engineStatus2, statusValues.slice(engineStatus1.length)),
+                "Discrete Status 1": activeEngineStatuses(engineStatus1, statusValues, engineStatusLookups[0]),
+                "Discrete Status 2": activeEngineStatuses(
+                  engineStatus2,
+                  statusValues.slice(engineStatus1.length),
+                  engineStatusLookups[1]
+                ),
                 "Engine Load": orUndefined(engLoad),
                 "Engine Torque": orUndefined(engTorque)
             }]

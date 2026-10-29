@@ -373,7 +373,6 @@ module.exports = function(app) {
     }, {})
     const combinedBus = new Bacon.Bus()
     let hasInitialValue = false
-    const sources = initialValueKeys.length ? app.getPath('/sources') || {} : {}
     keys.map(skKey => {
       const sourceRef = options[pathToPropName(skKey)]
       app.debug(`${skKey} ${sourceRef}`)
@@ -383,8 +382,8 @@ module.exports = function(app) {
         if (current && typeof current === 'object' && 'value' in current) {
           const currentSourceId = current.$source
           const selectedSourceMatches = !sourceRef || currentSourceId === sourceRef
-          const source = currentSourceId && sources[currentSourceId]
-          const fromNmea2000 = !sourceRef && !allowNmea2000 && isNmea2000Source(source)
+          const fromNmea2000 = !sourceRef && !allowNmea2000 &&
+            isNmea2000Update(app, current)
           if (selectedSourceMatches && !(fromNmea2000 && !withholdingKeys.includes(skKey))) {
             lastValues[skKey] = {
               timestamp: new Date().getTime(),

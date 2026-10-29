@@ -14,28 +14,24 @@ function makeApp({ selfData = {}, sources = {} } = {}) {
   const debugMessages = []
   const debug = (message) => debugMessages.push(message)
   const subscribers = []
-  const debug = () => {}
   debug.enabled = false
   const initialSelfData = {
     'environment.depth.surfaceToTransducer.value': 1,
     ...selfData
   }
-  const sources = {}
   return {
     emitted,
     buses,
     debugMessages,
     debug,
     error: () => {},
-    getSelfPath: (p) => initialSelfData[p],
-    getPath: (p) => p === '/sources' ? sources : undefined,
+    getSelfPath: (p) => Object.prototype.hasOwnProperty.call(selfData, p)
+      ? selfData[p]
+      : initialSelfData[p],
+    getPath: (p) => p === 'sources' ? sources : undefined,
     subscribers,
     selfData,
     sources,
-    debug,
-    error: () => {},
-    getSelfPath: (p) => selfData[p],
-    getPath: (p) => (p === 'sources' ? sources : undefined),
     subscriptionmanager: {
       subscribe: (subscription, unsubscribes, onError, callback) => {
         subscribers.push({ subscription, callback })
@@ -222,7 +218,7 @@ describe('onValueChange conversions over the streambundle', () => {
         }
       },
       sources: {
-        'n2k.100': { type: 'NMEA2000' }
+        n2k: { type: 'NMEA2000' }
       }
     })
     const plugin = startEngineParameters(app)
