@@ -197,8 +197,12 @@ module.exports = function(app) {
       app.error(`cannot encode PGN ${pgn.pgn}`)
       return
     }
+<<<<<<< HEAD
     app.debug(`emit nmea2000out ${line}`)
     app.debug(`emit nmea2000JsonOut ${JSON.stringify(pgn)}`)
+=======
+    app.debug(`emit nmea2000out ${JSON.stringify(pgn)}`)
+>>>>>>> b7f700f (debug log output handles object)
     app.emit('nmea2000out', line)
   }
 
