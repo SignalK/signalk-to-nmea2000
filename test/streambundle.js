@@ -13,10 +13,7 @@ function makeApp({ selfData = {}, sources = {} } = {}) {
   const emitted = []
   const debugMessages = []
   const debug = (message) => debugMessages.push(message)
-<<<<<<< HEAD
   const subscribers = []
-=======
->>>>>>> b7f700f (debug log output handles object)
   debug.enabled = false
   const initialSelfData = {
     'environment.depth.surfaceToTransducer.value': 1,
@@ -97,7 +94,6 @@ describe('onValueChange conversions over the streambundle', () => {
     assert.equal(app.emitted[0].pgn, 128267)
     assert.deepEqual(app.emitted[0].fields, { Depth: 4.5, Offset: 1 })
     assert.isTrue(app.debugMessages.some((message) =>
-<<<<<<< HEAD
       message.startsWith('emit nmea2000out ') && message.includes(',2,128267,')
     ))
     assert.isTrue(app.debugMessages.some((message) =>
@@ -251,10 +247,7 @@ describe('onValueChange conversions over the streambundle', () => {
       message.startsWith('emit nmea2000out ') && message.includes(',2,128267,')
     ))
     assert.isTrue(app.debugMessages.some((message) =>
-      message === 'emit nmea2000JsonOut {"pgn":128267,"SID":255,"Depth":4.5,"Offset":1}'
-=======
       message === 'emit nmea2000out {"pgn":128267,"SID":255,"Depth":4.5,"Offset":1}'
->>>>>>> b7f700f (debug log output handles object)
     ))
   })
 
