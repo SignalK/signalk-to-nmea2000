@@ -1,0 +1,19 @@
+{
+  "extends": "@tsconfig/node20/tsconfig.json",
+  "compilerOptions": {
+    "outDir": "${configDir}/dist",
+    "rootDir": "${configDir}",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": false
+  },
+  "ts-node": {
+    "files": true
+  },
+  "include": [
+    "*.ts",
+    "./conversions/**/*",
+    "./test/*.d.ts"
+  ]
+}
