@@ -46,7 +46,7 @@
     "chai": "^4.1.2",
     "chai-json-equal": "^0.0.1",
     "mocha": "^11.8.0",
-    "signalk-server": "^1.4.0",
+    "signalk-server": "^2.35.1",
     "sinon": "^4.1.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

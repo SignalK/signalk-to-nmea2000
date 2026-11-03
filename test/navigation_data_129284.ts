@@ -5,7 +5,7 @@ import _ from 'lodash'
 import { FromPgn } from '@canboat/canboatjs'
 
 const Sk2n2K = require('../dist')
-const Server = require('signalk-server/lib/')
+const Server = require('signalk-server/dist/')
 
 describe('Navigation data 129284', function () {
   let clock: sinon.SinonFakeTimers

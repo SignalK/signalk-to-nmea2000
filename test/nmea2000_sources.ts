@@ -5,7 +5,7 @@ import sinon from 'sinon'
 import { FromPgn } from '@canboat/canboatjs'
 
 const Sk2n2K = require('../dist')
-const Server = require('signalk-server/lib/')
+const Server = require('signalk-server/dist/')
 
 interface Source {
   label: string
