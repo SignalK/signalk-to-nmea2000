@@ -18,7 +18,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           dateObj.getUTCSeconds();
 
       // The date goes as days since 1970, which the encoder takes as well as
-      // ts-pgns's date string. Source is left out, as it always was.
+      // ts-pgns's date string. Source is not set, so it goes out as not
+      // available (#197).
       const fields = {
         date: days as unknown as string,
         time: time

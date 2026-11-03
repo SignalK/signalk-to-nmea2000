@@ -38,7 +38,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           callback: (pressure: number): PGN_130311[] => [
             withPriority(
               new PGN_130311({
-                // Left out, as before: not available
+                // Not available: this callback has no temperature source
                 temperatureSource: undefined as unknown as TemperatureSource,
                 atmosphericPressure: pressure
               })

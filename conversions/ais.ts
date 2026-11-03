@@ -663,7 +663,7 @@ function generateAtoN(vessel: Vessel, mmsi: any, delta: Delta): PGN_129041 | nul
         positionReferenceFromStarboardEdge: fromStarboard,
         atonType: type,
         atonName: name,
-        // Left out, as before: not available
+        // Not available: Signal K has no value for it
         offPositionIndicator: undefined as unknown as number,
         virtualAtonFlag: undefined as unknown as number,
         assignedModeFlag: undefined as unknown as number

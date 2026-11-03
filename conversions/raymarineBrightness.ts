@@ -61,7 +61,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               // canboatjs 4 takes the brightness as a ratio.
               brightness: brightness
             }, 255))
-            // Not among the class's arguments; the message has always sent 0.
+            // Not a constructor argument, nor filled in by the class: sent as 0.
             pgn.fields.unknown2 = 0
             return [pgn]
           },

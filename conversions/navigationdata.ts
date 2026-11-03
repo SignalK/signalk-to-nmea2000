@@ -126,8 +126,8 @@ async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
       databaseId: 0,
       routeId: 0,
       supplementaryRouteWpDataAvailable: OffOn.Off,
-      // The reserved bits are left to the encoder (all ones): the "Reserved":
-      // "00" this message used to give never reached them.
+      // The reserved bits are left to the encoder, which writes them as all
+      // ones.
       routeName: name,
       list: list,
       navigationDirectionInRoute: reverse ? Direction.Reverse : Direction.Forward
