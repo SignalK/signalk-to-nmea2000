@@ -1,17 +1,42 @@
-const Bacon = require("baconjs");
-const util = require("util");
-const _ = require('lodash')
-const path = require('path')
-const fs = require('fs')
-const { pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
-const { isNmea2000Update } = require('./nmea2000Source')
+import * as Bacon from 'baconjs'
+import _ from 'lodash'
+import path from 'path'
+import fs from 'fs'
+import { pgnToActisenseSerialFormat } from '@canboat/canboatjs'
+import { PGN } from '@canboat/ts-pgns'
+import { isNmea2000Update } from './nmea2000Source'
+import { App, Conversion, Plugin } from './types'
 
-module.exports = function(app) {
-  var plugin = {};
-  var unsubscribes = [];
-  var timers = []
-  var conversions = load_conversions(app, plugin)
-  conversions = [].concat.apply([], conversions)
+// A conversion's settings, under its optionKey in the plugin's options.
+type ConversionOptions = Record<string, any>
+
+// What a conversion's callback gives: PGNs, possibly promised.
+type Output = unknown
+
+type Unsubscribe = () => void
+
+// A conversion while it runs: the plugin keeps its resend timer on it.
+type RunningConversion = Conversion & {
+  resendTimer?: ReturnType<typeof setInterval>
+  withheld?: () => boolean
+  interval?: number
+  timeouts?: (number | undefined)[]
+  withholdingKeys?: string[]
+  preventsNmea2000Echo?: boolean
+}
+
+interface Delta {
+  updates?: { source?: { type?: string }; $source?: string }[]
+  [key: string]: unknown
+}
+
+module.exports = function (app: App) {
+  var plugin: Plugin = {}
+  var unsubscribes: Unsubscribe[] = []
+  var timers: ReturnType<typeof setInterval>[] = []
+  var conversions: RunningConversion[] = ([] as RunningConversion[]).concat(
+    ...load_conversions(app, plugin)
+  )
 
   /*
     Each conversion can specify the sourceType and outputType.
@@ -42,14 +67,17 @@ module.exports = function(app) {
     withheld function; resending stops once it returns true.
    */
 
-  var sourceTypes = {
+  var sourceTypes: Record<
+    string,
+    (conversion: RunningConversion, options: ConversionOptions) => void
+  > = {
     'onDelta': mapOnDelta,
     'onValueChange': mapBaconjs,
     'subscription': mapSubscription,
     'timer': mapTimer
   }
 
-  var outputTypes = {
+  var outputTypes: Record<string, (values: Output) => void> = {
     'to-n2k': processToN2K
   }
 
@@ -57,7 +85,7 @@ module.exports = function(app) {
   plugin.name = "Signal K to NMEA 2000";
   plugin.description = "Plugin to convert Signal K to NMEA2000";
 
-  var schema = {
+  var schema: { [key: string]: any; properties: Record<string, any> } = {
     type: "object",
     title: "Conversions to NMEA2000",
     description:
@@ -69,7 +97,7 @@ module.exports = function(app) {
 
   function updateSchema() {
     conversions.forEach(conversion => {
-      var obj =  {
+      var obj: { [key: string]: any; properties: Record<string, any> } = {
         type: 'object',
         title: conversion.title,
         properties: {
@@ -101,7 +129,7 @@ module.exports = function(app) {
         }
       }
       const safeKeys = conversion.keys || []
-      safeKeys.forEach((key, i) => {
+      safeKeys.forEach((key) => {
         obj.properties[pathToPropName(key)] = {
           title: `Source for ${key}`,
           description: `Use data only from this source (leave blank to ignore source)`,
@@ -109,7 +137,7 @@ module.exports = function(app) {
         }
       })
 
-      schema.properties[conversion.optionKey] = obj
+      schema.properties[conversion.optionKey!] = obj
 
       if ( conversion.properties ) {
         var props = typeof conversion.properties === 'function' ? conversion.properties() : conversion.properties
@@ -123,20 +151,21 @@ module.exports = function(app) {
     return schema
   }
 
-  plugin.start = function(options) {
-    conversions.forEach(conversion => {
-      if ( !_.isArray(conversion) ) {
-        conversion = [ conversion ]
-      }
-      conversion.forEach(conversion => {
-        if ( options[conversion.optionKey] && options[conversion.optionKey].enabled ) {
+  plugin.start = function(options: Record<string, ConversionOptions>) {
+    conversions.forEach((entry: RunningConversion | RunningConversion[]) => {
+      const list = _.isArray(entry) ? entry : [ entry ]
+      list.forEach(conversion => {
+        const optionKey = conversion.optionKey!
+        if ( options[optionKey] && options[optionKey].enabled ) {
           app.debug(`${conversion.title} is enabled`)
 
-          var subConversions = conversion.conversions
-          if ( _.isUndefined(subConversions) ) {
+          var subConversions: RunningConversion[] | undefined
+          if ( _.isUndefined(conversion.conversions) ) {
             subConversions = [ conversion ]
-          } else if ( _.isFunction(subConversions) ) {
-            subConversions = subConversions(options)
+          } else if ( _.isFunction(conversion.conversions) ) {
+            subConversions = conversion.conversions(options)
+          } else {
+            subConversions = conversion.conversions
           }
           if ( subConversions != null ) {
             subConversions.forEach(subConversion => {
@@ -149,7 +178,7 @@ module.exports = function(app) {
                   if ( _.isUndefined(subConversion.outputType) ) {
                     subConversion.outputType = 'to-n2k'
                   }
-                  mapper(subConversion, options[conversion.optionKey])
+                  mapper(subConversion, options[optionKey])
                 }
               }
             })
@@ -168,10 +197,13 @@ module.exports = function(app) {
 
   return plugin;
 
-  function load_conversions (app, plugin) {
-    fpath = path.join(__dirname, 'conversions')
+  function load_conversions (
+    app: App,
+    plugin: Plugin
+  ): (RunningConversion | RunningConversion[])[] {
+    const fpath = path.join(__dirname, 'conversions')
     // Only the modules: the build puts declarations and source maps beside them
-    files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
+    const files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
     return files.map(fname => {
       let pgn = path.basename(fname, '.js')
       return require(path.join(fpath, pgn))(app, plugin);
@@ -186,11 +218,11 @@ module.exports = function(app) {
   // A PGN that cannot be encoded here is dropped, not handed to the server
   // as JSON: a server on canboatjs 3 would read its SI values in the old
   // units and put wrong values on the bus.
-  function emitPgn(pgn) {
+  function emitPgn(pgn: PGN) {
     let line
     try {
       line = pgnToActisenseSerialFormat(pgn)
-    } catch (err) {
+    } catch (err: any) {
       app.error(`cannot encode PGN ${pgn.pgn}: ${err.message}`)
       return
     }
@@ -202,14 +234,14 @@ module.exports = function(app) {
     app.emit('nmea2000out', line)
   }
 
-  function processToN2K(values) {
+  function processToN2K(values: Output) {
     if (values) {
-      Promise.all(values).then(pgns => {
+      Promise.all(values as (PGN | null | Promise<PGN | null>)[]).then(pgns => {
         pgns.filter(pgn => pgn != null).forEach(pgn => {
           try {
             emitPgn(pgn)
           }
-          catch ( err ) {
+          catch ( err: any ) {
             console.error(`error writing pgn ${JSON.stringify(pgn)}`)
             console.error(err.stack)
           }
@@ -221,7 +253,10 @@ module.exports = function(app) {
     }
   }
 
-  function clearResendInterval(timer) {
+  function clearResendInterval(timer: ReturnType<typeof setInterval> | undefined) {
+    if ( timer === undefined ) {
+      return
+    }
     let idx = timers.indexOf(timer)
     if ( idx != -1 ) {
       timers.splice(idx, 1)
@@ -229,7 +264,11 @@ module.exports = function(app) {
     clearInterval(timer)
   }
 
-  function processOutput(conversion, options, output) {
+  function processOutput(
+    conversion: RunningConversion,
+    options: ConversionOptions | null,
+    output: Output
+  ) {
     if ( options && options.resend && options.resend > 0 ) {
       if ( conversion.resendTimer ) {
         clearResendInterval(conversion.resendTimer)
@@ -245,7 +284,7 @@ module.exports = function(app) {
           return
         }
         Promise.resolve(output).then((values) => {
-          outputTypes[conversion.outputType](values)
+          outputTypes[conversion.outputType!](values)
         })
         if ( Date.now() - startedAt > (options.resendTime || 30) * 1000 ) {
           clearResendInterval(conversion.resendTimer)
@@ -254,14 +293,14 @@ module.exports = function(app) {
       timers.push(conversion.resendTimer)
     }
     Promise.resolve(output).then((values) => {
-      outputTypes[conversion.outputType](values)
+      outputTypes[conversion.outputType!](values)
     })
   }
 
-  function mapBaconjs(conversion, options) {
+  function mapBaconjs(conversion: RunningConversion, options: ConversionOptions) {
     unsubscribes.push(
       timeoutingArrayStream(
-        conversion.keys,
+        conversion.keys!,
         conversion.timeouts,
         app.streambundle,
         unsubscribes,
@@ -278,29 +317,30 @@ module.exports = function(app) {
             }
             return
           }
-          processOutput(conversion, options, conversion.callback.call(this, ...values))
+          processOutput(conversion, options, conversion.callback!(...(values as unknown[])))
         })
     );
   }
 
-  function mapOnDelta(conversion, options) {
-    app.signalk.on('delta', (delta) => {
+  function mapOnDelta(conversion: RunningConversion, options: ConversionOptions) {
+    app.signalk.on('delta', (delta: Delta) => {
+      let input: Delta | undefined = delta
       if ( !sendsNmea2000Data(conversion, options) ) {
-        delta = withoutNmea2000Updates(app, delta)
-        if ( !delta ) {
+        input = withoutNmea2000Updates(app, delta)
+        if ( !input ) {
           return
         }
       }
       try {
-        processOutput(conversion, options, conversion.callback(delta))
-      } catch ( err ) {
+        processOutput(conversion, options, conversion.callback!(input))
+      } catch ( err: any ) {
         app.error(err)
         console.error(err.stack)
       }
     })
   }
 
-  function mapTimer(conversion, options) {
+  function mapTimer(conversion: RunningConversion, options: ConversionOptions) {
     timers.push(setInterval(() => {
       let values = conversion.keys?.map(key => {
         let update = app.getSelfPath(key)
@@ -309,22 +349,24 @@ module.exports = function(app) {
         else
           return update
       }) || []
-      processOutput(conversion, null, conversion.callback(app, ...values))
-    }, conversion.interval));
+      processOutput(conversion, null, conversion.callback!(app, ...values))
+    }, conversion.interval as number));
   }
 
-  function subscription_error(err)
+  function subscription_error(err: unknown)
   {
-    app.error(err.toString())
+    app.error((err as Error).toString())
   }
 
-  function mapSubscription(mapping, options) {
-    var subscription = {
+  function mapSubscription(mapping: RunningConversion, options: ConversionOptions) {
+    var subscription: { context?: string; subscribe: { path: string }[] } = {
       "context": mapping.context,
       subscribe: []
     }
 
-    var keys = _.isFunction(mapping.keys) ? mapping.keys(options) : mapping.keys
+    var keys: string[] = _.isFunction(mapping.keys)
+      ? (mapping.keys as (options: ConversionOptions) => string[])(options)
+      : mapping.keys!
     keys.forEach(key => {
       subscription.subscribe.push({ path: key})
     });
@@ -335,15 +377,16 @@ module.exports = function(app) {
       subscription,
       unsubscribes,
       subscription_error,
-      delta => {
+      (delta: Delta) => {
+        let input: Delta | undefined = delta
         if ( !sendsNmea2000Data(mapping, options) ) {
-          delta = withoutNmea2000Updates(app, delta)
-          if ( !delta ) {
+          input = withoutNmea2000Updates(app, delta)
+          if ( !input ) {
             return
           }
         }
         try {
-          processOutput(mapping, options, mapping.callback(delta))
+          processOutput(mapping, options, mapping.callback!(input))
         } catch ( err ) {
           app.error(err)
         }
@@ -351,17 +394,18 @@ module.exports = function(app) {
   }
 
   function timeoutingArrayStream (
-    keys,
-    timeouts = [],
-    streambundle,
-    unsubscribes,
-    options,
-    allowNmea2000,
-    withholdingKeys = keys
-  ) {
+    keys: string[],
+    timeouts: (number | undefined)[] = [],
+    streambundle: any,
+    unsubscribes: Unsubscribe[],
+    options: ConversionOptions,
+    allowNmea2000: boolean,
+    withholdingKeys: string[] = keys
+  ): Bacon.EventStream<unknown[] | typeof WITHHELD> {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
-    const lastValues = keys.reduce((acc, key) => {
+    type LastValue = { timestamp: number; value: unknown; fromNmea2000: boolean }
+    const lastValues = keys.reduce((acc: Record<string, LastValue>, key) => {
       acc[key] = {
         timestamp: new Date().getTime(),
         value: null,
@@ -369,16 +413,16 @@ module.exports = function(app) {
       }
       return acc
     }, {})
-    const combinedBus = new Bacon.Bus()
+    const combinedBus = new Bacon.Bus<unknown[] | typeof WITHHELD>()
     keys.map(skKey => {
       const sourceRef = options[pathToPropName(skKey)]
       app.debug(`${skKey} ${sourceRef}`)
 
       let bus = streambundle.getSelfBus(skKey)
       if (sourceRef) {
-        bus = bus.filter( x => x.$source === sourceRef)
+        bus = bus.filter( (x: { $source?: string }) => x.$source === sourceRef)
       }
-      bus.onValue(({ value, source, $source }) => {
+      bus.onValue(({ value, source, $source }: { value: unknown; source?: { type?: string }; $source?: string }) => {
         // A source the user picked explicitly is sent even if it is NMEA 2000
         const fromNmea2000 = !sourceRef && !allowNmea2000 &&
           isNmea2000Update(app, { source, $source })
@@ -393,7 +437,7 @@ module.exports = function(app) {
         const now = new Date().getTime()
 
         const current = keys.map((key, i) =>
-          notDefined(timeouts[i]) || lastValues[key].timestamp + timeouts[i] > now
+          notDefined(timeouts[i]) || lastValues[key].timestamp + timeouts[i]! > now
             ? lastValues[key]
             : null
         )
@@ -415,19 +459,22 @@ module.exports = function(app) {
 
 };
 
-function pathToPropName(path) {
+function pathToPropName(path: string) {
   return path.replace(/\./g, '')
 
 }
 
-const sendsNmea2000Data = (conversion, options) =>
+const sendsNmea2000Data = (
+  conversion: { preventsNmea2000Echo?: boolean },
+  options: ConversionOptions
+) =>
   Boolean(options.allowNmea2000Sources || conversion.preventsNmea2000Echo)
 
 // Pushed instead of values when an NMEA 2000 input withholds the PGN
 const WITHHELD = Symbol('withheld')
 
 // The delta with its NMEA 2000 updates removed, or undefined if none remain
-function withoutNmea2000Updates(app, delta) {
+function withoutNmea2000Updates(app: App, delta: Delta): Delta | undefined {
   if ( !delta.updates ) {
     return delta
   }
@@ -439,5 +486,4 @@ function withoutNmea2000Updates(app, delta) {
 }
 
 
-const notDefined = x => typeof x === 'undefined'
-const isDefined = x => typeof x !== 'undefined'
+const notDefined = (x: unknown) => typeof x === 'undefined'
