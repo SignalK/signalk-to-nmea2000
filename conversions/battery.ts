@@ -1,6 +1,14 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import { PGN_127506, PGN_127508, DcSource } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+interface BatteryMapping {
+  signalkId: string | number
+  instanceId: number
+}
+
+module.exports = (app: App, plugin: Plugin): Conversion => {
 
   const batteryKeys = [
     'voltage',
@@ -58,27 +66,37 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options: any) => {
       if ( !_.get(options, 'BATTERYv2.batteries') ) {
-        return null
+        return undefined
       }
-      return options.BATTERYv2.batteries.map(battery => {
+      return options.BATTERYv2.batteries.map((battery: BatteryMapping) => {
         return {
           keys: batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`),
           timeouts: batteryKeys.map(key => 60000),
-          callback: (voltage, current, temperature, stateOfCharge, timeRemaining, stateOfHealth, ripple) => {
-            var res = []
+          callback: (
+            voltage?: number | null,
+            current?: number | null,
+            temperature?: number | null,
+            stateOfCharge?: number | null,
+            timeRemaining?: number | null,
+            stateOfHealth?: number | null,
+            ripple?: number | null
+          ): (PGN_127506 | PGN_127508)[] => {
+            var res: (PGN_127506 | PGN_127508)[] = []
             if ( voltage != null
                  || current != null
                  || temperature != null ) {
-              res.push({
-                pgn: 127508,
-                "Battery Instance": battery.instanceId,
-                "Instance": battery.instanceId,
-                Voltage: voltage,
-                Current: current,
-                Temperature: temperature
-              })
+              res.push(
+                withPriority(
+                  new PGN_127508({
+                    instance: battery.instanceId,
+                    voltage: voltage as number | undefined,
+                    current: current as number | undefined,
+                    temperature: temperature as number | undefined
+                  })
+                )
+              )
             }
             
             if ( stateOfCharge != null
@@ -89,16 +107,18 @@ module.exports = (app, plugin) => {
               stateOfCharge = stateOfCharge == null ? undefined : stateOfCharge
               stateOfHealth = stateOfHealth == null ? undefined : stateOfHealth
               
-              res.push({
-                pgn: 127506,
-                "DC Instance": battery.instanceId,
-                "DC Type": "Battery",
-                "Instance": battery.instanceId,
-                'State of Charge': stateOfCharge,
-                'State of Health': stateOfHealth,
-                'Time Remaining': timeRemaining,
-                'Ripple Voltage': ripple
-              })
+              res.push(
+                withPriority(
+                  new PGN_127506({
+                    instance: battery.instanceId,
+                    dcType: DcSource.Battery,
+                    stateOfCharge: stateOfCharge as number | undefined,
+                    stateOfHealth: stateOfHealth as number | undefined,
+                    timeRemaining: timeRemaining as number | undefined,
+                    rippleVoltage: ripple as number | undefined
+                  })
+                )
+              )
             }
             return res
           },

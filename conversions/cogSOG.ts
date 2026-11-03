@@ -1,21 +1,24 @@
-const _ = require('lodash')
+import { PGN_129026 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+module.exports = (app: App, plugin: Plugin): Conversion => {
   var lastUpdate = null
   
   return {
     title: 'COG & SOG (129026)',
     optionKey: 'COG_SOGv2',
     keys: ["navigation.courseOverGroundTrue", "navigation.speedOverGround"],
-    callback: (course, speed) => {
+    callback: (course: number, speed: number): PGN_129026[] | undefined => {
       try {
         return [
-          {
-            pgn: 129026,
-            'COG Reference': 0,
-            COG: course,
-            SOG: speed
-          }
+          withPriority(
+            new PGN_129026({
+              cogReference: 0,
+              cog: course,
+              sog: speed
+            })
+          )
         ]
       } catch ( err ) {
         console.error(err)

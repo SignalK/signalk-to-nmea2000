@@ -1,9 +1,30 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import {
+  PGN_127488,
+  PGN_127489,
+  PGN_130312,
+  PGN_130316,
+  TemperatureSource
+} from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-const orUndefined = value => (value === null ? undefined : value)
+type Value = number | null | undefined
+
+const orUndefined = (value: Value) => (value === null ? undefined : value)
 const DEFAULT_TIMEOUT = 10000  // ms
 
-module.exports = (app, plugin) => {
+interface EngineMapping {
+  signalkId: string | number
+  instanceId: number
+}
+
+interface TemperatureMapping {
+  signalkId: string | number
+  tempInstanceId: number
+}
+
+module.exports = (app: App, plugin: Plugin): Conversion[] => {
 
   // discrete status fields are not yet implemented
   const engParKeys = [
@@ -61,33 +82,46 @@ module.exports = (app, plugin) => {
       }
     },
     
-    conversions: (options) => {
+    conversions: (options: any) => {
       if ( !_.get(options, 'ENGINE_PARAMETERS.engines') ) {
-        return null
+        return undefined
       }
-      const dyn = options.ENGINE_PARAMETERS.engines.map(engine => {
+      const dyn = options.ENGINE_PARAMETERS.engines.map((engine: EngineMapping) => {
         return {
           keys: engParKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engParKeys.map(key => DEFAULT_TIMEOUT),
-          callback: (oilPres, oilTemp, temp, altVolt, fuelRate, runTime, coolPres, fuelPres, engLoad, engTorque) => {
-            return [{
-                pgn: 127489,
-                "Engine Instance": engine.instanceId,
-                "Instance": engine.instanceId,
-                // canboatjs 4 takes every value in SI, as Signal K gives it.
-                "Oil pressure": orUndefined(oilPres),
-                "Oil temperature": orUndefined(oilTemp),
-                "Temperature": orUndefined(temp),
-                "Alternator Potential": orUndefined(altVolt),
-                "Fuel Rate": orUndefined(fuelRate),
-                "Total Engine hours": orUndefined(runTime),
-                "Coolant Pressure": orUndefined(coolPres),
-                "Fuel Pressure": orUndefined(fuelPres),
-                "Discrete Status 1": [],
-                "Discrete Status 2": [],
-                "Engine Load": orUndefined(engLoad),
-                "Engine Torque": orUndefined(engTorque)
-            }]
+          callback: (
+            oilPres: Value,
+            oilTemp: Value,
+            temp: Value,
+            altVolt: Value,
+            fuelRate: Value,
+            runTime: Value,
+            coolPres: Value,
+            fuelPres: Value,
+            engLoad: Value,
+            engTorque: Value
+          ): PGN_127489[] => {
+            return [
+              withPriority(
+                new PGN_127489({
+                  instance: engine.instanceId,
+                  // canboatjs 4 takes every value in SI, as Signal K gives it.
+                  oilPressure: orUndefined(oilPres),
+                  oilTemperature: orUndefined(oilTemp),
+                  temperature: orUndefined(temp),
+                  alternatorPotential: orUndefined(altVolt),
+                  fuelRate: orUndefined(fuelRate),
+                  totalEngineHours: orUndefined(runTime),
+                  coolantPressure: orUndefined(coolPres),
+                  fuelPressure: orUndefined(fuelPres),
+                  discreteStatus1: [],
+                  discreteStatus2: [],
+                  engineLoad: orUndefined(engLoad),
+                  engineTorque: orUndefined(engTorque)
+                })
+              )
+            ]
           },
           tests: [{
             // 102700 Pa, 363.15 K, 353.15 K, 13.1 V, 100 L/h (in m3/s),
@@ -117,20 +151,22 @@ module.exports = (app, plugin) => {
         }
       })
 
-      const rapid = options.ENGINE_PARAMETERS.engines.map(engine => {
+      const rapid = options.ENGINE_PARAMETERS.engines.map((engine: EngineMapping) => {
         return {
           keys: engRapidKeys.map(key => `propulsion.${engine.signalkId}.${key}`),
           timeouts: engRapidKeys.map(key => DEFAULT_TIMEOUT),
-          callback: (revolutions, boostPressure, trimState) => {
-            return [{
-                pgn: 127488,
-                "Engine Instance": engine.instanceId,
-                "Instance": engine.instanceId,
-                // canboatjs 4 takes Hz, Pa and a ratio, as Signal K gives them.
-                "Speed": orUndefined(revolutions),
-                "Boost Pressure": orUndefined(boostPressure),
-                "Tilt/Trim": orUndefined(trimState)
-            }]
+          callback: (revolutions: Value, boostPressure: Value, trimState: Value): PGN_127488[] => {
+            return [
+              withPriority(
+                new PGN_127488({
+                  instance: engine.instanceId,
+                  // canboatjs 4 takes Hz, Pa and a ratio, as Signal K gives them.
+                  speed: orUndefined(revolutions),
+                  boostPressure: orUndefined(boostPressure),
+                  tiltTrim: orUndefined(trimState)
+                })
+              )
+            ]
           },
           tests: [{
             // 1800 rpm (30 Hz), 120000 Pa, 50 %.
@@ -157,7 +193,7 @@ module.exports = (app, plugin) => {
 
 // Exhaust gas temperature per engine. 130316 is the extended range version of
 // 130312, which some displays (e.g. Raymarine Axiom) read instead.
-function exhaustTemperature(pgn, optionKey) {
+function exhaustTemperature(pgn: 130312 | 130316, optionKey: string): Conversion {
   const temperatureField = pgn == 130316 ? 'Temperature' : 'Actual Temperature'
   // 130312 goes up to 655.32 K, so test 130316 above that
   const testTemperature = pgn == 130316 ? 700 : 281.2
@@ -194,23 +230,28 @@ function exhaustTemperature(pgn, optionKey) {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options: any) => {
       if ( !_.get(options, [optionKey, 'engines']) ) {
-        return null
+        return undefined
       }
-      return options[optionKey].engines.map(engine => {
+      return options[optionKey].engines.map((engine: TemperatureMapping) => {
         return {
           keys: [
             `propulsion.${engine.signalkId}.exhaustTemperature`
           ],
-          callback: (temperature) => {
-            return [{
-              pgn,
-              SID: 0xff,
-              "Instance": engine.tempInstanceId,
-              "Source": "Exhaust Gas Temperature",
-              [temperatureField]: temperature,
-            }]
+          callback: (temperature: number): (PGN_130312 | PGN_130316)[] => {
+            const common = {
+              sid: 0xff,
+              instance: engine.tempInstanceId,
+              source: TemperatureSource.ExhaustGasTemperature
+            }
+            return [
+              withPriority(
+                pgn == 130316
+                  ? new PGN_130316({ ...common, temperature })
+                  : new PGN_130312({ ...common, actualTemperature: temperature })
+              )
+            ]
           },
           tests: [{
             input: [ testTemperature ],

@@ -1,4 +1,11 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import { PGN_129794, PGN_129038, PGN_129041 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
+
+// A Signal K delta and a vessel's tree, as loose as Signal K has them
+type Delta = any
+type Vessel = any
 
 const static_keys = [
   "name",
@@ -18,7 +25,7 @@ const static_pgn = 129794
 const position_pgn = 129038
 const aton_pgn = 129041
 
-const navStatusMapping = {
+const navStatusMapping: Record<string, number> = {
   'not under command': 2,
   'anchored': 1,
   'moored': 5,
@@ -44,13 +51,13 @@ const navStatusMapping = {
   'hazardous material wing in ground': 10
 }
 
-module.exports = (app, plugin) => {
+module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
     sourceType: 'onDelta',
     //outputType: 'buffer',
     optionKey: 'AISv2',
-    callback: (delta) => {
+    callback: (delta: Delta) => {
       var selfContext = 'vessels.' + app.selfId
 
       if ( delta.context == selfContext ) {
@@ -72,7 +79,7 @@ module.exports = (app, plugin) => {
           return null;
         }
         
-      var res = []
+      var res: (PGN_129038 | PGN_129794 | null)[] = []
         if ( hasPosition ) {
           res.push(generatePosition(vessel, mmsi, delta))
         }
@@ -392,7 +399,7 @@ module.exports = (app, plugin) => {
   }
 }
 
-function generateStatic(vessel, mmsi, delta) {
+function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
   var name = findDeltaValue(vessel, delta, 'name');
   var type = _.get(findDeltaValue(vessel, delta, "design.aisShipType"), "id")
   var callsign = findDeltaValue(vessel, delta, "communication.callsignVhf")
@@ -426,24 +433,26 @@ function generateStatic(vessel, mmsi, delta) {
 
   mmsi = parseInt(mmsi, 10)
 
-  return {
-    pgn: static_pgn,
-    'Message ID': 5,
-    //'Repeat indicator': 0,
-    'User ID': mmsi,
-    'Callsign': callsign,
-    'Name': name,
-    'Type of ship': type,
-    'Length': length,
-    'Beam': beam,
-    'Position reference from Starboard': fromStarboard,
-    'Position reference from Bow': fromBow,
-    'Draft': draft,
-    'Destination': dest,
-    'AIS version indicator': 0,
-    'DTE': 0,
-    'AIS Transceiver information': 0
-  }
+  return withPriority(
+    new PGN_129794({
+      messageId: 5,
+      //repeatIndicator: 0,
+      // A number, as parsed above; ts-pgns types an MMSI as its string
+      userId: mmsi as unknown as string,
+      callsign: callsign,
+      name: name,
+      typeOfShip: type,
+      length: length,
+      beam: beam,
+      positionReferenceFromStarboard: fromStarboard,
+      positionReferenceFromBow: fromBow,
+      draft: draft,
+      destination: dest,
+      aisVersionIndicator: 0,
+      dte: 0,
+      aisTransceiverInformation: 0
+    })
+  )
 
   /*
   var data = Concentrate2()
@@ -469,31 +478,31 @@ function generateStatic(vessel, mmsi, delta) {
 
 // fromCenter is positive to starboard, as n2k-signalk and nmea0183-signalk
 // decode it
-function distanceFromStarboard(fromCenter, beam) {
+function distanceFromStarboard(fromCenter: any, beam: number | undefined) {
   if ( !Number.isFinite(beam) || !Number.isFinite(fromCenter) ) {
     return undefined
   }
-  return distanceOnHull(beam / 2 - fromCenter, beam)
+  return distanceOnHull((beam as number) / 2 - fromCenter, beam)
 }
 
 // The reference fields are unsigned: a point off the hull would wrap around
 // to a huge distance, so leave it out instead
-function distanceOnHull(distance, size) {
+function distanceOnHull(distance: any, size: number | undefined) {
   if ( !Number.isFinite(distance) || distance < 0 ) {
     return undefined
   }
-  if ( Number.isFinite(size) && distance > size ) {
+  if ( Number.isFinite(size) && distance > (size as number) ) {
     return undefined
   }
   return distance
 }
 
 // canboatjs encodes NaN as 0, which is a real distance: leave it out instead
-function finite(value) {
-  return Number.isFinite(value) ? value : undefined
+function finite(value: unknown): number | undefined {
+  return Number.isFinite(value) ? (value as number) : undefined
 }
 
-function generatePosition(vessel, mmsi, delta) {
+function generatePosition(vessel: Vessel, mmsi: any, delta: Delta): PGN_129038 | null {
   var position = findDeltaValue(vessel, delta, 'navigation.position')
 
   if ( position && position.latitude && position.longitude ) {
@@ -548,23 +557,24 @@ function generatePosition(vessel, mmsi, delta) {
 
     //console.log(`${mmsi} ${position.longitude} ${position.latitude} ${cog} ${sog} ${heading} ${rot}`)
 
-    return {
-      pgn: position_pgn,
-      'Message ID': 1,
-      //'Repeat Indicator': 0,
-      'User ID': mmsi,
-      'Longitude': position.longitude,
-      'Latitude': position.latitude,
-      'Position Accuracy': 0,
-      'RAIM': 0,
-      'Time Stamp': 0,
-      'COG': cog,
-      'SOG': sog,
-      'AIS Transceiver information': 0,
-      'Heading': heading,
-      'Rate of Turn': rot,
-      'Nav Status': status
-    }
+    return withPriority(
+      new PGN_129038({
+        messageId: 1,
+        //repeatIndicator: 0,
+        userId: mmsi,
+        longitude: position.longitude,
+        latitude: position.latitude,
+        positionAccuracy: 0,
+        raim: 0,
+        timeStamp: 0,
+        cog: cog,
+        sog: sog,
+        aisTransceiverInformation: 0,
+        heading: heading,
+        rateOfTurn: rot,
+        navStatus: status
+      })
+    )
 
     /*
     mmsi = parseInt(mmsi, 10)
@@ -592,7 +602,7 @@ function generatePosition(vessel, mmsi, delta) {
   }
 }
 
-function generateAtoN(vessel, mmsi, delta) {
+function generateAtoN(vessel: Vessel, mmsi: any, delta: Delta): PGN_129041 | null {
   var position = findDeltaValue(vessel, delta, 'navigation.position')
 
   if ( position && position.latitude && position.longitude ) {
@@ -637,22 +647,28 @@ function generateAtoN(vessel, mmsi, delta) {
     
     mmsi = parseInt(mmsi, 10)
 
-    return {
-      pgn: aton_pgn,
-      'Message ID': 0,
-      'Repeat Indicator': 0,
-      'User ID': mmsi,
-      'Longitude': position.longitude,
-      'Latitude': position.latitude,
-      'Position Accuracy': 0,
-      'RAIM': 0,
-      'Time Stamp': 0,
-      'Length/Diameter': length,
-      'Beam/Diameter': beam,
-      'Position Reference from Starboard Edge': fromStarboard,
-      'AtoN Type': type,
-      'AtoN Name': name
-    }
+    return withPriority(
+      new PGN_129041({
+        messageId: 0,
+        repeatIndicator: 0,
+        // A number, as parsed above; ts-pgns types an MMSI as its string
+        userId: mmsi as unknown as string,
+        longitude: position.longitude,
+        latitude: position.latitude,
+        positionAccuracy: 0,
+        raim: 0,
+        timeStamp: 0,
+        lengthDiameter: length,
+        beamDiameter: beam,
+        positionReferenceFromStarboardEdge: fromStarboard,
+        atonType: type,
+        atonName: name,
+        // Left out, as before: not available
+        offPositionIndicator: undefined as unknown as number,
+        virtualAtonFlag: undefined as unknown as number,
+        assignedModeFlag: undefined as unknown as number
+      })
+    )
     /*
     var data = Concentrate2()
         .uint8(0x15)
@@ -684,11 +700,11 @@ function generateAtoN(vessel, mmsi, delta) {
     
 }
 
-function int8buff(array) {
+function int8buff(array: number[]) {
   return new Buffer(new Uint8Array(array).buffer)
 }
 
-function hasAnyKeys(delta, keys) {
+function hasAnyKeys(delta: Delta, keys: string[]) {
   if ( delta.updates ) {
     for ( var i = 0; i < delta.updates.length; i++ ) {
       if (Array.isArray(delta.updates[i].values)) {
@@ -710,7 +726,7 @@ function hasAnyKeys(delta, keys) {
   return false
 }
 
-function findDeltaValue(vessel, delta, path) {
+function findDeltaValue(vessel: Vessel, delta: Delta, path: string): any {
   if ( delta.updates ) {
     for ( var i = 0; i < delta.updates.length; i++ ) {
       for ( var j = 0; j < delta.updates[i].values.length; j++ ) {
@@ -731,7 +747,7 @@ function findDeltaValue(vessel, delta, path) {
   return val && !_.isUndefined(val.value) ? val.value: val
 }
 
-function fillASCII(theString, len)
+function fillASCII(theString: string, len: number)
 {
   var res = []
   var i

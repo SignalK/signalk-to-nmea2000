@@ -1,22 +1,26 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import { PGN_128267 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Depth (128267)',
     optionKey: 'DEPTHv2',
     keys: ["environment.depth.belowTransducer"],
-    callback: (belowTransducer) => {
+    callback: (belowTransducer: number): PGN_128267[] | undefined => {
       var surfaceToTransducer = app.getSelfPath('environment.depth.surfaceToTransducer.value')
       var transducerToKeel = app.getSelfPath('environment.depth.transducerToKeel.value')
       var offset = _.isUndefined(surfaceToTransducer) ? (_.isUndefined(transducerToKeel) ? 0 : transducerToKeel) : surfaceToTransducer
       try {
         return [
-          {
-            pgn: 128267,
-            SID: 0xff,
-            Depth: belowTransducer,
-            Offset: offset
-          }
+          withPriority(
+            new PGN_128267({
+              sid: 0xff,
+              depth: belowTransducer,
+              offset: offset
+            })
+          )
         ]
       } catch ( err ) {
         console.error(err)
