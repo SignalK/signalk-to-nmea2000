@@ -170,7 +170,8 @@ module.exports = function(app) {
 
   function load_conversions (app, plugin) {
     fpath = path.join(__dirname, 'conversions')
-    files = fs.readdirSync(fpath)
+    // Only the modules: the build puts declarations and source maps beside them
+    files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
     return files.map(fname => {
       let pgn = path.basename(fname, '.js')
       return require(path.join(fpath, pgn))(app, plugin);

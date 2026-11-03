@@ -2,7 +2,7 @@ const chai = require('chai')
 chai.should()
 const { FromPgn, pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
 
-const createRaymarineNavigation = require('../conversions/raymarineNavigation')
+const createRaymarineNavigation = require('../dist/conversions/raymarineNavigation')
 
 const parser = new FromPgn({ useCamel: false })
 

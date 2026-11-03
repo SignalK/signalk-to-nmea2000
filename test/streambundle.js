@@ -54,7 +54,7 @@ function makeApp() {
 describe('onValueChange conversions over the streambundle', () => {
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
-    const plugin = require('../index.js')(app)
+    const plugin = require('../dist/index.js')(app)
     plugin.start({ DEPTHv2: { enabled: true } })
 
     app.buses['environment.depth.belowTransducer'].push({
@@ -76,7 +76,7 @@ describe('onValueChange conversions over the streambundle', () => {
     const app = makeApp()
     let course = goto({ latitude: -35.5, longitude: 138.7 })
     app.courseApi = { getCourse: async () => course }
-    const plugin = require('../index.js')(app)
+    const plugin = require('../dist/index.js')(app)
     plugin.start({ routewpinformation: { enabled: true } })
 
     const publish = () =>
@@ -149,7 +149,7 @@ describe('a course that came from NMEA 2000', () => {
       calcMethod: { value: 'Rhumbline' }
     }
     app.courseApi = { getCourse: async () => course() }
-    const plugin = require('../index.js')(app)
+    const plugin = require('../dist/index.js')(app)
     plugin.start({
       navigationdata: { enabled: true, ...options },
       routewpinformation: { enabled: true, ...options },

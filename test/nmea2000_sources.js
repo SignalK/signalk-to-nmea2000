@@ -3,7 +3,7 @@ const should = require('chai').should()
 const sinon = require('sinon')
 const { FromPgn } = require('@canboat/canboatjs')
 
-const Sk2n2K = require('../')
+const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
 
 const N2K_SOURCE = { label: 'can0', type: 'NMEA2000', pgn: 129026, src: '35' }

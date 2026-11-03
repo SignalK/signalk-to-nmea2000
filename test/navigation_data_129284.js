@@ -4,7 +4,7 @@ const sinon = require('sinon')
 const _ = require('lodash')
 const { FromPgn } = require('@canboat/canboatjs')
 
-const Sk2n2K = require('../')
+const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
 
 describe('Navigation data 129284', function () {

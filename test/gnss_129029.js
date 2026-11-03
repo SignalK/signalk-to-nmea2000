@@ -16,7 +16,7 @@ describe('GNSS position data 129029', function () {
 
   beforeEach(function () {
     clock = sinon.useFakeTimers({ now: Date.UTC(2026, 9, 12, 12), toFake: ['Date'] })
-    callback = require('../conversions/gps.js')({}, {})[0].callback
+    callback = require('../dist/conversions/gps.js')({}, {})[0].callback
   })
 
   afterEach(function () {

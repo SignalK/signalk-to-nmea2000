@@ -2,7 +2,7 @@ const mocha = require('mocha')
 const should = require('chai').should()
 const sinon = require('sinon')
 
-const Sk2n2K = require('../')
+const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
 
 'electrical.batteries.house.voltage', 'electrical.batteries.house.current', 'electrical.batteries.house.temperature'

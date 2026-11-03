@@ -3,7 +3,7 @@ chai.should()
 const sinon = require('sinon')
 const { FromPgn } = require('@canboat/canboatjs')
 
-const Sk2n2K = require('../')
+const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
 
 const SETTLE_MS = 100

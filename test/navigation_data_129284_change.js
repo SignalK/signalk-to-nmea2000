@@ -3,7 +3,7 @@ chai.should()
 const sinon = require('sinon')
 const { FromPgn, pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
 
-const createNavigationData = require('../conversions/navigationdata')
+const createNavigationData = require('../dist/conversions/navigationdata')
 
 const parser = new FromPgn({ useCamel: false })
 
