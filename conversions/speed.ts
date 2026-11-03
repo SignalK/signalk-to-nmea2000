@@ -1,18 +1,23 @@
 
-module.exports = (app, plugin) => {
+import { PGN_128259 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
+
+module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     pgns: [ 128259 ],
     title: 'Speed (128259)',
     optionKey: 'SPEED',
     keys: ["navigation.speedThroughWater"],
 
-    callback: (speed) => {
+    callback: (speed: number): PGN_128259[] | undefined => {
       try {
         return [
-          {
-            pgn: 128259,
-            "Speed Water Referenced": speed,
-          }
+          withPriority(
+            new PGN_128259({
+              speedWaterReferenced: speed
+            })
+          )
         ]
       } catch ( err ) {
         console.error(err)

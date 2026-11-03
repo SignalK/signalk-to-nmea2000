@@ -1,18 +1,23 @@
 
-module.exports = (app, plugin) => {
+import { PGN_130306 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
+
+module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Wind (130306)',
     optionKey: 'WINDv2',
     keys: ["environment.wind.angleApparent", "environment.wind.speedApparent"],
-    callback: (angle, speed) => {
+    callback: (angle: number, speed: number): PGN_130306[] | undefined => {
       try {
         return [
-          {
-            pgn: 130306,
-            'Wind Speed': speed,
-            'Wind Angle': angle < 0 ? angle + Math.PI*2 : angle,
-            'Reference': 2
-          }
+          withPriority(
+            new PGN_130306({
+              windSpeed: speed,
+              windAngle: angle < 0 ? angle + Math.PI*2 : angle,
+              reference: 2
+            })
+          )
         ]
       } catch ( err ) {
         console.error(err)

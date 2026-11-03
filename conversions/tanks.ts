@@ -1,17 +1,24 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import { PGN_127505, TankType } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+interface Tank {
+  signalkPath: string
+  instanceId: number
+}
 
-  const typeMapping = {
-    'fuel': 'Fuel',
-    'blackWater': 'Black water',
-    'freshWater': 'Water',
-    'wasteWater': 'Gray water',
-    'greyWater': 'Gray water',
-    'grayWater': 'Gray water',
-    'liveWell': 'Live well',
-    'lubrication': 'Oil',
-    'gas': 'Fuel'
+module.exports = (app: App, plugin: Plugin): Conversion => {
+  const typeMapping: Record<string, TankType> = {
+    'fuel': TankType.Fuel,
+    'blackWater': TankType.BlackWater,
+    'freshWater': TankType.Water,
+    'wasteWater': TankType.GrayWater,
+    'greyWater': TankType.GrayWater,
+    'grayWater': TankType.GrayWater,
+    'liveWell': TankType.LiveWell,
+    'lubrication': TankType.Oil,
+    'gas': TankType.Fuel
   }
   
   return {
@@ -20,10 +27,10 @@ module.exports = (app, plugin) => {
     context: 'vessels.self',
     properties: () => {
       var tanks = _.get(app.signalk.self, 'tanks')
-      var tankPaths = []
+      var tankPaths: string[] = []
       if ( !_.isUndefined(tanks) ) {
-        _.keys(tanks).forEach(type => {
-          _.keys(tanks[type]).forEach(instance => {
+        _.keys(tanks).forEach((type: string) => {
+          _.keys(tanks[type]).forEach((instance: string) => {
             tankPaths.push(`tanks.${type}.${instance}`)
           })
         })
@@ -63,30 +70,31 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options: any) => {
       if ( !_.get(options, 'TANKS.tanks') ) {
-        return null
+        return null as unknown as Conversion[]
       }
-      return options.TANKS.tanks.map(tank => {
+      return options.TANKS.tanks.map((tank: Tank) => {
         var split = tank.signalkPath.split('.')
         var type = typeMapping[split[1]]
         if ( !_.isUndefined(type) ) {
           return {
             keys: [`${tank.signalkPath}.currentLevel`, `${tank.signalkPath}.capacity`],
             timeouts: [60000, 60000],
-            callback: (currentLevel, capacity) => {
-              var res = []
+            callback: (
+              currentLevel: number | null,
+              capacity: number | null
+            ): PGN_127505[] => {
+              var res: PGN_127505[] = []
               if ( currentLevel != null || capacity != null ) {
-                
-                res.push({
-                  pgn: 127505,
-                  "Instance": tank.instanceId,
-                  Type: type,
+                res.push(withPriority(new PGN_127505({
+                  instance: tank.instanceId,
+                  type: type,
                   // canboatjs 4 takes the level as a ratio and the capacity
                   // in m3, as Signal K gives them.
-                  Level: currentLevel == null ? undefined : currentLevel,
-                  Capacity: capacity == null ? undefined : capacity
-                })
+                  level: currentLevel == null ? undefined : currentLevel,
+                  capacity: capacity == null ? undefined : capacity
+                })))
               }
               
               return res
@@ -111,7 +119,9 @@ module.exports = (app, plugin) => {
         {
           const msg = `unknown tank type: ${split[1]}`
           app.error(msg)
-          app.setProviderError(msg)
+          // Called with the message alone, as it always was; the server's
+          // setProviderError takes a provider id first.
+          ;(app.setProviderError as unknown as (msg: string) => void)(msg)
         }
       })
     }

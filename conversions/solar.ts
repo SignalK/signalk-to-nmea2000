@@ -1,6 +1,15 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import { PGN_127508 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+interface Charger {
+  signalkId: string
+  instanceId: number
+  panelInstanceId: number
+}
+
+module.exports = (app: App, plugin: Plugin): Conversion => {
 
   const solarKeys = [
     'voltage',
@@ -61,36 +70,36 @@ module.exports = (app, plugin) => {
       }
     },
     
-    conversions: (options) => {
+    conversions: (options: any) => {
       if ( !_.get(options, 'SOLAR.chargers') ) {
-        return null
+        return null as unknown as Conversion[]
       }
-      return options.SOLAR.chargers.map(charger => {
+      return options.SOLAR.chargers.map((charger: Charger) => {
         return {
           keys: solarKeys.map(key => `electrical.solar.${charger.signalkId}.${key}`),
           timeouts: solarKeys.map(key => 60000),
-          callback: (voltage, current, panelCurrent, panelVoltage) => {
-            var res = []
+          callback: (
+            voltage: number | null,
+            current: number | null,
+            panelCurrent: number | null,
+            panelVoltage: number | null
+          ): PGN_127508[] => {
+            var res: PGN_127508[] = []
             if ( voltage != null
                  || current != null ) {
-              res.push({
-                pgn: 127508,
-                "Battery Instance": charger.instanceId,
-                "Instance": charger.instanceId,
-                Voltage: voltage,
-                Current: current
-              })
+              res.push(withPriority(new PGN_127508({
+                instance: charger.instanceId,
+                voltage: voltage as number,
+                current: current as number
+              })))
             }
-
             if ( panelVoltage != null
                  || panelCurrent != null ) {
-              res.push({
-                pgn: 127508,
-                "Battery Instance": charger.panelInstanceId,
-                "Instance": charger.panelInstanceId,
-                Voltage: panelVoltage,
-                Current: panelCurrent
-              })
+              res.push(withPriority(new PGN_127508({
+                instance: charger.panelInstanceId,
+                voltage: panelVoltage as number,
+                current: panelCurrent as number
+              })))
             }
             
             return res

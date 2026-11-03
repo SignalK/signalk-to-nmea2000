@@ -1,18 +1,23 @@
 
-module.exports = (app, plugin) => {
+import { PGN_129291 } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
+
+module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Set/Drift (129291)',
     optionKey: 'SetDrift',
     keys: ["environment.current.setTrue", "environment.current.drift"],
-    callback: (set, drift) => {
+    callback: (set: number, drift: number): PGN_129291[] | undefined => {
       try {
         return [
-          {
-            pgn: 129291,
-            'Set': set,
-            'Drift': drift,
-            'Set Reference': 0
-          }
+          withPriority(
+            new PGN_129291({
+              set: set,
+              drift: drift,
+              setReference: 0
+            })
+          )
         ]
       } catch ( err ) {
         console.error(err)
