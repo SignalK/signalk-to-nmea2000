@@ -42,10 +42,10 @@ const app = {
 }
 
 function load_conversions () {
-  fpath = path.join(__dirname, '../dist/conversions')
-  files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
+  const fpath = path.join(__dirname, '../dist/conversions')
+  const files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
   return files.map(fname => {
-    pgn = path.basename(fname, '.js')
+    const pgn = path.basename(fname, '.js')
     return require(path.join(fpath, pgn))(app, {});
   }).filter(converter => { return typeof converter !== 'undefined'; });
 }
