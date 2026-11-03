@@ -3,7 +3,7 @@ const should = chai.should()
 import sinon from 'sinon'
 
 const Sk2n2K = require('../dist')
-const Server = require('signalk-server/lib/')
+const Server = require('signalk-server/dist/')
 
 describe('Battery status 127508', function () {
   it('sequence with some missing data works', function (done) {
