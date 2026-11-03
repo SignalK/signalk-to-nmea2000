@@ -11,9 +11,5 @@
   "ts-node": {
     "files": true
   },
-  "include": [
-    "*.ts",
-    "./conversions/**/*",
-    "./test/*.d.ts"
-  ]
+  "include": ["*.ts", "./conversions/**/*", "./test/*.d.ts"]
 }

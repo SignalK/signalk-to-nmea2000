@@ -6,10 +6,10 @@ import type { Conversion, ConversionTest } from '../types'
 const assert: Chai.AssertStatic = chai.assert
 chai.should()
 //chai.use(require('chai-things'))
-chai.use(require('chai-json-equal'));
+chai.use(require('chai-json-equal'))
 
 // A PGN decoded with display names, which the ts-pgns types don't have
-function normalizeMmsi (pgn: any) {
+function normalizeMmsi(pgn: any) {
   const fields = pgn && pgn.fields
   if (fields && typeof fields['User ID'] === 'number') {
     fields['User ID'] = String(fields['User ID']).padStart(9, '0')
@@ -18,16 +18,16 @@ function normalizeMmsi (pgn: any) {
 
 // Reserved and spare fields are filled in by the encoder, not by the
 // conversions, so compare without them.
-function dropReservedAndSpare (pgn: any) {
+function dropReservedAndSpare(pgn: any) {
   const fields = pgn && pgn.fields
   if (fields) {
     Object.keys(fields)
-      .filter(key => /^(Reserved|Spare)\d*$/i.test(key))
-      .forEach(key => delete fields[key])
+      .filter((key) => /^(Reserved|Spare)\d*$/i.test(key))
+      .forEach((key) => delete fields[key])
   }
 }
 
-const parser = new FromPgn({useCamel: false})
+const parser = new FromPgn({ useCamel: false })
 
 let skSelfData: Record<string, unknown> = {}
 let skData: Record<string, unknown> = {}
@@ -39,37 +39,44 @@ const app = {
   getPath: (path: string) => {
     return skData[path]
   },
-  debug: (msg: unknown) => {
-  }
+  debug: (msg: unknown) => {}
 }
 
-function load_conversions (): (Conversion | Conversion[])[] {
+function load_conversions(): (Conversion | Conversion[])[] {
   const fpath = path.join(__dirname, '../dist/conversions')
-  const files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
-  return files.map(fname => {
-    const pgn = path.basename(fname, '.js')
-    return require(path.join(fpath, pgn))(app, {});
-  }).filter(converter => { return typeof converter !== 'undefined'; });
+  const files = fs.readdirSync(fpath).filter((fname) => fname.endsWith('.js'))
+  return files
+    .map((fname) => {
+      const pgn = path.basename(fname, '.js')
+      return require(path.join(fpath, pgn))(app, {})
+    })
+    .filter((converter) => {
+      return typeof converter !== 'undefined'
+    })
 }
 
 const conversions = load_conversions()
 
 describe('every conversion has a test', () => {
-  conversions.forEach(conversion => {
-    if ( !Array.isArray(conversion) ) {
-      conversion = [ conversion ]
-    }      
-    
-    conversion.forEach(conversion => {
+  conversions.forEach((conversion) => {
+    if (!Array.isArray(conversion)) {
+      conversion = [conversion]
+    }
+
+    conversion.forEach((conversion) => {
       it(`${conversion.title} has a test`, function (done) {
         var subConversions = conversion.conversions
-        if ( typeof subConversions === 'undefined' ) {
-          subConversions = [ conversion ]
-        } else if ( typeof subConversions === 'function' ) {
-          subConversions = subConversions(Array.isArray(conversion.testOptions) ? conversion.testOptions[0] : conversion.testOptions)
+        if (typeof subConversions === 'undefined') {
+          subConversions = [conversion]
+        } else if (typeof subConversions === 'function') {
+          subConversions = subConversions(
+            Array.isArray(conversion.testOptions)
+              ? conversion.testOptions[0]
+              : conversion.testOptions
+          )
         }
         assert(subConversions != undefined)
-        subConversions!.forEach(subConv => {
+        subConversions!.forEach((subConv) => {
           subConv.should.have.property('tests')
         })
         done()
@@ -79,24 +86,26 @@ describe('every conversion has a test', () => {
 })
 
 describe('conversions work', () => {
-  conversions.forEach(conversion => {
-    if ( !Array.isArray(conversion) ) {
-      conversion = [ conversion ]
-    }      
-    
-    conversion.forEach(conversion => {
-      let optionsList: unknown[] = Array.isArray(conversion.testOptions) ? conversion.testOptions : [ conversion.testOptions ]
+  conversions.forEach((conversion) => {
+    if (!Array.isArray(conversion)) {
+      conversion = [conversion]
+    }
+
+    conversion.forEach((conversion) => {
+      let optionsList: unknown[] = Array.isArray(conversion.testOptions)
+        ? conversion.testOptions
+        : [conversion.testOptions]
 
       optionsList.forEach((options, oidx) => {
         var subConversions = conversion.conversions
-        if ( typeof subConversions === 'undefined' ) {
-          subConversions = [ conversion ]
-        } else if ( typeof subConversions === 'function' ) {
+        if (typeof subConversions === 'undefined') {
+          subConversions = [conversion]
+        } else if (typeof subConversions === 'function') {
           subConversions = subConversions(options || {})
         }
-        subConversions!.forEach(subConv => {
+        subConversions!.forEach((subConv) => {
           //subConv.should.have.property('tests')
-          if ( subConv.tests ) {
+          if (subConv.tests) {
             subConv.tests.forEach((test: ConversionTest, idx: number) => {
               it(`${conversion.title} test # ${oidx}/${idx} works`, function (done) {
                 skData = test.skData || {}
@@ -104,12 +113,15 @@ describe('conversions work', () => {
                 let result = subConv.callback!.call(null, ...test.input!)
                 Promise.resolve(result).then((results: any) => {
                   results = results || []
-                  Promise.all(results as unknown[]).then(pgns => {
+                  Promise.all(results as unknown[]).then((pgns) => {
                     let error
-                    assert.equal(pgns.length, test.expected!.length, 'number of results returned does not match the number of expected results')
+                    assert.equal(
+                      pgns.length,
+                      test.expected!.length,
+                      'number of results returned does not match the number of expected results'
+                    )
                     pgns.forEach((res, idx) => {
-                      try
-                      {
+                      try {
                         let encoded = pgnToActisenseSerialFormat(res as any)
                         let pgn: any = parser.parseString(encoded!)
                         delete pgn.description
@@ -119,13 +131,13 @@ describe('conversions work', () => {
                         delete pgn.id
 
                         let expected: any = test.expected![idx]
-                        if ( typeof expected === 'function' ) {
+                        if (typeof expected === 'function') {
                           expected = expected(options)
                         }
-                        let preprocess = expected["__preprocess__"]
-                        if ( preprocess ) {
+                        let preprocess = expected['__preprocess__']
+                        if (preprocess) {
                           preprocess(pgn)
-                          delete expected["__preprocess__"]
+                          delete expected['__preprocess__']
                         }
                         //console.log('parsed: ' + JSON.stringify(pgn, null, 2))
                         // canboatjs decodes an MMSI as a 9-digit string from
@@ -135,7 +147,7 @@ describe('conversions work', () => {
                         normalizeMmsi(expected)
                         dropReservedAndSpare(pgn)
                         pgn.should.jsonEqual(expected)
-                      } catch ( e ) {
+                      } catch (e) {
                         error = e
                       }
                     })
@@ -150,4 +162,3 @@ describe('conversions work', () => {
     })
   })
 })
-

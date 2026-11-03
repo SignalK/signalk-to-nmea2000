@@ -11,11 +11,12 @@ interface Update {
   values?: { path: string; value: unknown }[]
 }
 
-export function isNmea2000Update(app: App, { source, $source }: Update): boolean {
-  if (source)
-    return source.type === 'NMEA2000'
-  if (typeof $source !== 'string')
-    return false
+export function isNmea2000Update(
+  app: App,
+  { source, $source }: Update
+): boolean {
+  if (source) return source.type === 'NMEA2000'
+  if (typeof $source !== 'string') return false
   const dot = $source.indexOf('.')
   const label = dot === -1 ? $source : $source.slice(0, dot)
   const sources = app.getPath ? app.getPath('sources') : undefined
@@ -45,21 +46,31 @@ export function courseOrigin(
     conversion: {
       sourceType: 'subscription',
       context: 'vessels.self',
-      keys: [ NEXT_POINT ],
+      keys: [NEXT_POINT],
       // Sends nothing, so it takes the NMEA 2000 updates it is looking for
       preventsNmea2000Echo: true,
       callback: (delta: { updates?: Update[] }) => {
-        (delta.updates || []).forEach(update => {
-          if (update.values?.some(pathValue => pathValue.path === NEXT_POINT))
+        ;(delta.updates || []).forEach((update) => {
+          if (update.values?.some((pathValue) => pathValue.path === NEXT_POINT))
             fromNmea2000 = isNmea2000Update(app, update)
         })
         return null
       },
-      tests: [{
-        input: [{ updates: [{ $source: 'courseApi', values: [{ path: NEXT_POINT, value: null }] }] }],
-        expected: []
-      }]
+      tests: [
+        {
+          input: [
+            {
+              updates: [
+                {
+                  $source: 'courseApi',
+                  values: [{ path: NEXT_POINT, value: null }]
+                }
+              ]
+            }
+          ],
+          expected: []
+        }
+      ]
     }
   }
 }
-

@@ -20,10 +20,10 @@ reviews:
     drafts: false
 
   path_filters:
-    - "!package-lock.json"
+    - '!package-lock.json'
 
   path_instructions:
-    - path: "**/*"
+    - path: '**/*'
       instructions: |
         ## Echo comments
         Flag any comment that merely restates what the code already says.
@@ -49,7 +49,7 @@ reviews:
         Think carefully about how changes interact with existing code — not
         just the diff in isolation.
 
-    - path: "conversions/**"
+    - path: 'conversions/**'
       instructions: |
         Each module converts Signal K data to NMEA 2000 PGNs, which canboatjs
         encodes and the server sends to every NMEA 2000 connection.
@@ -76,7 +76,7 @@ reviews:
         - New or changed conversions need `tests` entries; test/test.js
           encodes them with canboatjs and compares the decoded result.
 
-    - path: "index.js"
+    - path: 'index.js'
       instructions: |
         The plugin core: it builds the configuration schema from the
         conversions and feeds them Signal K data by source type (onValueChange,
@@ -84,7 +84,7 @@ reviews:
         check all four source types and the resend handling, not only the one
         the PR is about.
 
-    - path: ".github/workflows/**"
+    - path: '.github/workflows/**'
       instructions: |
         Note whether a change alters which events trigger a workflow or which
         commits get checked.

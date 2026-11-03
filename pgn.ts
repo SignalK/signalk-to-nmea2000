@@ -5,7 +5,7 @@ import { PGN } from '@canboat/ts-pgns'
  * from canboat; the plugin sends 2 unless a conversion gives another
  * (#198).
  */
-export function withPriority<T extends PGN> (pgn: T, prio = 2): T {
+export function withPriority<T extends PGN>(pgn: T, prio = 2): T {
   pgn.prio = prio
   return pgn
 }

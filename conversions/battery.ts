@@ -9,7 +9,6 @@ interface BatteryMapping {
 }
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
-
   const batteryKeys = [
     'voltage',
     'current',
@@ -19,7 +18,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     'capacity.stateOfHealth',
     'ripple'
   ]
-  
+
   return {
     title: 'Battery (127506 & 127508)',
     optionKey: 'BATTERYv2',
@@ -28,7 +27,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       const batteryIds =
         typeof app.getSelfPath === 'function'
           ? Object.keys(app.getSelfPath('electrical.batteries') || {}).filter(
-              id => id !== 'meta'
+              (id) => id !== 'meta'
             )
           : []
       return {
@@ -67,13 +66,15 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     },
 
     conversions: (options: any) => {
-      if ( !_.get(options, 'BATTERYv2.batteries') ) {
+      if (!_.get(options, 'BATTERYv2.batteries')) {
         return undefined
       }
       return options.BATTERYv2.batteries.map((battery: BatteryMapping) => {
         return {
-          keys: batteryKeys.map(key => `electrical.batteries.${battery.signalkId}.${key}`),
-          timeouts: batteryKeys.map(key => 60000),
+          keys: batteryKeys.map(
+            (key) => `electrical.batteries.${battery.signalkId}.${key}`
+          ),
+          timeouts: batteryKeys.map((key) => 60000),
           callback: (
             voltage?: number | null,
             current?: number | null,
@@ -84,9 +85,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             ripple?: number | null
           ): (PGN_127506 | PGN_127508)[] => {
             var res: (PGN_127506 | PGN_127508)[] = []
-            if ( voltage != null
-                 || current != null
-                 || temperature != null ) {
+            if (voltage != null || current != null || temperature != null) {
               res.push(
                 withPriority(
                   new PGN_127508({
@@ -98,15 +97,17 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                 )
               )
             }
-            
-            if ( stateOfCharge != null
-                 || timeRemaining != null
-                 || stateOfHealth != null
-                 || ripple != null ) {
+
+            if (
+              stateOfCharge != null ||
+              timeRemaining != null ||
+              stateOfHealth != null ||
+              ripple != null
+            ) {
               // canboatjs 4 takes the states as ratios, as Signal K gives them.
               stateOfCharge = stateOfCharge == null ? undefined : stateOfCharge
               stateOfHealth = stateOfHealth == null ? undefined : stateOfHealth
-              
+
               res.push(
                 withPriority(
                   new PGN_127506({
@@ -122,36 +123,39 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
             return res
           },
-          tests: [{
-            input: [12.5, 23.1, 290.15, 0.93, 12340, 0.6, 12.0],
-            expected: [{
-              "prio": 2,
-              "pgn": 127508,
-              "dst": 255,
-              "fields": {
-                "Instance": 1,
-                "Voltage": 12.5,
-                "Current": 23.1,
-                "Temperature": 290.15
-              }
-            },{
-              "prio": 2,
-              "pgn": 127506,
-              "dst": 255,
-              "fields": {
-                "Instance": 1,
-                "DC Type": "Battery",
-                "State of Charge": 0.93,
-                "State of Health": 0.6,
-                "Time Remaining": 12360,
-                "Ripple Voltage": 12
-              }
-            }]
-          }]
+          tests: [
+            {
+              input: [12.5, 23.1, 290.15, 0.93, 12340, 0.6, 12.0],
+              expected: [
+                {
+                  prio: 2,
+                  pgn: 127508,
+                  dst: 255,
+                  fields: {
+                    Instance: 1,
+                    Voltage: 12.5,
+                    Current: 23.1,
+                    Temperature: 290.15
+                  }
+                },
+                {
+                  prio: 2,
+                  pgn: 127506,
+                  dst: 255,
+                  fields: {
+                    Instance: 1,
+                    'DC Type': 'Battery',
+                    'State of Charge': 0.93,
+                    'State of Health': 0.6,
+                    'Time Remaining': 12360,
+                    'Ripple Voltage': 12
+                  }
+                }
+              ]
+            }
+          ]
         }
       })
     }
   }
 }
-
-
