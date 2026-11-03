@@ -1,0 +1,45 @@
+# Signal K's shared plugin CI: Linux (x64 and arm64), macOS and Windows on
+# Node 24 and 26, plus armv7 (Cerbo GX, Node 20, advisory). It also checks
+# the plugin's package, entry point, schema and start/stop lifecycle. See
+# https://github.com/SignalK/signalk-server/blob/master/docs/develop/plugins/ci.md
+
+name: SignalK Plugin CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      node-versions:
+        description: 'JSON array of Node versions, e.g. ["24","26"]'
+        required: false
+        default: '["24", "26"]'
+        type: string
+      enable-armv7:
+        description: Run armv7 (Cerbo GX) tests via QEMU
+        required: false
+        default: true
+        type: boolean
+      enable-signalk-integration:
+        description: Start a Signal K server and install the plugin
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  test-plugin-auto:
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
+    with:
+      node-versions: '["24", "26"]'
+      enable-armv7: true
+
+  test-plugin-manual:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    uses: SignalK/signalk-server/.github/workflows/plugin-ci.yml@master
+    with:
+      node-versions: ${{ inputs.node-versions }}
+      enable-armv7: ${{ inputs.enable-armv7 }}
+      enable-signalk-integration: ${{ inputs.enable-signalk-integration }}
