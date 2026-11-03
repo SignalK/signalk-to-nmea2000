@@ -1,11 +1,9 @@
-const mocha = require('mocha')
-const should = require('chai').should()
-const sinon = require('sinon')
+import chai from 'chai'
+const should = chai.should()
+import sinon from 'sinon'
 
 const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
-
-'electrical.batteries.house.voltage', 'electrical.batteries.house.current', 'electrical.batteries.house.temperature'
 
 describe('Battery status 127508', function () {
   it('sequence with some missing data works', function (done) {
@@ -34,7 +32,7 @@ describe('Battery status 127508', function () {
 
     const app = new Server().app
     app.providerStatistics = []
-    app.debug = (x) => console.log(x)
+    app.debug = (x: unknown) => console.log(x)
     const n2kSpy = sinon.spy()
     app.on('nmea2000out', n2kSpy)
     setTimeout(() => {
@@ -58,7 +56,13 @@ describe('Battery status 127508', function () {
   })
 })
 
-function sendDeltas (app, deltas) {
+interface DeltaSpec {
+  interval: number
+  path: string
+  value: unknown
+}
+
+function sendDeltas (app: any, deltas: DeltaSpec[]) {
   let cumulativeTimeout = 0
   deltas.forEach(deltaSpec => {
     cumulativeTimeout += deltaSpec.interval

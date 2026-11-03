@@ -1,18 +1,21 @@
-const chai = require('chai')
+import chai from 'chai'
 chai.should()
-const sinon = require('sinon')
-const { pgnToActisenseSerialFormat, FromPgn } = require('@canboat/canboatjs')
+import sinon from 'sinon'
+import { pgnToActisenseSerialFormat, FromPgn } from '@canboat/canboatjs'
+import { PGN } from '@canboat/ts-pgns'
 
 const parser = new FromPgn({ useCamel: false })
 
 // Encodes and decodes the PGNs, as they would appear on the bus
-const decode = pgns => pgns.map(pgn => parser.parseString(pgnToActisenseSerialFormat(pgn)))
+// Decoded with display names, which the ts-pgns types don't have
+const decode = (pgns: PGN[]): any[] =>
+  pgns.map(pgn => parser.parseString(pgnToActisenseSerialFormat(pgn)))
 
 const position = () => ({ latitude: 52.37, longitude: 4.89 })
 
 describe('GNSS position data 129029', function () {
-  let clock
-  let callback
+  let clock: sinon.SinonFakeTimers
+  let callback: (...values: unknown[]) => PGN[]
 
   beforeEach(function () {
     clock = sinon.useFakeTimers({ now: Date.UTC(2026, 9, 12, 12), toFake: ['Date'] })

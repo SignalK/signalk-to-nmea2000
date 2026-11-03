@@ -1,12 +1,27 @@
-const _ = require('lodash')
-const should = require('chai').should()
-const sinon = require('sinon')
-const { FromPgn } = require('@canboat/canboatjs')
+import _ from 'lodash'
+import chai from 'chai'
+const should = chai.should()
+import sinon from 'sinon'
+import { FromPgn } from '@canboat/canboatjs'
 
 const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
 
-const N2K_SOURCE = { label: 'can0', type: 'NMEA2000', pgn: 129026, src: '35' }
+interface Source {
+  label: string
+  type: string
+  pgn: number
+  src: string
+}
+
+// A value to send, and the source it comes from, if any
+interface Value {
+  path: string
+  value: unknown
+  source?: Source
+}
+
+const N2K_SOURCE: Source = { label: 'can0', type: 'NMEA2000', pgn: 129026, src: '35' }
 const COG = 'navigation.courseOverGroundTrue'
 const SOG = 'navigation.speedOverGround'
 const SETTLE_MS = 100
@@ -81,8 +96,8 @@ describe('Data from NMEA 2000 sources', function () {
   describe('position', function () {
     const POSITION = 'navigation.position'
     const position = { latitude: 52.37, longitude: 4.89 }
-    const pgns = n2kSpy => n2kSpy.getCalls()
-      .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]).pgn)
+    const pgns = (n2kSpy: sinon.SinonSpy) => n2kSpy.getCalls()
+      .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0])!.pgn)
 
     it('is not sent when it came from NMEA 2000', function (done) {
       run({ GPS_LOCATIONv2: { enabled: true } }, [
@@ -99,7 +114,7 @@ describe('Data from NMEA 2000 sources', function () {
       ], n2kSpy => {
         pgns(n2kSpy).should.include.members([129025, 129029])
         const gnss = n2kSpy.getCalls()
-          .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+          .map((call): any => new FromPgn({ useCamel: false }).parseString(call.args[0]))
           .find(pgn => pgn.pgn === 129029)
         gnss.fields.should.not.have.property('Number of SVs')
       }, done)
@@ -107,7 +122,7 @@ describe('Data from NMEA 2000 sources', function () {
   })
 
   describe('AIS', function () {
-    const aisDelta = source => ({
+    const aisDelta = (source?: Source) => ({
       context: 'vessels.urn:mrn:imo:mmsi:230123456',
       updates: [{
         ...(source ? { source } : {}),
@@ -132,7 +147,7 @@ describe('Data from NMEA 2000 sources', function () {
   })
 
   describe('notifications', function () {
-    const alarm = (path, source, message = 'Low oil pressure') => ({
+    const alarm = (path: string, source?: Source, message = 'Low oil pressure') => ({
       context: 'vessels.self',
       updates: [{
         ...(source ? { source } : {}),
@@ -142,9 +157,9 @@ describe('Data from NMEA 2000 sources', function () {
         }]
       }]
     })
-    const alertTexts = n2kSpy =>
+    const alertTexts = (n2kSpy: sinon.SinonSpy) =>
       n2kSpy.getCalls()
-        .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+        .map((call): any => new FromPgn({ useCamel: false }).parseString(call.args[0]))
         .filter(pgn => pgn && pgn.pgn === 126985)
         .map(pgn => pgn.fields['Alert Text Description'])
 
@@ -209,12 +224,12 @@ describe('Data from NMEA 2000 sources', function () {
       const alarmValue = { state: 'alarm', method: ['visual', 'sound'], message: 'Low oil pressure' }
       const normalValue = { state: 'normal', method: ['visual'], message: 'Low oil pressure is Normal' }
       const settle = () => new Promise(resolve => setTimeout(resolve, SETTLE_MS))
-      const alertStates = n2kSpy =>
+      const alertStates = (n2kSpy: sinon.SinonSpy) =>
         n2kSpy.getCalls()
-          .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+          .map((call): any => new FromPgn({ useCamel: false }).parseString(call.args[0]))
           .filter(pgn => pgn && pgn.pgn === 126983)
           .map(pgn => pgn.fields['Alert State'])
-      let clock
+      let clock: sinon.SinonFakeTimers
 
       beforeEach(function () {
         clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
@@ -267,7 +282,7 @@ describe('Data from NMEA 2000 sources', function () {
         { path: 'notifications.environment.bilge', value: { ...value, message: 'High bilge' } }
       ], n2kSpy => {
         const ids = n2kSpy.getCalls()
-          .map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
+          .map((call): any => new FromPgn({ useCamel: false }).parseString(call.args[0]))
           .filter(pgn => pgn && pgn.pgn === 126985)
           .map(pgn => [pgn.fields['Alert Text Description'], pgn.fields['Alert ID']])
         _.fromPairs(ids).should.deep.equal({ 'Low oil pressure': 1, 'High bilge': 2 })
@@ -308,13 +323,18 @@ describe('Data from NMEA 2000 sources', function () {
   })
 })
 
-function runRaw (options, delta, check, done) {
+function runRaw (
+  options: Record<string, unknown>,
+  delta: any,
+  check: (n2kSpy: sinon.SinonSpy) => void,
+  done: Mocha.Done
+) {
   const app = new Server().app
   app.providerStatistics = []
   app.debug = () => {}
-  app.error = err => done(err)
+  app.error = (err: unknown) => done(err)
   // Provided by the plugin API in a running server, not by the bare test app
-  app.getPath = path => _.get(app.signalk.retrieve(), path)
+  app.getPath = (path: string) => _.get(app.signalk.retrieve(), path)
   const n2kSpy = sinon.spy()
   app.on('nmea2000out', n2kSpy)
   new Sk2n2K(app).start(options)
@@ -331,7 +351,13 @@ function runRaw (options, delta, check, done) {
 
 // Sends the first delta, records how many PGNs went out, then sends the rest
 // and lets check() inspect the spy after `wait` ms.
-function run (options, deltas, check, done, wait = SETTLE_MS) {
+function run (
+  options: Record<string, unknown>,
+  deltas: Value[],
+  check: (n2kSpy: sinon.SinonSpy, sentBefore: number) => void,
+  done: Mocha.Done,
+  wait = SETTLE_MS
+) {
   const app = new Server().app
   app.providerStatistics = []
   app.debug = () => {}
@@ -356,15 +382,16 @@ function run (options, deltas, check, done, wait = SETTLE_MS) {
   }, SETTLE_MS)
 }
 
-function send (app, { path, value, source }) {
-  const update = { values: [{ path, value }] }
+function send (app: any, { path, value, source }: Value) {
+  const update: { values: { path: string; value: unknown }[]; source?: Source } = { values: [{ path, value }] }
   if (source) {
     update.source = source
   }
   app.handleMessage(source ? source.label : 'testInput', { updates: [update] })
 }
 
-function lastFields (n2kSpy) {
-  return new FromPgn({ useCamel: false }).parseString(n2kSpy.lastCall.args[0])
+// Decoded with display names, which the ts-pgns types don't have
+function lastFields (n2kSpy: sinon.SinonSpy): any {
+  return new FromPgn({ useCamel: false }).parseString(n2kSpy.lastCall.args[0])!
     .fields
 }

@@ -1,6 +1,7 @@
-const chai = require('chai')
+import chai from 'chai'
 chai.should()
-const { FromPgn, pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
+import { FromPgn, pgnToActisenseSerialFormat } from '@canboat/canboatjs'
+import { PGN } from '@canboat/ts-pgns'
 
 const createRaymarineNavigation = require('../dist/conversions/raymarineNavigation')
 
@@ -27,12 +28,19 @@ const ROUTE = {
   }
 }
 
+interface MockOptions {
+  distance?: number
+  position?: { longitude: number; latitude: number } | null
+  route?: typeof ROUTE | null
+  activeRoute?: { href: string; pointIndex: number; pointTotal: number }
+}
+
 function mockApp ({
   distance = 1915751,
   position = { longitude: -78.6349923366475, latitude: 26.51859369671446 },
   route = ROUTE,
   activeRoute = { href: 'mock', pointIndex: 0, pointTotal: 12 }
-} = {}) {
+}: MockOptions = {}) {
   return {
     courseApi: {
       getCourse: async () => ({
@@ -46,9 +54,9 @@ function mockApp ({
     resourcesApi: {
       getResource: async () => route
     },
-    getSelfPath: (key) => {
+    getSelfPath: (key: string) => {
       if (key === 'navigation.course.calcValues') {
-        const calcValues = {
+        const calcValues: Record<string, { value: number }> = {
           bearingTrue: { value: 0.1885 },
           bearingMagnetic: { value: 0.3392 }
         }
@@ -63,14 +71,15 @@ function mockApp ({
   }
 }
 
-function subConversions (app) {
+function subConversions (app: any) {
   const [conversion] = createRaymarineNavigation(app, {})
   return conversion.conversions({})
 }
 
-function parse (messages) {
+// Decoded with display names, which the ts-pgns types don't have
+function parse (messages: PGN[]): any[] {
   return messages.map((message) => {
-    const pgn = parser.parseString(pgnToActisenseSerialFormat(message))
+    const pgn: any = parser.parseString(pgnToActisenseSerialFormat(message))
     delete pgn.description
     delete pgn.src
     delete pgn.timestamp

@@ -1,23 +1,29 @@
-const { FromPgn } = require('@canboat/canboatjs')
+import { FromPgn } from '@canboat/canboatjs'
 const Bacon = require('baconjs')
-const chai = require('chai')
-const assert = chai.assert
-const sinon = require('sinon')
+import chai from 'chai'
+const assert: Chai.AssertStatic = chai.assert
+import sinon from 'sinon'
 
 // Runs the plugin against a mock app whose streambundle hands out real Bacon
 // buses, the same way the server's StreamBundle does. Guards the
 // onValueChange path in index.js (timeoutingArrayStream), which is not
 // covered by the per-conversion tests.
-function makeApp() {
-  const buses = {}
-  const emitted = []
-  const subscribers = []
-  const debug = () => {}
-  debug.enabled = false
-  const selfData = {
+interface Subscriber {
+  subscription: { subscribe: { path: string }[] }
+  callback: (delta: unknown) => void
+}
+
+// A mock app, as loose as the server's
+function makeApp(): any {
+  const buses: Record<string, any> = {}
+  // Decoded with display names, which the ts-pgns types don't have
+  const emitted: any[] = []
+  const subscribers: Subscriber[] = []
+  const debug = Object.assign(() => {}, { enabled: false })
+  const selfData: Record<string, unknown> = {
     'environment.depth.surfaceToTransducer.value': 1
   }
-  const sources = {}
+  const sources: Record<string, unknown> = {}
   return {
     emitted,
     buses,
@@ -26,22 +32,27 @@ function makeApp() {
     sources,
     debug,
     error: () => {},
-    getSelfPath: (p) => selfData[p],
-    getPath: (p) => (p === 'sources' ? sources : undefined),
+    getSelfPath: (p: string) => selfData[p],
+    getPath: (p: string) => (p === 'sources' ? sources : undefined),
     subscriptionmanager: {
-      subscribe: (subscription, unsubscribes, onError, callback) => {
+      subscribe: (
+        subscription: Subscriber['subscription'],
+        unsubscribes: unknown[],
+        onError: unknown,
+        callback: Subscriber['callback']
+      ) => {
         subscribers.push({ subscription, callback })
       }
     },
     signalk: { self: {}, on: () => {} },
     selfId: 'urn:mrn:signalk:uuid:test',
-    emit: (event, pgn) => {
+    emit: (event: string, pgn: string) => {
       if (event === 'nmea2000out') {
         emitted.push(new FromPgn({ useCamel: false }).parseString(pgn))
       }
     },
     streambundle: {
-      getSelfBus: (path) => {
+      getSelfBus: (path: string) => {
         if (!buses[path]) {
           buses[path] = new Bacon.Bus()
         }
@@ -80,7 +91,7 @@ describe('onValueChange conversions over the streambundle', () => {
     plugin.start({ routewpinformation: { enabled: true } })
 
     const publish = () =>
-      ['activeRoute', 'nextPoint', 'previousPoint'].forEach((key) =>
+      (['activeRoute', 'nextPoint', 'previousPoint'] as const).forEach((key) =>
         app.buses[`navigation.course.${key}`].push({
           path: `navigation.course.${key}`,
           value: course[key],
@@ -88,7 +99,7 @@ describe('onValueChange conversions over the streambundle', () => {
         })
       )
     const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
-    const routeInfo = () => app.emitted.filter((pgn) => pgn.pgn === 129285)
+    const routeInfo = () => app.emitted.filter((pgn: { pgn: number }) => pgn.pgn === 129285)
     // Only Date: the streams and the 2 s timer keep real time
     const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
 
@@ -137,9 +148,9 @@ describe('a course that came from NMEA 2000', () => {
   // Long enough for a 129285 timer tick (2 s) and two 129284 ticks (1 s)
   const TIMER_WAIT = 2200
   const settle = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms))
-  const sent = (app, pgn) => app.emitted.filter((msg) => msg.pgn === pgn)
+  const sent = (app: any, pgn: number) => app.emitted.filter((msg: { pgn: number }) => msg.pgn === pgn)
 
-  function startPlugin(app, course, options = {}, xteOptions = {}) {
+  function startPlugin(app: any, course: () => Course, options = {}, xteOptions = {}) {
     app.sources.can0 = { label: 'can0', type: 'NMEA2000' }
     app.selfData['navigation.course.calcValues'] = {
       distance: { value: 1000 },
@@ -161,8 +172,8 @@ describe('a course that came from NMEA 2000', () => {
 
   // As the Course API emits a course: the course from its own source, the
   // nextPoint with the $source of the source that set it
-  function publish(app, course, $source, timestamp = new Date().toISOString()) {
-    ;['activeRoute', 'previousPoint'].forEach((key) =>
+  function publish(app: any, course: Course, $source: string, timestamp = new Date().toISOString()) {
+    ;(['activeRoute', 'previousPoint'] as const).forEach((key) =>
       app.buses[`navigation.course.${key}`].push({
         path: `navigation.course.${key}`,
         value: course[key],
@@ -181,7 +192,7 @@ describe('a course that came from NMEA 2000', () => {
 
   // XTE arrives from the server's course calculations, not from NMEA 2000, so
   // only the course origin can hold 129283 back
-  function publishXte(app) {
+  function publishXte(app: any) {
     app.buses['navigation.course.calcValues.crossTrackError'].push({
       path: 'navigation.course.calcValues.crossTrackError',
       value: 12,
@@ -190,11 +201,11 @@ describe('a course that came from NMEA 2000', () => {
   }
 
   // The mock subscription manager has no cache, so a test replays it by hand
-  function replay(app, updates) {
+  function replay(app: any, updates: { $source: string; timestamp: string; value: unknown }[]) {
     app.subscribers
-      .filter(({ subscription }) =>
+      .filter(({ subscription }: Subscriber) =>
         subscription.subscribe.some((row) => row.path === 'navigation.course.nextPoint'))
-      .forEach(({ callback }) => callback({
+      .forEach(({ callback }: Subscriber) => callback({
         context: 'vessels.urn:mrn:signalk:uuid:test',
         updates: updates.map(({ $source, timestamp, value }) => ({
           $source,
@@ -319,7 +330,10 @@ describe('a course that came from NMEA 2000', () => {
   })
 })
 
-function goto(destination) {
+// A course as the Course API gives it
+type Course = ReturnType<typeof goto>
+
+function goto(destination: { latitude: number; longitude: number }) {
   return {
     activeRoute: null,
     previousPoint: {

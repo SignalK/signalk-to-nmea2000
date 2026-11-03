@@ -1,14 +1,14 @@
-const chai = require('chai')
+import chai from 'chai'
 chai.should()
-const sinon = require('sinon')
-const { FromPgn } = require('@canboat/canboatjs')
+import sinon from 'sinon'
+import { FromPgn } from '@canboat/canboatjs'
 
 const Sk2n2K = require('../dist')
 const Server = require('signalk-server/lib/')
 
 const SETTLE_MS = 100
 
-function start (options) {
+function start (options: Record<string, unknown>) {
   const app = new Server().app
   app.providerStatistics = []
   app.debug = () => {}
@@ -18,10 +18,11 @@ function start (options) {
   return { app, n2kSpy }
 }
 
-const send = (app, values) =>
+const send = (app: any, values: { path: string; value: unknown }[]) =>
   app.handleMessage('testInput', { updates: [{ values }] })
 
-const decoded = n2kSpy =>
+// Decoded with display names, which the ts-pgns types don't have
+const decoded = (n2kSpy: sinon.SinonSpy): any[] =>
   n2kSpy.getCalls().map(call => new FromPgn({ useCamel: false }).parseString(call.args[0]))
 
 describe('AC power', function () {
@@ -37,7 +38,7 @@ describe('AC power', function () {
       try {
         const last = decoded(n2kSpy).filter(pgn => pgn.pgn === 127503).pop()
         last.fields.Instance.should.equal(3)
-        last.fields.list.map(line => [line.Line, line.Voltage, line.Current]).should.deep.equal([
+        last.fields.list.map((line: any) => [line.Line, line.Voltage, line.Current]).should.deep.equal([
           ['Line 1', 230, 10], ['Line 2', 231, 11], ['Line 3', 232, 12]
         ])
         decoded(n2kSpy).some(pgn => pgn.pgn === 127744).should.equal(false)

@@ -9,5 +9,13 @@
     "sourceMap": true,
     "noEmit": false
   },
-  "include": ["*.js", "*.ts", "./conversions/**/*"]
+  "ts-node": {
+    "files": true
+  },
+  "include": [
+    "*.js",
+    "*.ts",
+    "./conversions/**/*",
+    "./test/*.d.ts"
+  ]
 }

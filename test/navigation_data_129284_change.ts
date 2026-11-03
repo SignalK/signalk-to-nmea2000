@@ -1,7 +1,8 @@
-const chai = require('chai')
+import chai from 'chai'
 chai.should()
-const sinon = require('sinon')
-const { FromPgn, pgnToActisenseSerialFormat } = require('@canboat/canboatjs')
+import sinon from 'sinon'
+import { FromPgn, pgnToActisenseSerialFormat } from '@canboat/canboatjs'
+import { PGN } from '@canboat/ts-pgns'
 
 const createNavigationData = require('../dist/conversions/navigationdata')
 
@@ -20,7 +21,7 @@ function mockApp ({ distance = 1000, stale = false, activeRoute = ROUTE } = {}) 
         activeRoute
       })
     },
-    getSelfPath: (key) => {
+    getSelfPath: (key: string) => {
       if (key === 'navigation.course.calcValues') {
         return {
           distance: { value: distance, timestamp },
@@ -39,16 +40,17 @@ function mockApp ({ distance = 1000, stale = false, activeRoute = ROUTE } = {}) 
 
 // A fresh module per call so the rate-limit and last-course state do not leak
 // between tests.
-function navigationDataSubs (app) {
+function navigationDataSubs (app: any) {
   const modules = createNavigationData(app, {})
-  const navData = modules.find((module) => module.pgn === 129284)
+  const navData = modules.find((module: { pgn?: number }) => module.pgn === 129284)
   const [timer, change] = navData.conversions({})
   return { timer, change }
 }
 
-function parse (messages) {
+// Decoded with display names, which the ts-pgns types don't have
+function parse (messages: PGN[]): any[] {
   return messages.map((message) => {
-    const pgn = parser.parseString(pgnToActisenseSerialFormat(message))
+    const pgn: any = parser.parseString(pgnToActisenseSerialFormat(message))
     delete pgn.description
     delete pgn.src
     delete pgn.timestamp
@@ -59,7 +61,7 @@ function parse (messages) {
 }
 
 describe('Navigation data 129284 course change', function () {
-  let clock
+  let clock: sinon.SinonFakeTimers
 
   beforeEach(function () {
     clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })

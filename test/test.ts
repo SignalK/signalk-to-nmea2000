@@ -1,13 +1,15 @@
-const { pgnToActisenseSerialFormat, FromPgn } = require("@canboat/canboatjs");
-const path = require('path')
-const fs = require('fs')
-const chai = require('chai')
-const assert = chai.assert
-chai.Should()
+import { pgnToActisenseSerialFormat, FromPgn } from '@canboat/canboatjs'
+import path from 'path'
+import fs from 'fs'
+import chai from 'chai'
+import type { Conversion, ConversionTest } from '../types'
+const assert: Chai.AssertStatic = chai.assert
+chai.should()
 //chai.use(require('chai-things'))
 chai.use(require('chai-json-equal'));
 
-function normalizeMmsi (pgn) {
+// A PGN decoded with display names, which the ts-pgns types don't have
+function normalizeMmsi (pgn: any) {
   const fields = pgn && pgn.fields
   if (fields && typeof fields['User ID'] === 'number') {
     fields['User ID'] = String(fields['User ID']).padStart(9, '0')
@@ -16,7 +18,7 @@ function normalizeMmsi (pgn) {
 
 // Reserved and spare fields are filled in by the encoder, not by the
 // conversions, so compare without them.
-function dropReservedAndSpare (pgn) {
+function dropReservedAndSpare (pgn: any) {
   const fields = pgn && pgn.fields
   if (fields) {
     Object.keys(fields)
@@ -27,21 +29,21 @@ function dropReservedAndSpare (pgn) {
 
 const parser = new FromPgn({useCamel: false})
 
-let skSelfData = {}
-let skData = {}
+let skSelfData: Record<string, unknown> = {}
+let skData: Record<string, unknown> = {}
 
 const app = {
-  getSelfPath: (path) => {
+  getSelfPath: (path: string) => {
     return skSelfData[path]
   },
-  getPath: (path) => {
+  getPath: (path: string) => {
     return skData[path]
   },
-  debug: (msg) => {
+  debug: (msg: unknown) => {
   }
 }
 
-function load_conversions () {
+function load_conversions (): (Conversion | Conversion[])[] {
   const fpath = path.join(__dirname, '../dist/conversions')
   const files = fs.readdirSync(fpath).filter(fname => fname.endsWith('.js'))
   return files.map(fname => {
@@ -67,7 +69,7 @@ describe('every conversion has a test', () => {
           subConversions = subConversions(Array.isArray(conversion.testOptions) ? conversion.testOptions[0] : conversion.testOptions)
         }
         assert(subConversions != undefined)
-        subConversions.forEach(subConv => {
+        subConversions!.forEach(subConv => {
           subConv.should.have.property('tests')
         })
         done()
@@ -83,7 +85,7 @@ describe('conversions work', () => {
     }      
     
     conversion.forEach(conversion => {
-      let optionsList = Array.isArray(conversion.testOptions) ? conversion.testOptions : [ conversion.testOptions ]
+      let optionsList: unknown[] = Array.isArray(conversion.testOptions) ? conversion.testOptions : [ conversion.testOptions ]
 
       optionsList.forEach((options, oidx) => {
         var subConversions = conversion.conversions
@@ -92,31 +94,31 @@ describe('conversions work', () => {
         } else if ( typeof subConversions === 'function' ) {
           subConversions = subConversions(options || {})
         }
-        subConversions.forEach(subConv => {
+        subConversions!.forEach(subConv => {
           //subConv.should.have.property('tests')
           if ( subConv.tests ) {
-            subConv.tests.forEach((test, idx) => {
+            subConv.tests.forEach((test: ConversionTest, idx: number) => {
               it(`${conversion.title} test # ${oidx}/${idx} works`, function (done) {
                 skData = test.skData || {}
                 skSelfData = test.skSelfData || {}
-                let result = subConv.callback.call(null, ...test.input)
-                Promise.resolve(result).then(results => {
+                let result = subConv.callback!.call(null, ...test.input!)
+                Promise.resolve(result).then((results: any) => {
                   results = results || []
-                  Promise.all(results).then(pgns => {
+                  Promise.all(results as unknown[]).then(pgns => {
                     let error
-                    assert.equal(pgns.length, test.expected.length, 'number of results returned does not match the number of expected results')
+                    assert.equal(pgns.length, test.expected!.length, 'number of results returned does not match the number of expected results')
                     pgns.forEach((res, idx) => {
                       try
                       {
-                        let encoded = pgnToActisenseSerialFormat(res)
-                        let pgn = parser.parseString(encoded)
+                        let encoded = pgnToActisenseSerialFormat(res as any)
+                        let pgn: any = parser.parseString(encoded!)
                         delete pgn.description
                         delete pgn.src
                         delete pgn.timestamp
                         delete pgn.input
                         delete pgn.id
 
-                        let expected = test.expected[idx]
+                        let expected: any = test.expected![idx]
                         if ( typeof expected === 'function' ) {
                           expected = expected(options)
                         }
