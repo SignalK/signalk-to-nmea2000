@@ -2,14 +2,19 @@
 # Node 22, 24 and 26, as Signal K Server needs Node 22 or later. It also
 # checks the plugin's package, entry point, schema and lifecycle. See
 # https://github.com/SignalK/signalk-server/blob/master/docs/develop/plugins/ci.md
+#
+# For now it runs by hand only (Actions tab, "Run workflow"): its App Store
+# check fails on canboatjs's prebuilt native addon until
+# SignalK/signalk-server#3281 is merged. main.yml runs the tests meanwhile.
+# Once it is merged, restore the push and pull_request triggers below.
 
 name: SignalK Plugin CI
 
 on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+  # push:
+  #   branches: [master]
+  # pull_request:
+  #   branches: [master]
   workflow_dispatch:
     inputs:
       node-versions:

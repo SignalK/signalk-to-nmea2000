@@ -1,0 +1,29 @@
+# Runs the tests on every push and pull request. The shared Signal K plugin
+# CI (signalk-ci.yml) runs by hand only, until SignalK/signalk-server#3281
+# stops it failing on canboatjs's prebuilt native addon.
+
+name: Node.js CI & Test
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22.x, 24.x, 26.x]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - run: npm install
+      - run: npm run build --if-present
+      - run: npm test
