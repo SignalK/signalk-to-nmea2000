@@ -21,7 +21,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           # its bundled npm supports trusted publishing; npm@latest can
           # require a newer Node than the runner has
