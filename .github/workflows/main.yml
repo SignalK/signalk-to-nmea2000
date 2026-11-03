@@ -1,6 +1,6 @@
-# Runs the tests on every push and pull request. The shared Signal K plugin
-# CI (signalk-ci.yml) runs by hand only, until SignalK/signalk-server#3281
-# stops it failing on canboatjs's prebuilt native addon.
+# The shared Signal K plugin CI (signalk-ci.yml) runs by hand only, until
+# SignalK/signalk-server#3281 stops it failing on canboatjs's prebuilt native
+# addon. This workflow runs the tests meanwhile.
 
 name: Node.js CI & Test
 
