@@ -1,12 +1,26 @@
-const path = require('node:path');
-const _ = require('lodash')
+import path from 'path'
+import _ from 'lodash'
+import {
+  PGN_127258,
+  PGN_129283,
+  PGN_129284,
+  PGN_129285,
+  Direction,
+  OffOn,
+  YesNo,
+  ResidualMode,
+  MagneticVariation
+} from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { courseOrigin } = require('../nmea2000Source')
 
 const routeWPDataItemsPerPacket = 3
 
 // A course notification counts while it is raised; the course provider clears
 // it by setting the value to null.
-const isRaised = (notification) => notification != null && notification.state !== 'normal'
+const isRaised = (notification: any): boolean => notification != null && notification.state !== 'normal'
 
 // The course change path sends 129285 at most this often, whatever produces
 // the changes; the timer sends a course held back by it.
@@ -22,7 +36,7 @@ const navigationDataCalcValueTimeout = 10000
 
 // The leaf's timestamp in milliseconds, whether the tree stores it as a number
 // or as the ISO string a delta carries.
-function leafTimestamp(update) {
+function leafTimestamp(update: any): number | undefined {
   if (typeof update.timestamp === 'number')
     return update.timestamp
   if (typeof update.timestamp === 'string') {
@@ -34,7 +48,7 @@ function leafTimestamp(update) {
 }
 
 // A value from a Signal K tree node, or undefined once it is stale.
-function freshValue(node, timeout) {
+function freshValue(node: any, timeout?: number): any {
   if (node == null)
     return undefined
   if (!(node instanceof Object) || !('value' in node))
@@ -47,7 +61,7 @@ function freshValue(node, timeout) {
 
 // The route or single destination of the active course as 129285 messages,
 // null without one
-async function routeWPInformation(app) {
+async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
   var course = await app.courseApi.getCourse()
   if (!course?.nextPoint?.position)
     return null
@@ -56,29 +70,27 @@ async function routeWPInformation(app) {
     // point, when there is one, precedes it as the origin.
     const origin = course.previousPoint?.position
     const dest = course.nextPoint.position
-    return [{
-      pgn: 129285,
-      "prio": 7,
-      "nItems": origin ? 2 : 1,
-      "Database ID": 0,
-      "Supplementary Route/WP data available": "Off",
-      "Navigation direction in route": "Forward",
-      "list": [
-        ...(origin ? [{ "WP Latitude": origin.latitude, "WP Longitude": origin.longitude }] : []),
+    return [withPriority(new PGN_129285({
+      nitems: origin ? 2 : 1,
+      databaseId: 0,
+      supplementaryRouteWpDataAvailable: OffOn.Off,
+      navigationDirectionInRoute: Direction.Forward,
+      list: [
+        ...(origin ? [{ wpLatitude: origin.latitude, wpLongitude: origin.longitude }] : []),
         {
-          "WP ID": 1,
-          "WP Name": course.nextPoint.name || "Waypoint 1",
-          "WP Latitude": dest.latitude,
-          "WP Longitude": dest.longitude
+          wpId: 1,
+          wpName: course.nextPoint.name || "Waypoint 1",
+          wpLatitude: dest.latitude,
+          wpLongitude: dest.longitude
         }
       ]
-    }]
+    }), 7)]
   }
 
   const { href, name, reverse } = course.activeRoute
   // A route resource can be missing or unreadable; without its coordinates
   // there is no route to send.
-  let route
+  let route: any
   try {
     route = await app.resourcesApi.getResource('routes', path.basename(href))
   } catch {
@@ -95,32 +107,31 @@ async function routeWPInformation(app) {
     return null
 
   const coordinates = _.chunk(routeCoordinates, routeWPDataItemsPerPacket)
-  return coordinates.map((coords, i) => {
-    const list = coords.map((coord, j) => {
+  return coordinates.map((coords: number[][], i: number) => {
+    const list = coords.map((coord: number[], j: number) => {
       // Numbered from 1, as 129284's Destination Waypoint Number is
       const waypointId = (routeWPDataItemsPerPacket * i) + j + 1
       return {
-        "WP ID": waypointId,
-        "WP Name": "Waypoint " + waypointId.toString(),
+        wpId: waypointId,
+        wpName: "Waypoint " + waypointId.toString(),
         // GeoJSON coordinates are [longitude, latitude]
-        "WP Latitude": coord[1],
-        "WP Longitude": coord[0]
+        wpLatitude: coord[1],
+        wpLongitude: coord[0]
       }
     })
 
-    return {
-      pgn: 129285,
-      "prio": 7,
-      "Start RPS#" : routeWPDataItemsPerPacket * i,
-      "nItems" : coords.length,
-      "Database ID" :  0,
-      "Route ID" :  0,
-      "Supplementary Route/WP data available" :  "Off",
-      "Reserved": "00",
-      "Route Name": name,
-      "list": list,
-      "Navigation direction in route" : reverse ? "Reverse" : "Forward",
-    }
+    return withPriority(new PGN_129285({
+      startRps: routeWPDataItemsPerPacket * i,
+      nitems: coords.length,
+      databaseId: 0,
+      routeId: 0,
+      supplementaryRouteWpDataAvailable: OffOn.Off,
+      // The reserved bits are left to the encoder (all ones): the "Reserved":
+      // "00" this message used to give never reached them.
+      routeName: name,
+      list: list,
+      navigationDirectionInRoute: reverse ? Direction.Reverse : Direction.Forward
+    }), 7)
   })
 }
 
@@ -131,7 +142,7 @@ let sid129284 = 0
 // active destination. The destination comes from the Course API and the
 // calculated values from the Signal K tree, so that the same data can be sent
 // by the timer and by a course change.
-async function navigationData(app) {
+async function navigationData(app: App): Promise<PGN_129284[] | null> {
   const course = await app.courseApi.getCourse()
   // The Course API returns an object even when no course is active; without a
   // destination there is no navigation data to send.
@@ -170,27 +181,27 @@ async function navigationData(app) {
 
   sid129284 = sid129284 == 252 ? 0 : sid129284 + 1
 
-  return [{
-    pgn: 129284,
-    "SID": sid129284,
-    "Distance to Waypoint": distance,
-    "Course/Bearing reference": 0,
-    "Perpendicular Crossed": isRaised(pp) ? "Yes" : "No",
-    "Arrival Circle Entered": isRaised(ace) ? "Yes" : "No",
-    "Calculation Type": calcMethod == null ? undefined : (calcMethod == "GreatCircle" ? 0 : 1),
-    "ETA Time": (WCV > 0) ? etaTime : undefined,
-    "ETA Date": (WCV > 0) ? etaDate : undefined,
-    "Bearing, Origin to Destination Waypoint": bearingOriginToDest,
-    "Bearing, Position to Destination Waypoint": bearingToDest,
-    "Origin Waypoint Number": undefined,
-    "Destination Waypoint Number": waypointId,
-    "Destination Latitude": course.nextPoint.position.latitude,
-    "Destination Longitude": course.nextPoint.position.longitude,
-    "Waypoint Closing Velocity": WCV,
-  }]
+  return [withPriority(new PGN_129284({
+    sid: sid129284,
+    distanceToWaypoint: distance,
+    courseBearingReference: 0,
+    perpendicularCrossed: isRaised(pp) ? YesNo.Yes : YesNo.No,
+    arrivalCircleEntered: isRaised(ace) ? YesNo.Yes : YesNo.No,
+    calculationType: calcMethod == null ? undefined : (calcMethod == "GreatCircle" ? 0 : 1),
+    etaTime: (WCV > 0) ? etaTime : undefined,
+    // Days since 1970, which the encoder takes for a date
+    etaDate: (WCV > 0) ? etaDate as unknown as string : undefined,
+    bearingOriginToDestinationWaypoint: bearingOriginToDest,
+    bearingPositionToDestinationWaypoint: bearingToDest,
+    originWaypointNumber: undefined,
+    destinationWaypointNumber: waypointId,
+    destinationLatitude: course.nextPoint.position.latitude,
+    destinationLongitude: course.nextPoint.position.longitude,
+    waypointClosingVelocity: WCV
+  }))]
 }
 
-module.exports = (app, plugin) => {
+module.exports = (app: App, plugin: Plugin): Conversion[] => {
   return [{
     pgn: 127258,
     title: 'Magnetic Variation (127258)',
@@ -199,7 +210,7 @@ module.exports = (app, plugin) => {
       'navigation.magneticVariation',
       'navigation.magneticVariation.source'
     ],
-    callback: (variation, source) => {
+    callback: (variation?: number | null, source?: string | null): PGN_127258[] => {
       if (variation === null || variation === undefined) {
         return [];
       }
@@ -210,18 +221,19 @@ module.exports = (app, plugin) => {
       // Format source from "WMM-2025" to "WMM 2025"
       const formattedSource = source ? source.replace('-', ' ') : "Manual";
 
-      return [{
-        pgn: 127258,
-        SID: 0xff,
-        Source: formattedSource,
-        ageOfService: ageOfServiceDays,
-        Variation: variation
-      }];
+      return [withPriority(new PGN_127258({
+        sid: 0xff,
+        // "WMM 2025" and the like, as MAGNETIC_VARIATION names them
+        source: formattedSource as MagneticVariation,
+        // Days since 1970, which the encoder takes for a date
+        ageOfService: ageOfServiceDays as unknown as string,
+        variation: variation
+      }))];
     },
     tests: [{
       input: [ 0.2146, "WMM-2020" ],
       expected: [{
-        "__preprocess__": (testResult) => {
+        "__preprocess__": (testResult: any) => {
           // Age of service changes every day
           delete testResult.fields["Age of service"]
         },
@@ -242,7 +254,7 @@ module.exports = (app, plugin) => {
     keys: [
       'navigation.course.calcValues.crossTrackError'
     ],
-    conversions: (options) => {
+    conversions: (options: any): Conversion[] => {
       // A source picked for the cross track error is sent whatever the course
       const origin = courseOrigin(app, options?.xte?.allowNmea2000Sources ||
         Boolean(options?.xte?.navigationcoursecalcValuescrossTrackError))
@@ -251,12 +263,11 @@ module.exports = (app, plugin) => {
           'navigation.course.calcValues.crossTrackError'
         ],
         withheld: origin.withheld,
-        callback: (XTE) => origin.withheld() ? null : [{
-          pgn: 129283,
-          XTE,
-          "XTE mode": "Autonomous",
-          "Navigation Terminated": "No"
-        }],
+        callback: (XTE: number): PGN_129283[] | null => origin.withheld() ? null : [withPriority(new PGN_129283({
+          xte: XTE,
+          xteMode: ResidualMode.Autonomous,
+          navigationTerminated: YesNo.No
+        }))],
         tests: [{
           input: [ 0.12 ],
           expected: [{
@@ -277,8 +288,8 @@ module.exports = (app, plugin) => {
     pgn: 129284,
     title: 'Navigation Data (129284)',
     optionKey: 'navigationdata',
-    conversions: (options) => {
-      let lastCourse
+    conversions: (options: any): Conversion[] => {
+      let lastCourse: unknown
       let lastChangeSentAt = 0
       let inFlight = false
       const origin = courseOrigin(app, options?.navigationdata?.allowNmea2000Sources)
@@ -288,7 +299,7 @@ module.exports = (app, plugin) => {
       // same second, so the timer waits after a change. A timer send never
       // delays a change, though: only course-change sends move the timestamp,
       // so a change is still immediate unless another change was just sent.
-      async function sendNavigationData(app, onCourseChange) {
+      async function sendNavigationData(app: App, onCourseChange: boolean): Promise<PGN_129284[] | null> {
         if (origin.withheld())
           return null
         // Reserve the slot before awaiting, so the timer and a course change
@@ -314,12 +325,12 @@ module.exports = (app, plugin) => {
         // calculated value that has stopped updating is not sent forever.
         interval: 1000,
         sourceType: 'timer',
-        callback: (app) => sendNavigationData(app, false),
+        callback: (app: App) => sendNavigationData(app, false),
         tests: [{
           // an active route
           input: [ mockNavApp ],
           expected: [{
-            "__preprocess__": (testResult) => {
+            "__preprocess__": (testResult: any) => {
               // the SID increments on every message
               delete testResult.fields["SID"]
               // these change every time
@@ -347,7 +358,7 @@ module.exports = (app, plugin) => {
           // great circle, arrival circle entered, perpendicular cleared
           input: [ mockNavArrivalApp ],
           expected: [{
-            "__preprocess__": (testResult) => {
+            "__preprocess__": (testResult: any) => {
               delete testResult.fields["SID"]
               delete testResult.fields["ETA Date"]
               delete testResult.fields["ETA Time"]
@@ -373,7 +384,7 @@ module.exports = (app, plugin) => {
           // single destination, no route
           input: [ mockNavGotoApp ],
           expected: [{
-            "__preprocess__": (testResult) => {
+            "__preprocess__": (testResult: any) => {
               delete testResult.fields["SID"]
             },
             "prio": 2,
@@ -415,7 +426,7 @@ module.exports = (app, plugin) => {
           'navigation.course.previousPoint'
         ],
         withheld: origin.withheld,
-        callback: (activeRoute, nextPoint, previousPoint) => {
+        callback: (activeRoute: unknown, nextPoint: unknown, previousPoint: unknown) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
             return null
@@ -435,14 +446,14 @@ module.exports = (app, plugin) => {
   {
     title: 'Route/WP Information (129285)',
     optionKey: 'routewpinformation',
-    conversions: (options) => {
-      let lastCourse
+    conversions: (options: any): Conversion[] => {
+      let lastCourse: unknown
       let lastSentOnChange = 0
       const origin = courseOrigin(app, options?.routewpinformation?.allowNmea2000Sources)
       return [{
         interval: 2000,
         sourceType: 'timer',
-        callback: (app) => origin.withheld() ? null : routeWPInformation(app),
+        callback: (app: App) => origin.withheld() ? null : routeWPInformation(app),
         tests: [{
           input: [
             mockApp,
@@ -557,7 +568,7 @@ module.exports = (app, plugin) => {
           'navigation.course.previousPoint'
         ],
         withheld: origin.withheld,
-        callback: (activeRoute, nextPoint, previousPoint) => {
+        callback: (activeRoute: unknown, nextPoint: unknown, previousPoint: unknown) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
             return null
@@ -683,12 +694,12 @@ var mockRouteChangedApp = (() => {
       getCourse: () => course
     },
     resourcesApi: {
-      getResource: async (...args) => {
+      getResource: async (...args: any[]) => {
         course = {
           ...course,
           activeRoute: { ...course.activeRoute, href: course.activeRoute.href + '-next' }
         }
-        return mockApp.resourcesApi.getResource(...args)
+        return (mockApp.resourcesApi.getResource as any)(...args)
       }
     }
   }
@@ -697,13 +708,13 @@ var mockRouteChangedApp = (() => {
 // 129284 mocks: the destination comes from the Course API, the calculated
 // values and notifications from the Signal K tree, as the worker reads them.
 // The leaves are nested so that a subtree can be read in one getSelfPath call.
-function mockNavSelf(values) {
+function mockNavSelf(values: Record<string, unknown>) {
   const tree = {}
   Object.entries(values).forEach(([key, value]) => {
     _.set(tree, key, { value })
   })
   return {
-    getSelfPath: (key) => _.get(tree, key)
+    getSelfPath: (key: string) => _.get(tree, key)
   }
 }
 
@@ -853,7 +864,7 @@ var mockNavStaleDistanceApp = {
       }
     })
   },
-  getSelfPath: (key) => {
+  getSelfPath: (key: string) => {
     if (key !== 'navigation.course.calcValues')
       return undefined
     const timestamp = Date.now() - navigationDataCalcValueTimeout - 1

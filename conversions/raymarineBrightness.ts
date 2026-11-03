@@ -1,6 +1,17 @@
-const _ = require('lodash')
+import _ from 'lodash'
+import {
+  PGN_126720_Seatalk1DisplayBrightness,
+  SeatalkNetworkGroup
+} from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+interface Group {
+  signalkId: string
+  instanceId: string
+}
+
+module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Raymarine (Seatalk) Display Brightness (126720)',
     optionKey: 'RAYMARINE',
@@ -34,27 +45,25 @@ module.exports = (app, plugin) => {
       }
     },
 
-    conversions: (options) => {
+    conversions: (options: any) => {
       if (!_.get(options, 'RAYMARINE.groups')) {
         return null
       }
-      return options.RAYMARINE.groups.map(group => {
+      return options.RAYMARINE.groups.map((group: Group) => {
         return {
           keys: [`electrical.displays.raymarine.${group.signalkId}.brightness`],
-          callback: (brightness) => {
-            return [{
-              pgn: 126720,
-              "dst": 255,
-              "Manufacturer Code": "Raymarine",
-              "Industry Code": "Marine Industry",
-              "Proprietary ID": "Display",
-              "command1": "Settings",
-              "Command": "Brightness",
-              "Group": group.instanceId,
+          callback: (brightness: number): PGN_126720_Seatalk1DisplayBrightness[] => {
+            // The class sets Raymarine, Marine Industry, Display, Settings
+            // and Brightness itself.
+            const pgn = withPriority(new PGN_126720_Seatalk1DisplayBrightness({
+              // The group name as configured, e.g. "Helm 2"
+              group: group.instanceId as SeatalkNetworkGroup,
               // canboatjs 4 takes the brightness as a ratio.
-              "Brightness": brightness,
-              "Unknown 2": 0
-            }]
+              brightness: brightness
+            }, 255))
+            // Not among the class's arguments; the message has always sent 0.
+            pgn.fields.unknown2 = 0
+            return [pgn]
           },
           tests: [{
             input: [0.85],

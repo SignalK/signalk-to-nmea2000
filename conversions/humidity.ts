@@ -1,5 +1,8 @@
+import { PGN_130313, HumiditySource } from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
 
-module.exports = (app, plugin) => {
+module.exports = (app: App, plugin: Plugin): Conversion[] => {
   return [{
     pgn: 130313,
     title: 'Outside Humidity (PGN130313)',
@@ -10,13 +13,12 @@ module.exports = (app, plugin) => {
       "environment.outside.humidity",
       "environment.outside.relativeHumidity"
     ],
-    callback: (humidity, relativeHumidity) => {
-      return [{
-        pgn: 130313,
-        "Instance": 100,
-        "Source": "Outside",
-        "Actual Humidity": humidity ?? relativeHumidity,
-      }]
+    callback: (humidity?: number | null, relativeHumidity?: number | null): PGN_130313[] => {
+      return [withPriority(new PGN_130313({
+        instance: 100,
+        source: HumiditySource.Outside,
+        actualHumidity: humidity ?? relativeHumidity ?? undefined
+      }))]
     },
     tests: [{
       input: [ .50, undefined ],
@@ -50,13 +52,12 @@ module.exports = (app, plugin) => {
     keys: [
       "environment.inside.relativeHumidity"
     ],
-    callback: (humidity) => {
-      return [{
-        pgn: 130313,
-        "Instance": 100,
-        "Source": "Inside",
-        "Actual Humidity": humidity,
-      }]
+    callback: (humidity: number): PGN_130313[] => {
+      return [withPriority(new PGN_130313({
+        instance: 100,
+        source: HumiditySource.Inside,
+        actualHumidity: humidity
+      }))]
     },
     tests: [{
       input: [ 1.0 ],

@@ -1,7 +1,16 @@
-const path = require('node:path');
-const geolib= require('geolib');
-const _ = require('lodash')
+import path from 'path'
+import * as geolib from 'geolib'
+import _ from 'lodash'
+import {
+  PGN_130848_SeatalkWaypointInformation,
+  PGN_130918_SeatalkRouteInformation
+} from '@canboat/ts-pgns'
+import { App, Plugin, Conversion } from '../types'
+import { withPriority } from '../pgn'
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const { courseOrigin } = require('../nmea2000Source')
+
+type RaymarinePgn = PGN_130848_SeatalkWaypointInformation | PGN_130918_SeatalkRouteInformation
 
 // The course change path sends these PGNs at most this often, whatever
 // produces the changes; the timer sends a value held back by it.
@@ -15,13 +24,13 @@ let sid130848 = 0
 // the timer has to expire them itself rather than repeat a stale value.
 const raymarineCalcValueTimeout = 10000
 
-function toRadians(value) {
+function toRadians(value: number): number {
   return (value * Math.PI) / 180;
 }
 
 // The leaf's timestamp in milliseconds, whether the tree stores it as a number
 // or as the ISO string a delta carries.
-function leafTimestamp(update) {
+function leafTimestamp(update: any): number | undefined {
   if (typeof update.timestamp === 'number')
     return update.timestamp
   if (typeof update.timestamp === 'string') {
@@ -33,7 +42,7 @@ function leafTimestamp(update) {
 }
 
 // A value from a Signal K tree node, or undefined once it is stale.
-function freshValue(node, timeout) {
+function freshValue(node: any, timeout?: number): any {
   if (node == null)
     return undefined
   if (!(node instanceof Object) || !('value' in node))
@@ -48,7 +57,7 @@ function freshValue(node, timeout) {
 // calculated values are read from the Signal K tree and the destination from
 // the Course API, so the same data can be sent by the timer and by a course
 // change.
-async function raymarineRouteWP(app) {
+async function raymarineRouteWP(app: App): Promise<PGN_130848_SeatalkWaypointInformation[] | null> {
   const course = await app.courseApi.getCourse()
   if (!course?.nextPoint)
     return null
@@ -69,24 +78,21 @@ async function raymarineRouteWP(app) {
 
   sid130848 = sid130848 == 252 ? 0 : sid130848 + 1
 
-  return [{
-    pgn: 130848,
-    "dst": 255,
-    "Manufacturer Code": "Raymarine",
-    "Industry Code": "Marine Industry",
-    "SID": sid130848,
-    "Waypoint Name": waypointName,
-    "Waypoint Sequence": waypointId.toString().padStart(4, '0'),
-    "Bearing to Waypoint, True": freshValue(calcValues.bearingTrue, raymarineCalcValueTimeout),
-    "Bearing to Waypoint, Magnetic": freshValue(calcValues.bearingMagnetic, raymarineCalcValueTimeout),
-    "Distance to Waypoint": distance
-  }]
+  // The class sets Raymarine and Marine Industry itself.
+  return [withPriority(new PGN_130848_SeatalkWaypointInformation({
+    sid: sid130848,
+    waypointName: waypointName,
+    waypointSequence: waypointId.toString().padStart(4, '0'),
+    bearingToWaypointTrue: freshValue(calcValues.bearingTrue, raymarineCalcValueTimeout),
+    bearingToWaypointMagnetic: freshValue(calcValues.bearingMagnetic, raymarineCalcValueTimeout),
+    distanceToWaypoint: distance
+  }, 255))]
 }
 
 // Raymarine current and next waypoint information (130918), or null without a
 // destination. Like 130848, the calculated values and vessel position are read
 // from the tree, so the timer and a course change share the same worker.
-async function raymarineRouteInfo(app) {
+async function raymarineRouteInfo(app: App): Promise<PGN_130918_SeatalkRouteInformation[] | null> {
   const course = await app.courseApi.getCourse()
   if (!course?.nextPoint)
     return null
@@ -105,11 +111,11 @@ async function raymarineRouteInfo(app) {
   let currentWaypointId = 1
   let currentWaypointName = "Destination"
   let nextWaypointId = 255
-  let nextWaypointName = undefined
+  let nextWaypointName: string | undefined = undefined
   let unknownFlags = 0
-  let bearingCurrentToNext = undefined
-  let bearingPositionToNext = undefined
-  let distancePositionToNext = undefined
+  let bearingCurrentToNext: number | undefined = undefined
+  let bearingPositionToNext: number | undefined = undefined
+  let distancePositionToNext: number | undefined = undefined
 
   if (pointIndex !== undefined) {
     currentWaypointId = pointIndex + 1
@@ -123,7 +129,7 @@ async function raymarineRouteInfo(app) {
   } else {
     // A route resource can be missing or unreadable; without its coordinates
     // there is no next leg to send.
-    let route
+    let route: any
     try {
       route = await app.resourcesApi.getResource('routes', path.basename(course.activeRoute.href))
     } catch {
@@ -155,38 +161,35 @@ async function raymarineRouteInfo(app) {
     )
   }
 
-  return [{
-    pgn: 130918,
-    "dst": 255,
-    "Manufacturer Code": "Raymarine",
-    "Industry Code": "Marine Industry",
-    "Current Waypoint Name": currentWaypointName,
-    "Current Waypoint Sequence": currentWaypointId,
-    "Next Waypoint Sequence": nextWaypointId,
-    "Next Waypoint Name": nextWaypointName,
-    "Unknown": unknownFlags,
-    'Bearing, Current Waypoint to Next Waypoint, True': bearingCurrentToNext,
-    'Bearing, Position to Next Waypoint, True': bearingPositionToNext,
-    'Distance, Position to Next Waypoint': distancePositionToNext,
-  }]
+  // The class sets Raymarine and Marine Industry itself.
+  return [withPriority(new PGN_130918_SeatalkRouteInformation({
+    currentWaypointName: currentWaypointName,
+    currentWaypointSequence: currentWaypointId,
+    nextWaypointSequence: nextWaypointId,
+    nextWaypointName: nextWaypointName,
+    unknown: unknownFlags,
+    bearingCurrentWaypointToNextWaypointTrue: bearingCurrentToNext,
+    bearingPositionToNextWaypointTrue: bearingPositionToNext,
+    distancePositionToNextWaypoint: distancePositionToNext
+  }, 255))]
 }
 
-module.exports = (app, plugin) => {
+module.exports = (app: App, plugin: Plugin): Conversion[] => {
   return [{
     title: 'Raymarine Route and Waypoint Information (130848, 130918)',
     optionKey: 'RAYMARINENAV',
-    conversions: (options) => {
+    conversions: (options: any): Conversion[] => {
       const origin = courseOrigin(app, options?.RAYMARINENAV?.allowNmea2000Sources)
 
       // A timer and a course change both send through a rate-limited sender,
       // so a change just before a timer tick cannot put two of the same PGN on
       // the bus in the same second. A send that produces nothing does not
       // count.
-      function rateLimited(worker) {
+      function rateLimited(worker: (app: App) => Promise<RaymarinePgn[] | null>) {
         let lastSentAt = 0
         let lastChangeSentAt = 0
         let inFlight = false
-        return async (app, onCourseChange) => {
+        return async (app: App, onCourseChange: boolean): Promise<RaymarinePgn[] | null> => {
           if (origin.withheld())
             return null
           // Reserve the slot before awaiting, so the timer and a course change
@@ -215,9 +218,9 @@ module.exports = (app, plugin) => {
 
       // A course change sends at once, but only when the course itself changed
       // and there is a destination; the sender applies the shared rate limit.
-      function onCourseChange(sender) {
-        let lastCourse
-        return (activeRoute, nextPoint, previousPoint) => {
+      function onCourseChange(sender: (app: App, onCourseChange: boolean) => Promise<RaymarinePgn[] | null>) {
+        let lastCourse: unknown
+        return (activeRoute: unknown, nextPoint: unknown, previousPoint: unknown) => {
           const course = [activeRoute, nextPoint, previousPoint]
           if (_.isEqual(course, lastCourse))
             return null
@@ -241,11 +244,11 @@ module.exports = (app, plugin) => {
         // server has nulled as stale is not sent forever.
         interval: 1000,
         sourceType: 'timer',
-        callback: (app) => sendRouteWP(app, false),
+        callback: (app: App) => sendRouteWP(app, false),
         tests: [{
           input: [ mockApp ],
           expected: [{
-            "__preprocess__": (testResult) => {
+            "__preprocess__": (testResult: any) => {
               // the SID increments on every message
               delete testResult.fields.SID
             },
@@ -283,7 +286,7 @@ module.exports = (app, plugin) => {
       }, {
         interval: 1000,
         sourceType: 'timer',
-        callback: (app) => sendRouteInfo(app, false),
+        callback: (app: App) => sendRouteInfo(app, false),
         tests: [{
           input: [ mockApp ],
           expected: [{
@@ -358,12 +361,12 @@ module.exports = (app, plugin) => {
 
 // The course values and vessel position as the workers read them: nested so
 // that a subtree can be read in one getSelfPath call.
-function mockSelf(values) {
+function mockSelf(values: Record<string, unknown>) {
   const tree = {}
   Object.entries(values).forEach(([key, value]) => {
     _.set(tree, key, { value })
   })
-  return (key) => _.get(tree, key)
+  return (key: string) => _.get(tree, key)
 }
 
 var mockApp = {
@@ -475,7 +478,7 @@ var mockNoDistanceApp = {
 // A calculated distance that has stopped updating.
 var mockStaleDistanceApp = {
   ...mockApp,
-  getSelfPath: (key) => {
+  getSelfPath: (key: string) => {
     if (key !== 'navigation.course.calcValues')
       return undefined
     return {
