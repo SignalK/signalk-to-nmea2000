@@ -3,11 +3,11 @@ name: Publish to npm
 # https://stackoverflow.com/questions/69063452/github-actions-on-release-created-workflow-trigger-not-working
 on:
   workflow_run:
-    workflows: ["Release on tag"]
+    workflows: ['Release on tag']
     types: [completed]
 
 permissions:
-  id-token: write  # Required for OIDC
+  id-token: write # Required for OIDC
   contents: read
 
 jobs:
@@ -18,19 +18,19 @@ jobs:
       # for a tag push, head_branch is the tag name
       TAG: ${{ github.event.workflow_run.head_branch }}
     steps:
-    - uses: actions/checkout@v6
-      with:
-        ref: ${{ github.event.workflow_run.head_sha }}
-    - uses: actions/setup-node@v6
-      with:
-        # its bundled npm supports trusted publishing; npm@latest can
-        # require a newer Node than the runner has
-        node-version: '24.x'
-    - run: npm --version
-    - run: |
-        if [[ "$TAG" == *beta* ]];
-          then
-            npm publish --access public --tag beta
-          else
-            npm publish --access public
-        fi
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - uses: actions/setup-node@v6
+        with:
+          # its bundled npm supports trusted publishing; npm@latest can
+          # require a newer Node than the runner has
+          node-version: '24.x'
+      - run: npm --version
+      - run: |
+          if [[ "$TAG" == *beta* ]];
+            then
+              npm publish --access public --tag beta
+            else
+              npm publish --access public
+          fi

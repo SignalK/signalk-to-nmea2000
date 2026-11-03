@@ -10,14 +10,8 @@ interface Charger {
 }
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
+  const solarKeys = ['voltage', 'current', 'panelCurrent', 'panelVoltage']
 
-  const solarKeys = [
-    'voltage',
-    'current',
-    'panelCurrent',
-    'panelVoltage'
-  ]
-  
   return {
     title: 'Solar as Battery (127506 & 127508)',
     optionKey: 'SOLAR',
@@ -26,7 +20,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       const chargerIds =
         typeof app.getSelfPath === 'function'
           ? Object.keys(app.getSelfPath('electrical.solar') || {}).filter(
-              id => id !== 'meta'
+              (id) => id !== 'meta'
             )
           : []
       return {
@@ -35,7 +29,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           type: 'array',
           items: {
             type: 'object',
-            required: ["signalkId", "instanceId", "panelInstanceId"],
+            required: ['signalkId', 'instanceId', 'panelInstanceId'],
             properties: {
               signalkId: {
                 title: 'Signal K Solar id',
@@ -62,22 +56,26 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
 
     testOptions: {
       SOLAR: {
-        chargers:[{
-          signalkId: 'bimini',
-          instanceId: 10,
-          panelInstanceId: 11
-        }]
+        chargers: [
+          {
+            signalkId: 'bimini',
+            instanceId: 10,
+            panelInstanceId: 11
+          }
+        ]
       }
     },
-    
+
     conversions: (options: any) => {
-      if ( !_.get(options, 'SOLAR.chargers') ) {
+      if (!_.get(options, 'SOLAR.chargers')) {
         return null as unknown as Conversion[]
       }
       return options.SOLAR.chargers.map((charger: Charger) => {
         return {
-          keys: solarKeys.map(key => `electrical.solar.${charger.signalkId}.${key}`),
-          timeouts: solarKeys.map(key => 60000),
+          keys: solarKeys.map(
+            (key) => `electrical.solar.${charger.signalkId}.${key}`
+          ),
+          timeouts: solarKeys.map((key) => 60000),
           callback: (
             voltage: number | null,
             current: number | null,
@@ -85,51 +83,60 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             panelVoltage: number | null
           ): PGN_127508[] => {
             var res: PGN_127508[] = []
-            if ( voltage != null
-                 || current != null ) {
-              res.push(withPriority(new PGN_127508({
-                instance: charger.instanceId,
-                voltage: voltage as number,
-                current: current as number
-              })))
+            if (voltage != null || current != null) {
+              res.push(
+                withPriority(
+                  new PGN_127508({
+                    instance: charger.instanceId,
+                    voltage: voltage as number,
+                    current: current as number
+                  })
+                )
+              )
             }
-            if ( panelVoltage != null
-                 || panelCurrent != null ) {
-              res.push(withPriority(new PGN_127508({
-                instance: charger.panelInstanceId,
-                voltage: panelVoltage as number,
-                current: panelCurrent as number
-              })))
+            if (panelVoltage != null || panelCurrent != null) {
+              res.push(
+                withPriority(
+                  new PGN_127508({
+                    instance: charger.panelInstanceId,
+                    voltage: panelVoltage as number,
+                    current: panelCurrent as number
+                  })
+                )
+              )
             }
-            
+
             return res
           },
-          tests: [{
-            input: [ 13, 5, 2, 45.0 ],
-            expected: [{
-              "prio": 2,
-              "pgn": 127508,
-              "dst": 255,
-              "fields": {
-                "Instance": 10,
-                "Voltage": 13,
-                "Current": 5
-              }
-            },{
-              "prio": 2,
-              "pgn": 127508,
-              "dst": 255,
-              "fields": {
-                "Instance": 11,
-                "Voltage": 45,
-                "Current": 2
-              }
-            }]
-          }]
+          tests: [
+            {
+              input: [13, 5, 2, 45.0],
+              expected: [
+                {
+                  prio: 2,
+                  pgn: 127508,
+                  dst: 255,
+                  fields: {
+                    Instance: 10,
+                    Voltage: 13,
+                    Current: 5
+                  }
+                },
+                {
+                  prio: 2,
+                  pgn: 127508,
+                  dst: 255,
+                  fields: {
+                    Instance: 11,
+                    Voltage: 45,
+                    Current: 2
+                  }
+                }
+              ]
+            }
+          ]
         }
       })
     }
   }
 }
-
-

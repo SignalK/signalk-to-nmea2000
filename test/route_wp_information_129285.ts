@@ -18,22 +18,34 @@ describe('Route/WP Information 129285', function () {
     },
     resourcesApi: {
       getResource: async () => ({
-        feature: { geometry: { coordinates: [[138.1, -35.1], [138.2, -35.2]] } }
+        feature: {
+          geometry: {
+            coordinates: [
+              [138.1, -35.1],
+              [138.2, -35.2]
+            ]
+          }
+        }
       })
     }
   }
 
-  async function routePacketBytes (): Promise<number[]> {
-    const conversions: Conversion[] = require('../dist/conversions/navigationdata')(app, {})
-    const routeWP = conversions.find(c => c.optionKey === 'routewpinformation')!
-    const [conversion] = (routeWP.conversions as (options: unknown) => Conversion[])({})
+  async function routePacketBytes(): Promise<number[]> {
+    const conversions: Conversion[] =
+      require('../dist/conversions/navigationdata')(app, {})
+    const routeWP = conversions.find(
+      (c) => c.optionKey === 'routewpinformation'
+    )!
+    const [conversion] = (
+      routeWP.conversions as (options: unknown) => Conversion[]
+    )({})
     const pgns: any = await conversion.callback!(app)
     assert.equal(pgns.length, 1)
     // timestamp,prio,pgn,src,dst,len,data bytes...
     return pgnToActisenseSerialFormat(pgns[0])!
       .split(',')
       .slice(6)
-      .map(byte => parseInt(byte, 16))
+      .map((byte) => parseInt(byte, 16))
   }
 
   it('sets the reserved bits of a route packet to ones', async function () {
@@ -41,7 +53,11 @@ describe('Route/WP Information 129285', function () {
     // Start RPS#, nItems, Database ID and Route ID: 2 bytes each
     const flags = data[8]
     assert.equal(flags & 0x07, 0, 'Navigation direction in route: Forward')
-    assert.equal((flags >> 3) & 0x03, 0, 'Supplementary Route/WP data available: Off')
+    assert.equal(
+      (flags >> 3) & 0x03,
+      0,
+      'Supplementary Route/WP data available: Off'
+    )
     assert.equal(flags >> 5, 0x07, 'the 3 reserved bits')
 
     // Route Name "R": length 3, encoding 1 (ASCII), one character

@@ -12,10 +12,10 @@ import { withPriority } from '../pgn'
 type AlertPgn = PGN_126983 | PGN_126985
 
 const alertTypes: Record<string, AlertType> = {
-  "emergency": AlertType.EmergencyAlarm,
-  "alarm": AlertType.Alarm,
-  "warn": AlertType.Warning,
-  "alert": AlertType.Caution
+  emergency: AlertType.EmergencyAlarm,
+  alarm: AlertType.Alarm,
+  warn: AlertType.Warning,
+  alert: AlertType.Caution
 }
 
 const alertCategory = AlertCategory.Technical
@@ -34,21 +34,20 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
   let idCounter = 0
   let ids: Record<string, number> = {}
   let pgns: AlertPgn[] = []
-  let cleared: Record<number, { pgn: PGN_126983, until: number }> = {}
+  let cleared: Record<number, { pgn: PGN_126983; until: number }> = {}
   let lastSent = 0
 
   return {
     title: 'Notifications (126983, 126985)',
     optionKey: 'NOTIFICATIONS',
-    keys: ["notifications.*"],
+    keys: ['notifications.*'],
     context: 'vessels.self',
-    'sourceType': 'subscription',
+    sourceType: 'subscription',
     // Alerts received from the bus land in notifications.nmea.*, which the
     // callback skips, so sending one back cannot loop; alerts made from
     // other NMEA 2000 data (engine status, DSC) are new to the bus.
     preventsNmea2000Echo: true,
     callback: (delta: any): AlertPgn[] | undefined => {
-
       const update = delta.updates[0].values[0]
       const value = update.value
       const type = alertTypes[value.state]
@@ -70,12 +69,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         app.debug(`Assigning new alertId ${alertId} to ${update.path}`)
       }
 
-      const before = pgns.filter(obj => obj.fields.alertId === alertId)
+      const before = pgns.filter((obj) => obj.fields.alertId === alertId)
 
       //remove the pgns and reprocess them for changes
-      pgns = pgns.filter(function(obj) {
-        return obj.fields.alertId !== alertId;
-      });
+      pgns = pgns.filter(function (obj) {
+        return obj.fields.alertId !== alertId
+      })
 
       if (value.state !== 'normal') {
         delete cleared[alertId]
@@ -92,125 +91,152 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
 
         // The NAME as a 16-digit string, which the encoder writes as is.
         let idName = alertId.toString().padStart(16, '0') as unknown as number
-        pgns.push(withPriority(new PGN_126985({
-          alertId: alertId,
-          alertType: type,
-          alertCategory: alertCategory,
-          alertSystem: alertSystem,
-          alertSubSystem: 0,
-          dataSourceNetworkIdName: idName,
-          dataSourceInstance: 0,
-          dataSourceIndexSource: 0,
-          alertOccurrenceNumber: 0,
-          languageId: 0,
-          alertTextDescription: value.message
-        })))
-        pgns.push(withPriority(new PGN_126983({
-          alertId: alertId,
-          alertType: type,
-          alertCategory: alertCategory,
-          alertSystem: alertSystem,
-          alertSubSystem: 0,
-          dataSourceNetworkIdName: idName,
-          dataSourceInstance: 0,
-          dataSourceIndexSource: 0,
-          alertOccurrenceNumber: 0,
-          temporarySilenceStatus: value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
-          acknowledgeStatus: !value.method || value.method.length == 0 ? 1 : 0,
-          escalationStatus: 0,
-          temporarySilenceSupport: 1,
-          acknowledgeSupport: 1,
-          escalationSupport: 0,
-          triggerCondition: 1,
-          thresholdStatus: 1,
-          alertPriority: 0,
-          alertState: state
-        })))
+        pgns.push(
+          withPriority(
+            new PGN_126985({
+              alertId: alertId,
+              alertType: type,
+              alertCategory: alertCategory,
+              alertSystem: alertSystem,
+              alertSubSystem: 0,
+              dataSourceNetworkIdName: idName,
+              dataSourceInstance: 0,
+              dataSourceIndexSource: 0,
+              alertOccurrenceNumber: 0,
+              languageId: 0,
+              alertTextDescription: value.message
+            })
+          )
+        )
+        pgns.push(
+          withPriority(
+            new PGN_126983({
+              alertId: alertId,
+              alertType: type,
+              alertCategory: alertCategory,
+              alertSystem: alertSystem,
+              alertSubSystem: 0,
+              dataSourceNetworkIdName: idName,
+              dataSourceInstance: 0,
+              dataSourceIndexSource: 0,
+              alertOccurrenceNumber: 0,
+              temporarySilenceStatus:
+                value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
+              acknowledgeStatus:
+                !value.method || value.method.length == 0 ? 1 : 0,
+              escalationStatus: 0,
+              temporarySilenceSupport: 1,
+              acknowledgeSupport: 1,
+              escalationSupport: 0,
+              triggerCondition: 1,
+              thresholdStatus: 1,
+              alertPriority: 0,
+              alertState: state
+            })
+          )
+        )
       } else {
-        const active = before.find(obj => obj.pgn === 126983) as PGN_126983 | undefined
+        const active = before.find((obj) => obj.pgn === 126983) as
+          PGN_126983 | undefined
         if (active) {
           cleared[alertId] = {
-            pgn: withPriority(new PGN_126983({
-              ...active.fields,
-              alertState: AlertState.Normal,
-              temporarySilenceStatus: 0,
-              acknowledgeStatus: 0
-            })),
+            pgn: withPriority(
+              new PGN_126983({
+                ...active.fields,
+                alertState: AlertState.Normal,
+                temporarySilenceStatus: 0,
+                acknowledgeStatus: 0
+              })
+            ),
             until: Date.now() + REPEAT_CLEARED_MS
           }
         }
       }
 
-      const after = pgns.filter(obj => obj.fields.alertId === alertId)
-      if (_.isEqual(before, after) && Date.now() - lastSent < REPEAT_UNCHANGED_MS) {
+      const after = pgns.filter((obj) => obj.fields.alertId === alertId)
+      if (
+        _.isEqual(before, after) &&
+        Date.now() - lastSent < REPEAT_UNCHANGED_MS
+      ) {
         return []
       }
       lastSent = Date.now()
 
       try {
         const now = Date.now()
-        cleared = _.pickBy(cleared, c => c.until > now)
+        cleared = _.pickBy(cleared, (c) => c.until > now)
         return pgns.concat(_.map(cleared, 'pgn'))
       } catch (err) {
         console.error(err)
       }
     },
-    tests: [{
-      input: [ {
-        "context":"vessels.urn:mrn:imo:mmsi:367301250",
-        "updates":[{"values":[
+    tests: [
+      {
+        input: [
           {
-            "path":"notifications.environment.inside.refrigerator.temperature",
-            "value": {
-              "state": "alert",
-              "message": "The Fridge Temperature is high"
+            context: 'vessels.urn:mrn:imo:mmsi:367301250',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'notifications.environment.inside.refrigerator.temperature',
+                    value: {
+                      state: 'alert',
+                      message: 'The Fridge Temperature is high'
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 2,
+            pgn: 126985,
+            dst: 255,
+            fields: {
+              'Alert Type': 'Caution',
+              'Alert Category': 'Technical',
+              'Alert System': 5,
+              'Alert Sub-System': 0,
+              'Alert ID': 1,
+              'Data Source Network ID NAME': 1,
+              'Data Source Instance': 0,
+              'Data Source Index-Source': 0,
+              'Alert Occurrence Number': 0,
+              'Language ID': 'English (US)',
+              'Alert Text Description': 'The Fridge Temperature is high'
+            }
+          },
+          {
+            prio: 2,
+            pgn: 126983,
+            dst: 255,
+            fields: {
+              'Alert Type': 'Caution',
+              'Alert Category': 'Technical',
+              'Alert System': 5,
+              'Alert Sub-System': 0,
+              'Alert ID': 1,
+              'Data Source Network ID NAME': 1,
+              'Data Source Instance': 0,
+              'Data Source Index-Source': 0,
+              'Alert Occurrence Number': 0,
+              'Temporary Silence Status': 'No',
+              'Acknowledge Status': 'Yes',
+              'Escalation Status': 'No',
+              'Temporary Silence Support': 'Yes',
+              'Acknowledge Support': 'Yes',
+              'Escalation Support': 'No',
+              'Trigger Condition': 'Auto',
+              'Threshold Status': 'Threshold Exceeded',
+              'Alert Priority': 0,
+              'Alert State': 'Acknowledged'
             }
           }
-        ]}]
-      }],
-      expected: [{
-        "prio": 2,
-        "pgn": 126985,
-        "dst": 255,
-        "fields": {
-          "Alert Type": "Caution",
-          "Alert Category": "Technical",
-          "Alert System": 5,
-          "Alert Sub-System": 0,
-          "Alert ID": 1,
-          "Data Source Network ID NAME": 1,
-          "Data Source Instance": 0,
-          "Data Source Index-Source": 0,
-          "Alert Occurrence Number": 0,
-          "Language ID": "English (US)",
-          "Alert Text Description": "The Fridge Temperature is high"
-        }
-      },{
-        "prio": 2,
-        "pgn": 126983,
-        "dst": 255,
-        "fields": {
-          "Alert Type": "Caution",
-          "Alert Category": "Technical",
-          "Alert System": 5,
-          "Alert Sub-System": 0,
-          "Alert ID": 1,
-          "Data Source Network ID NAME": 1,
-          "Data Source Instance": 0,
-          "Data Source Index-Source": 0,
-          "Alert Occurrence Number": 0,
-          "Temporary Silence Status": "No",
-          "Acknowledge Status": "Yes",
-          "Escalation Status": "No",
-          "Temporary Silence Support": "Yes",
-          "Acknowledge Support": "Yes",
-          "Escalation Support": "No",
-          "Trigger Condition": "Auto",
-          "Threshold Status": "Threshold Exceeded",
-          "Alert Priority": 0,
-          "Alert State": "Acknowledged"
-        }
-      }]
-    }]
+        ]
+      }
+    ]
   }
 }

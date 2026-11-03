@@ -35,7 +35,7 @@ interface MockOptions {
   activeRoute?: { href: string; pointIndex: number; pointTotal: number }
 }
 
-function mockApp ({
+function mockApp({
   distance = 1915751,
   position = { longitude: -78.6349923366475, latitude: 26.51859369671446 },
   route = ROUTE,
@@ -60,8 +60,7 @@ function mockApp ({
           bearingTrue: { value: 0.1885 },
           bearingMagnetic: { value: 0.3392 }
         }
-        if (distance !== undefined)
-          calcValues.distance = { value: distance }
+        if (distance !== undefined) calcValues.distance = { value: distance }
         return calcValues
       }
       if (key === 'navigation.position')
@@ -71,13 +70,13 @@ function mockApp ({
   }
 }
 
-function subConversions (app: any) {
+function subConversions(app: any) {
   const [conversion] = createRaymarineNavigation(app, {})
   return conversion.conversions({})
 }
 
 // Decoded with display names, which the ts-pgns types don't have
-function parse (messages: PGN[]): any[] {
+function parse(messages: PGN[]): any[] {
   return messages.map((message) => {
     const pgn: any = parser.parseString(pgnToActisenseSerialFormat(message))
     delete pgn.description
@@ -91,13 +90,18 @@ function parse (messages: PGN[]): any[] {
 
 describe('Raymarine navigation 130848/130918', function () {
   it('sends 130848 at once on an actual course change', async function () {
-    const app = mockApp({ activeRoute: { href: 'mock', pointIndex: 2, pointTotal: 12 } })
+    const app = mockApp({
+      activeRoute: { href: 'mock', pointIndex: 2, pointTotal: 12 }
+    })
     const subs = subConversions(app)
     const onChange = subs[1].callback
 
     const messages = await onChange(
       { href: 'mock', pointIndex: 2, pointTotal: 12 },
-      { position: { longitude: -78.635903, latitude: 26.517348 }, type: 'Location' },
+      {
+        position: { longitude: -78.635903, latitude: 26.517348 },
+        type: 'Location'
+      },
       null
     )
 
@@ -115,7 +119,10 @@ describe('Raymarine navigation 130848/130918', function () {
 
     const messages = await onChange(
       { href: 'mock', pointIndex: 0, pointTotal: 12 },
-      { position: { longitude: -78.635903, latitude: 26.517348 }, type: 'Location' },
+      {
+        position: { longitude: -78.635903, latitude: 26.517348 },
+        type: 'Location'
+      },
       null
     )
 

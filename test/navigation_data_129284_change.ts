@@ -8,16 +8,20 @@ const createNavigationData = require('../dist/conversions/navigationdata')
 
 const parser = new FromPgn({ useCamel: false })
 
-const DESTINATION = { position: { latitude: 32.0631296, longitude: -75.487264 } }
+const DESTINATION = {
+  position: { latitude: 32.0631296, longitude: -75.487264 }
+}
 const ROUTE = { pointIndex: 2, pointTotal: 12 }
 const NEXT_ROUTE = { pointIndex: 3, pointTotal: 12 }
 
-function mockApp ({ distance = 1000, stale = false, activeRoute = ROUTE } = {}) {
+function mockApp({ distance = 1000, stale = false, activeRoute = ROUTE } = {}) {
   const timestamp = stale ? Date.now() - 60000 : undefined
   return {
     courseApi: {
       getCourse: async () => ({
-        nextPoint: { position: { latitude: 32.0631296, longitude: -75.487264 } },
+        nextPoint: {
+          position: { latitude: 32.0631296, longitude: -75.487264 }
+        },
         activeRoute
       })
     },
@@ -31,8 +35,7 @@ function mockApp ({ distance = 1000, stale = false, activeRoute = ROUTE } = {}) 
           calcMethod: { value: 'Rhumbline', timestamp }
         }
       }
-      if (key === 'notifications.navigation.course')
-        return {}
+      if (key === 'notifications.navigation.course') return {}
       return undefined
     }
   }
@@ -40,15 +43,17 @@ function mockApp ({ distance = 1000, stale = false, activeRoute = ROUTE } = {}) 
 
 // A fresh module per call so the rate-limit and last-course state do not leak
 // between tests.
-function navigationDataSubs (app: any) {
+function navigationDataSubs(app: any) {
   const modules = createNavigationData(app, {})
-  const navData = modules.find((module: { pgn?: number }) => module.pgn === 129284)
+  const navData = modules.find(
+    (module: { pgn?: number }) => module.pgn === 129284
+  )
   const [timer, change] = navData.conversions({})
   return { timer, change }
 }
 
 // Decoded with display names, which the ts-pgns types don't have
-function parse (messages: PGN[]): any[] {
+function parse(messages: PGN[]): any[] {
   return messages.map((message) => {
     const pgn: any = parser.parseString(pgnToActisenseSerialFormat(message))
     delete pgn.description

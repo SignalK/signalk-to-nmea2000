@@ -8,18 +8,16 @@ import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
 
 // The alarms sent, each with the notification path it is for.
-let alarms: { path: string, pgn: PGN_65288_SeatalkAlarm }[] = []
+let alarms: { path: string; pgn: PGN_65288_SeatalkAlarm }[] = []
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Raymarine (Seatalk) Alarms (65288)',
     optionKey: 'RAYMARINE',
-    keys: ['notifications.navigation.anchor',
-           'notifications.mob'],
+    keys: ['notifications.navigation.anchor', 'notifications.mob'],
     context: 'vessels.self',
     sourceType: 'subscription',
     callback: (delta: any): PGN_65288_SeatalkAlarm[] | undefined => {
-
       const update = delta.updates[0].values[0]
       const path = update.path
       const value = update.value
@@ -27,13 +25,13 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
 
       //dont create a loop by sending out notifications we recieved from NMEA
       if (path.includes('notifications.nmea')) {
-        return alarms.map(alarm => alarm.pgn)
+        return alarms.map((alarm) => alarm.pgn)
       }
 
       // remove the pgns and reprocess them for changes
-      alarms = alarms.filter(function(obj) {
+      alarms = alarms.filter(function (obj) {
         return obj.path !== path
-      });
+      })
 
       let state: SeatalkAlarmStatus | undefined
       const method = value.method || []
@@ -57,54 +55,65 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         alarmId = SeatalkAlarmId.Mob
       }
 
-      if ((state) && (alarmId)) {
+      if (state && alarmId) {
         alarms.push({
           path,
-          pgn: withPriority(new PGN_65288_SeatalkAlarm({
-            sid: 1,
-            alarmStatus: state,
-            alarmId: alarmId,
-            alarmGroup: SeatalkAlarmGroup.Instrument,
-            alarmPriority: 1
-            // The class sets Raymarine and Marine Industry itself.
-          }))
+          pgn: withPriority(
+            new PGN_65288_SeatalkAlarm({
+              sid: 1,
+              alarmStatus: state,
+              alarmId: alarmId,
+              alarmGroup: SeatalkAlarmGroup.Instrument,
+              alarmPriority: 1
+              // The class sets Raymarine and Marine Industry itself.
+            })
+          )
         })
       }
 
       try {
-        return alarms.map(alarm => alarm.pgn)
+        return alarms.map((alarm) => alarm.pgn)
       } catch (err) {
         console.error(err)
       }
-
     },
-    tests: [{
-      input: [ {
-        "context":"vessels.urn:mrn:imo:mmsi:367301250",
-        "updates":[{"values":[
+    tests: [
+      {
+        input: [
           {
-            "path":"notifications.navigation.anchor",
-            "value": {
-              "state": "alert",
-              "method": [ "sound" ]
+            context: 'vessels.urn:mrn:imo:mmsi:367301250',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'notifications.navigation.anchor',
+                    value: {
+                      state: 'alert',
+                      method: ['sound']
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 2,
+            pgn: 65288,
+            dst: 255,
+            fields: {
+              'Manufacturer Code': 'Raymarine',
+              'Industry Code': 'Marine Industry',
+              SID: 1,
+              'Alarm Status': 'Alarm condition met and not silenced',
+              'Alarm ID': 'Deep Anchor',
+              'Alarm Group': 'Instrument',
+              'Alarm Priority': 1
             }
           }
-        ]}]
-      }],
-      expected: [{
-        "prio": 2,
-        "pgn": 65288,
-        "dst": 255,
-        "fields": {
-          "Manufacturer Code": "Raymarine",
-          "Industry Code": "Marine Industry",
-          "SID": 1,
-          "Alarm Status": "Alarm condition met and not silenced",
-          "Alarm ID": "Deep Anchor",
-          "Alarm Group": "Instrument",
-          "Alarm Priority": 1
-        }
-      }]
-    }]
+        ]
+      }
+    ]
   }
 }

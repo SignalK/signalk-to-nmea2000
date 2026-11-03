@@ -12,7 +12,13 @@ describe('Navigation data 129284', function () {
 
   beforeEach(function () {
     clock = sinon.useFakeTimers({
-      toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']
+      toFake: [
+        'Date',
+        'setTimeout',
+        'clearTimeout',
+        'setInterval',
+        'clearInterval'
+      ]
     })
   })
 
@@ -75,7 +81,7 @@ describe('Navigation data 129284', function () {
 // Output is emitted from promise callbacks
 const flush = () => new Promise((resolve) => setImmediate(resolve))
 
-function send (app: any, values: Record<string, unknown>) {
+function send(app: any, values: Record<string, unknown>) {
   app.handleMessage('testInput', {
     updates: [
       {

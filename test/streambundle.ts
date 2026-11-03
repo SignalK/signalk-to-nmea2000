@@ -99,7 +99,8 @@ describe('onValueChange conversions over the streambundle', () => {
         })
       )
     const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
-    const routeInfo = () => app.emitted.filter((pgn: { pgn: number }) => pgn.pgn === 129285)
+    const routeInfo = () =>
+      app.emitted.filter((pgn: { pgn: number }) => pgn.pgn === 129285)
     // Only Date: the streams and the 2 s timer keep real time
     const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
 
@@ -148,9 +149,15 @@ describe('a course that came from NMEA 2000', () => {
   // Long enough for a 129285 timer tick (2 s) and two 129284 ticks (1 s)
   const TIMER_WAIT = 2200
   const settle = (ms = 50) => new Promise((resolve) => setTimeout(resolve, ms))
-  const sent = (app: any, pgn: number) => app.emitted.filter((msg: { pgn: number }) => msg.pgn === pgn)
+  const sent = (app: any, pgn: number) =>
+    app.emitted.filter((msg: { pgn: number }) => msg.pgn === pgn)
 
-  function startPlugin(app: any, course: () => Course, options = {}, xteOptions = {}) {
+  function startPlugin(
+    app: any,
+    course: () => Course,
+    options = {},
+    xteOptions = {}
+  ) {
     app.sources.can0 = { label: 'can0', type: 'NMEA2000' }
     app.selfData['navigation.course.calcValues'] = {
       distance: { value: 1000 },
@@ -172,7 +179,12 @@ describe('a course that came from NMEA 2000', () => {
 
   // As the Course API emits a course: the course from its own source, the
   // nextPoint with the $source of the source that set it
-  function publish(app: any, course: Course, $source: string, timestamp = new Date().toISOString()) {
+  function publish(
+    app: any,
+    course: Course,
+    $source: string,
+    timestamp = new Date().toISOString()
+  ) {
     ;(['activeRoute', 'previousPoint'] as const).forEach((key) =>
       app.buses[`navigation.course.${key}`].push({
         path: `navigation.course.${key}`,
@@ -201,18 +213,26 @@ describe('a course that came from NMEA 2000', () => {
   }
 
   // The mock subscription manager has no cache, so a test replays it by hand
-  function replay(app: any, updates: { $source: string; timestamp: string; value: unknown }[]) {
+  function replay(
+    app: any,
+    updates: { $source: string; timestamp: string; value: unknown }[]
+  ) {
     app.subscribers
       .filter(({ subscription }: Subscriber) =>
-        subscription.subscribe.some((row) => row.path === 'navigation.course.nextPoint'))
-      .forEach(({ callback }: Subscriber) => callback({
-        context: 'vessels.urn:mrn:signalk:uuid:test',
-        updates: updates.map(({ $source, timestamp, value }) => ({
-          $source,
-          timestamp,
-          values: [{ path: 'navigation.course.nextPoint', value }]
-        }))
-      }))
+        subscription.subscribe.some(
+          (row) => row.path === 'navigation.course.nextPoint'
+        )
+      )
+      .forEach(({ callback }: Subscriber) =>
+        callback({
+          context: 'vessels.urn:mrn:signalk:uuid:test',
+          updates: updates.map(({ $source, timestamp, value }) => ({
+            $source,
+            timestamp,
+            values: [{ path: 'navigation.course.nextPoint', value }]
+          }))
+        })
+      )
   }
 
   it('is not sent, and the course set after it is', async function () {
@@ -262,7 +282,12 @@ describe('a course that came from NMEA 2000', () => {
   it('stops a resend once the course turns out to come from NMEA 2000', async () => {
     const app = makeApp()
     let course = goto({ latitude: -35.5, longitude: 138.7 })
-    const plugin = startPlugin(app, () => course, {}, { resend: 0.1, resendTime: 30 })
+    const plugin = startPlugin(
+      app,
+      () => course,
+      {},
+      { resend: 0.1, resendTime: 30 }
+    )
     try {
       publish(app, course, 'courseApi')
       publishXte(app)
@@ -283,8 +308,12 @@ describe('a course that came from NMEA 2000', () => {
   it('sends the cross track error from a source picked for it', async () => {
     const app = makeApp()
     const course = goto({ latitude: -35.5, longitude: 138.7 })
-    const plugin = startPlugin(app, () => course, {},
-      { navigationcoursecalcValuescrossTrackError: 'courseApi' })
+    const plugin = startPlugin(
+      app,
+      () => course,
+      {},
+      { navigationcoursecalcValuescrossTrackError: 'courseApi' }
+    )
     try {
       publish(app, course, N2K_DEVICE)
       publishXte(app)
@@ -298,7 +327,9 @@ describe('a course that came from NMEA 2000', () => {
   it('is sent when the conversions allow NMEA 2000 sources', async () => {
     const app = makeApp()
     const course = goto({ latitude: -35.5, longitude: 138.7 })
-    const plugin = startPlugin(app, () => course, { allowNmea2000Sources: true })
+    const plugin = startPlugin(app, () => course, {
+      allowNmea2000Sources: true
+    })
     try {
       publish(app, course, N2K_DEVICE)
       await settle()
@@ -318,8 +349,16 @@ describe('a course that came from NMEA 2000', () => {
       // The server replays its cache oldest first
       const now = Date.now()
       replay(app, [
-        { $source: N2K_DEVICE, timestamp: new Date(now - 60000).toISOString(), value: course.nextPoint },
-        { $source: 'courseApi', timestamp: new Date(now).toISOString(), value: course.nextPoint }
+        {
+          $source: N2K_DEVICE,
+          timestamp: new Date(now - 60000).toISOString(),
+          value: course.nextPoint
+        },
+        {
+          $source: 'courseApi',
+          timestamp: new Date(now).toISOString(),
+          value: course.nextPoint
+        }
       ])
       await settle(TIMER_WAIT)
       assert.isAbove(sent(app, 129285).length, 0, '129285')
