@@ -490,53 +490,57 @@ module.exports = function (app: App) {
       if (sourceRef) {
         bus = bus.filter((x: { $source?: string }) => x.$source === sourceRef)
       }
-      bus.onValue(
-        ({
-          value,
-          source,
-          $source
-        }: {
-          value: unknown
-          source?: { type?: string }
-          $source?: string
-        }) => {
-          const isNmea2000Source =
-            !allowNmea2000 && isNmea2000Update(app, { source, $source })
-          if (
-            isNmea2000Source &&
-            !sourceRef &&
-            !withholdingKeys.includes(skKey)
-          ) {
-            return
-          }
-          const fromNmea2000 =
-            isNmea2000Source &&
-            (!sourceRef || withholdingSourceKeys.includes(skKey))
-          lastValues[skKey] = {
-            timestamp: new Date().getTime(),
+      unsubscribes.push(
+        bus.onValue(
+          ({
             value,
-            fromNmea2000
-          }
-          const now = new Date().getTime()
+            source,
+            $source
+          }: {
+            value: unknown
+            source?: { type?: string }
+            $source?: string
+          }) => {
+            const isNmea2000Source =
+              !allowNmea2000 && isNmea2000Update(app, { source, $source })
+            if (
+              isNmea2000Source &&
+              !sourceRef &&
+              !withholdingKeys.includes(skKey)
+            ) {
+              return
+            }
+            const fromNmea2000 =
+              isNmea2000Source &&
+              (!sourceRef || withholdingSourceKeys.includes(skKey))
+            lastValues[skKey] = {
+              timestamp: new Date().getTime(),
+              value,
+              fromNmea2000
+            }
+            const now = new Date().getTime()
 
-          const current = keys.map((key, i) =>
-            notDefined(timeouts[i]) ||
-            lastValues[key].timestamp + timeouts[i]! > now
-              ? lastValues[key]
-              : null
-          )
-          // One NMEA 2000 input withholds the whole PGN: sending the others with
-          // that field unavailable would compete with the device already on the bus
-          if (
-            current.some(
-              (entry) => entry && entry.value != null && entry.fromNmea2000
+            const current = keys.map((key, i) =>
+              notDefined(timeouts[i]) ||
+              lastValues[key].timestamp + timeouts[i]! > now
+                ? lastValues[key]
+                : null
             )
-          ) {
-            combinedBus.push(WITHHELD)
-            return
+            // One NMEA 2000 input withholds the whole PGN: sending the others with
+            // that field unavailable would compete with the device already on the bus
+            if (
+              current.some(
+                (entry) => entry && entry.value != null && entry.fromNmea2000
+              )
+            ) {
+              combinedBus.push(WITHHELD)
+              return
+            }
+            combinedBus.push(
+              current.map((entry) => (entry ? entry.value : null))
+            )
           }
-          combinedBus.push(current.map((entry) => (entry ? entry.value : null)))
-        }
+        )
       )
     })
     const initialValuesWithheld = keys.some(

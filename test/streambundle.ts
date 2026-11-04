@@ -28,6 +28,7 @@ function makeApp({
   sources = {}
 }: AppOptions = {}): any {
   const buses: Record<string, any> = {}
+  const busUnsubscribes: sinon.SinonSpy[] = []
   const emitted: any[] = []
   const subscribers: Subscriber[] = []
   const debugMessages: string[] = []
@@ -42,6 +43,7 @@ function makeApp({
   return {
     emitted,
     buses,
+    busUnsubscribes,
     debugMessages,
     subscribers,
     selfData,
@@ -71,6 +73,12 @@ function makeApp({
       getSelfBus: (path: string) => {
         if (!buses[path]) {
           buses[path] = new Bacon.Bus()
+          const onValue = buses[path].onValue.bind(buses[path])
+          buses[path].onValue = (callback: (...args: any[]) => void) => {
+            const unsubscribe = sinon.spy(onValue(callback))
+            busUnsubscribes.push(unsubscribe)
+            return unsubscribe
+          }
         }
         return buses[path]
       }
@@ -111,6 +119,20 @@ function publish(
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
 
 describe('onValueChange conversions over the streambundle', () => {
+  it('unsubscribes from self buses when the plugin stops', () => {
+    const app = makeApp()
+    const plugin = startEngineParameters(app)
+
+    assert.isNotEmpty(app.busUnsubscribes)
+    plugin.stop()
+
+    assert.isTrue(
+      app.busUnsubscribes.every(
+        (unsubscribe: sinon.SinonSpy) => unsubscribe.calledOnce
+      )
+    )
+  })
+
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
     app.debug.enabled = true
