@@ -22,6 +22,9 @@ type RunningConversion = Conversion & {
   interval?: number
   timeouts?: (number | undefined)[]
   withholdingKeys?: string[]
+  withholdingSourceKeys?: string[]
+  initialValueKeys?: string[]
+  sourceSelectors?: Record<string, string | undefined>
   preventsNmea2000Echo?: boolean
 }
 
@@ -325,7 +328,10 @@ module.exports = function (app: App) {
         unsubscribes,
         options,
         sendsNmea2000Data(conversion, options),
-        conversion.withholdingKeys
+        conversion.withholdingKeys,
+        conversion.initialValueKeys,
+        conversion.sourceSelectors,
+        conversion.withholdingSourceKeys
       ).onValue((values) => {
         if (values === WITHHELD) {
           // The last PGN no longer reflects the inputs; stop resending it
@@ -429,7 +435,10 @@ module.exports = function (app: App) {
     unsubscribes: Unsubscribe[],
     options: ConversionOptions,
     allowNmea2000: boolean,
-    withholdingKeys: string[] = keys
+    withholdingKeys: string[] = keys,
+    initialValueKeys: string[] = [],
+    sourceSelectors: Record<string, string | undefined> = {},
+    withholdingSourceKeys: string[] = []
   ): Bacon.EventStream<unknown[] | typeof WITHHELD> {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -447,60 +456,105 @@ module.exports = function (app: App) {
       return acc
     }, {})
     const combinedBus = new Bacon.Bus<unknown[] | typeof WITHHELD>()
+    let hasInitialValue = false
     keys.map((skKey) => {
-      const sourceRef = options[pathToPropName(skKey)]
+      const sourceRef = sourceSelectors[skKey] ?? options[pathToPropName(skKey)]
       app.debug(`${skKey} ${sourceRef}`)
+
+      if (initialValueKeys.includes(skKey)) {
+        const current = app.getSelfPath(skKey)
+        if (current && typeof current === 'object' && 'value' in current) {
+          const currentSourceId = current.$source
+          const selectedSourceMatches =
+            !sourceRef || currentSourceId === sourceRef
+          const isNmea2000Source =
+            !allowNmea2000 &&
+            isNmea2000Update(app, { $source: currentSourceId })
+          const fromNmea2000 =
+            isNmea2000Source &&
+            (!sourceRef || withholdingSourceKeys.includes(skKey))
+          const ignoreNmea2000Source =
+            isNmea2000Source && !sourceRef && !withholdingKeys.includes(skKey)
+          if (selectedSourceMatches && !ignoreNmea2000Source) {
+            lastValues[skKey] = {
+              timestamp: new Date().getTime(),
+              value: current.value,
+              fromNmea2000
+            }
+            hasInitialValue = true
+          }
+        }
+      }
 
       let bus = streambundle.getSelfBus(skKey)
       if (sourceRef) {
         bus = bus.filter((x: { $source?: string }) => x.$source === sourceRef)
       }
-      bus.onValue(
-        ({
-          value,
-          source,
-          $source
-        }: {
-          value: unknown
-          source?: { type?: string }
-          $source?: string
-        }) => {
-          // A source the user picked explicitly is sent even if it is NMEA 2000
-          const fromNmea2000 =
-            !sourceRef &&
-            !allowNmea2000 &&
-            isNmea2000Update(app, { source, $source })
-          if (fromNmea2000 && !withholdingKeys.includes(skKey)) {
-            return
-          }
-          lastValues[skKey] = {
-            timestamp: new Date().getTime(),
+      unsubscribes.push(
+        bus.onValue(
+          ({
             value,
-            fromNmea2000
-          }
-          const now = new Date().getTime()
+            source,
+            $source
+          }: {
+            value: unknown
+            source?: { type?: string }
+            $source?: string
+          }) => {
+            const isNmea2000Source =
+              !allowNmea2000 && isNmea2000Update(app, { source, $source })
+            if (
+              isNmea2000Source &&
+              !sourceRef &&
+              !withholdingKeys.includes(skKey)
+            ) {
+              return
+            }
+            const fromNmea2000 =
+              isNmea2000Source &&
+              (!sourceRef || withholdingSourceKeys.includes(skKey))
+            lastValues[skKey] = {
+              timestamp: new Date().getTime(),
+              value,
+              fromNmea2000
+            }
+            const now = new Date().getTime()
 
-          const current = keys.map((key, i) =>
-            notDefined(timeouts[i]) ||
-            lastValues[key].timestamp + timeouts[i]! > now
-              ? lastValues[key]
-              : null
-          )
-          // One NMEA 2000 input withholds the whole PGN: sending the others with
-          // that field unavailable would compete with the device already on the bus
-          if (
-            current.some(
-              (entry) => entry && entry.value != null && entry.fromNmea2000
+            const current = keys.map((key, i) =>
+              notDefined(timeouts[i]) ||
+              lastValues[key].timestamp + timeouts[i]! > now
+                ? lastValues[key]
+                : null
             )
-          ) {
-            combinedBus.push(WITHHELD)
-            return
+            // One NMEA 2000 input withholds the whole PGN: sending the others with
+            // that field unavailable would compete with the device already on the bus
+            if (
+              current.some(
+                (entry) => entry && entry.value != null && entry.fromNmea2000
+              )
+            ) {
+              combinedBus.push(WITHHELD)
+              return
+            }
+            combinedBus.push(
+              current.map((entry) => (entry ? entry.value : null))
+            )
           }
-          combinedBus.push(current.map((entry) => (entry ? entry.value : null)))
-        }
+        )
       )
     })
-    const result = combinedBus.debounce(10)
+    const initialValuesWithheld = keys.some(
+      (key) => lastValues[key].value != null && lastValues[key].fromNmea2000
+    )
+    const result = hasInitialValue
+      ? Bacon.once(
+          initialValuesWithheld
+            ? WITHHELD
+            : keys.map((key) => lastValues[key].value)
+        )
+          .concat(combinedBus)
+          .debounce(10)
+      : combinedBus.debounce(10)
     if (app.debug.enabled) {
       unsubscribes.push(
         result.onValue((x) => app.debug(`${keys}:${String(x)}`))

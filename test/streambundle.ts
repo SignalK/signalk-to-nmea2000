@@ -8,25 +8,43 @@ import sinon from 'sinon'
 // buses, the same way the server's StreamBundle does. Guards the
 // onValueChange path in index.js (timeoutingArrayStream), which is not
 // covered by the per-conversion tests.
+interface AppOptions {
+  selfData?: Record<string, unknown>
+  sources?: Record<string, unknown>
+}
+
 interface Subscriber {
   subscription: { subscribe: { path: string }[] }
   callback: (delta: unknown) => void
 }
 
-// A mock app, as loose as the server's
-function makeApp(): any {
+interface TestPgn {
+  pgn: number
+  fields: Record<string, any>
+}
+
+function makeApp({
+  selfData: providedSelfData = {},
+  sources = {}
+}: AppOptions = {}): any {
   const buses: Record<string, any> = {}
-  // Decoded with display names, which the ts-pgns types don't have
+  const busUnsubscribes: sinon.SinonSpy[] = []
   const emitted: any[] = []
   const subscribers: Subscriber[] = []
-  const debug = Object.assign(() => {}, { enabled: false })
+  const debugMessages: string[] = []
+  const debug = Object.assign(
+    (message: string) => debugMessages.push(message),
+    { enabled: false }
+  )
   const selfData: Record<string, unknown> = {
-    'environment.depth.surfaceToTransducer.value': 1
+    'environment.depth.surfaceToTransducer.value': 1,
+    ...providedSelfData
   }
-  const sources: Record<string, unknown> = {}
   return {
     emitted,
     buses,
+    busUnsubscribes,
+    debugMessages,
     subscribers,
     selfData,
     sources,
@@ -55,6 +73,12 @@ function makeApp(): any {
       getSelfBus: (path: string) => {
         if (!buses[path]) {
           buses[path] = new Bacon.Bus()
+          const onValue = buses[path].onValue.bind(buses[path])
+          buses[path].onValue = (callback: (...args: any[]) => void) => {
+            const unsubscribe = sinon.spy(onValue(callback))
+            busUnsubscribes.push(unsubscribe)
+            return unsubscribe
+          }
         }
         return buses[path]
       }
@@ -62,9 +86,56 @@ function makeApp(): any {
   }
 }
 
+function startEngineParameters(
+  app: any,
+  engine: {
+    signalkId: string
+    instanceId: number
+    notificationSources?: Record<string, string>
+  } = { signalkId: 'engines.port', instanceId: 0 },
+  extraOptions: Record<string, unknown> = {}
+): any {
+  const plugin = require('../dist/index.js')(app)
+  plugin.start({
+    ENGINE_PARAMETERS: {
+      enabled: true,
+      engines: [engine],
+      ...extraOptions
+    }
+  })
+  return plugin
+}
+
+function publish(
+  app: any,
+  path: string,
+  value: unknown,
+  sourceId = 'test.1',
+  source: Record<string, unknown> = {}
+) {
+  app.buses[path].push({ path, value, $source: sourceId, source })
+}
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 50))
+
 describe('onValueChange conversions over the streambundle', () => {
+  it('unsubscribes from self buses when the plugin stops', () => {
+    const app = makeApp()
+    const plugin = startEngineParameters(app)
+
+    assert.isNotEmpty(app.busUnsubscribes)
+    plugin.stop()
+
+    assert.isTrue(
+      app.busUnsubscribes.every(
+        (unsubscribe: sinon.SinonSpy) => unsubscribe.calledOnce
+      )
+    )
+  })
+
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
+    app.debug.enabled = true
     const plugin = require('../dist/index.js')(app)
     plugin.start({ DEPTHv2: { enabled: true } })
 
@@ -81,6 +152,242 @@ describe('onValueChange conversions over the streambundle', () => {
     assert.equal(app.emitted.length, 1)
     assert.equal(app.emitted[0].pgn, 128267)
     assert.deepEqual(app.emitted[0].fields, { Depth: 4.5, Offset: 1 })
+    assert.isTrue(
+      app.debugMessages.some(
+        (message: string) =>
+          message.startsWith('emit nmea2000out ') &&
+          message.includes(',2,128267,')
+      )
+    )
+  })
+
+  it('uses the Signal K engine notification paths for all discrete status fields', async () => {
+    const app = makeApp()
+    const plugin = startEngineParameters(app)
+    const active = { state: 'alarm' }
+    publish(app, 'notifications.propulsion.engines.port.eGRSystem', active)
+    publish(
+      app,
+      'notifications.propulsion.engines.port.emergencyStopMode',
+      active
+    )
+    publish(app, 'notifications.propulsion.engines.port.commError', active)
+    publish(app, 'notifications.propulsion.engines.port.shuttingDown', active)
+
+    await settle()
+    plugin.stop()
+
+    const enginePgn = app.emitted.find((pgn: TestPgn) => pgn.pgn === 127489)
+    assert.exists(enginePgn)
+    assert.deepEqual(enginePgn.fields['Discrete Status 1'], [
+      'EGR System',
+      'Emergency Stop'
+    ])
+    assert.deepEqual(enginePgn.fields['Discrete Status 2'], [
+      'Engine Comm Error',
+      'Engine Shutting Down'
+    ])
+  })
+
+  it('does not set an engine status bit for a nominal notification', async () => {
+    const app = makeApp()
+    const plugin = startEngineParameters(app)
+    publish(app, 'notifications.propulsion.engines.port.lowOilPressure', {
+      state: 'nominal'
+    })
+
+    await settle()
+    plugin.stop()
+
+    const enginePgn = app.emitted.find((pgn: TestPgn) => pgn.pgn === 127489)
+    assert.exists(enginePgn)
+    assert.deepEqual(enginePgn.fields['Discrete Status 1'], [])
+  })
+
+  it('clears an active notification on normal and null updates', async () => {
+    const app = makeApp()
+    const plugin = startEngineParameters(app)
+    const notificationPath = 'notifications.propulsion.engines.port.checkEngine'
+    publish(app, notificationPath, { state: 'alarm' })
+    await settle()
+    const pgnsBeforeNormal = app.emitted.filter(
+      (pgn: { pgn: number }) => pgn.pgn === 127489
+    ).length
+    publish(app, notificationPath, { state: 'normal' })
+    await settle()
+    const pgnsAfterNormal = app.emitted.filter(
+      (pgn: { pgn: number }) => pgn.pgn === 127489
+    )
+    assert.isAbove(pgnsAfterNormal.length, pgnsBeforeNormal)
+    assert.deepEqual(
+      pgnsAfterNormal[pgnsAfterNormal.length - 1].fields['Discrete Status 1'],
+      []
+    )
+    publish(app, notificationPath, null)
+    await settle()
+    plugin.stop()
+
+    const enginePgns = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 127489)
+    assert.deepEqual(enginePgns[0].fields['Discrete Status 1'], [
+      'Check Engine'
+    ])
+    assert.deepEqual(
+      enginePgns[enginePgns.length - 1].fields['Discrete Status 1'],
+      []
+    )
+  })
+
+  it('loads active notifications at startup and retains them beyond the measurement timeout', async () => {
+    const notificationPath = 'notifications.propulsion.engines.port.checkEngine'
+    const app = makeApp({
+      selfData: {
+        [notificationPath]: {
+          value: { state: 'alarm', message: 'Check engine' },
+          $source: 'controller.1'
+        }
+      }
+    })
+    const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    const plugin = startEngineParameters(app)
+
+    try {
+      await settle()
+      let enginePgn = app.emitted.find((pgn: TestPgn) => pgn.pgn === 127489)
+      assert.exists(enginePgn)
+      assert.deepEqual(enginePgn.fields['Discrete Status 1'], ['Check Engine'])
+
+      clock.tick(11000)
+      publish(app, 'propulsion.engines.port.oilPressure', 120000)
+      await settle()
+
+      enginePgn = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 127489).pop()
+      assert.deepEqual(enginePgn.fields['Discrete Status 1'], ['Check Engine'])
+    } finally {
+      clock.restore()
+      plugin.stop()
+    }
+  })
+
+  it('respects selected notification sources when loading current status', async () => {
+    const notificationPath = 'notifications.propulsion.engines.port.checkEngine'
+    const app = makeApp({
+      selfData: {
+        [notificationPath]: {
+          value: { state: 'alarm' },
+          $source: 'other-controller.1'
+        }
+      }
+    })
+
+    const plugin = startEngineParameters(app, {
+      signalkId: 'engines.port',
+      instanceId: 0,
+      notificationSources: {
+        checkEngine: 'selected-controller.1'
+      }
+    })
+
+    publish(app, 'propulsion.engines.port.oilPressure', 120000)
+    await settle()
+    let enginePgn = app.emitted
+      .filter((pgn: TestPgn) => pgn.pgn === 127489)
+      .pop()
+    assert.exists(enginePgn)
+    assert.deepEqual(enginePgn.fields['Discrete Status 1'], [])
+
+    publish(app, notificationPath, { state: 'alarm' }, 'selected-controller.1')
+    await settle()
+    plugin.stop()
+
+    enginePgn = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 127489).pop()
+    assert.deepEqual(enginePgn.fields['Discrete Status 1'], ['Check Engine'])
+  })
+
+  it('exposes selectors for every engine notification in the configuration schema', () => {
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    const schema = plugin.schema()
+    const sourceProperties =
+      schema.properties.ENGINE_PARAMETERS.properties.engines.items.properties
+        .notificationSources.properties
+
+    assert.containsAllKeys(sourceProperties, [
+      'checkEngine',
+      'emergencyStopMode',
+      'warningLevel1',
+      'shuttingDown'
+    ])
+    assert.lengthOf(Object.keys(sourceProperties), 24)
+  })
+
+  it('ignores NMEA 2000 notification inputs without withholding engine measurements', async () => {
+    const notificationPath = 'notifications.propulsion.engines.port.checkEngine'
+    const app = makeApp({
+      selfData: {
+        [notificationPath]: {
+          value: { state: 'alarm' },
+          $source: 'n2k.100'
+        }
+      },
+      sources: {
+        n2k: { type: 'NMEA2000' }
+      }
+    })
+    const plugin = startEngineParameters(app)
+    publish(app, notificationPath, { state: 'alarm' }, 'n2k.100')
+    publish(app, 'propulsion.engines.port.oilPressure', 120000, 'sensor.1', {
+      type: 'Signal K'
+    })
+
+    await settle()
+    plugin.stop()
+
+    const enginePgn = app.emitted.find((pgn: TestPgn) => pgn.pgn === 127489)
+    assert.exists(enginePgn)
+    assert.deepEqual(enginePgn.fields['Discrete Status 1'], [])
+  })
+
+  it('withholds explicitly selected NMEA 2000 notification sources unless allowed', async () => {
+    const notificationPath = 'notifications.propulsion.engines.port.checkEngine'
+    const engine = {
+      signalkId: 'engines.port',
+      instanceId: 0,
+      notificationSources: { checkEngine: 'n2k.100' }
+    }
+    const app = makeApp({
+      sources: {
+        n2k: { type: 'NMEA2000' }
+      }
+    })
+    const plugin = startEngineParameters(app, engine)
+    publish(app, notificationPath, { state: 'alarm' }, 'n2k.100', {
+      type: 'NMEA2000'
+    })
+    publish(app, 'propulsion.engines.port.oilPressure', 120000)
+    await settle()
+    plugin.stop()
+    assert.lengthOf(
+      app.emitted.filter((pgn: { pgn: number }) => pgn.pgn === 127489),
+      0
+    )
+
+    const allowedApp = makeApp({
+      sources: {
+        n2k: { type: 'NMEA2000' }
+      }
+    })
+    const allowedPlugin = startEngineParameters(allowedApp, engine, {
+      allowNmea2000Sources: true
+    })
+    publish(allowedApp, notificationPath, { state: 'alarm' }, 'n2k.100')
+    publish(allowedApp, 'propulsion.engines.port.oilPressure', 120000)
+    await settle()
+    allowedPlugin.stop()
+    const allowedPgn = allowedApp.emitted.find(
+      (pgn: { pgn: number }) => pgn.pgn === 127489
+    )
+    assert.exists(allowedPgn)
+    assert.deepEqual(allowedPgn.fields['Discrete Status 1'], ['Check Engine'])
   })
 
   it('sends 129285 as soon as the course changes, once per change', async () => {

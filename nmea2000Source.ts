@@ -2,9 +2,9 @@ import { App, Conversion } from './types'
 
 // Whether an update came from NMEA 2000. A value the server derives from
 // NMEA 2000 data, such as the Course API's navigation.course.nextPoint for a
-// course set on a chartplotter, carries no source object, only the $source of
-// the device it came from; the type of that device's label is in the sources
-// tree, which the server keys by the $source up to its first dot.
+// course set on a chartplotter, may carry only the $source of the device it
+// came from; the type of that device's label is in the sources tree, which the
+// server keys by the $source up to its first dot.
 interface Update {
   source?: { type?: string }
   $source?: string
@@ -15,7 +15,7 @@ export function isNmea2000Update(
   app: App,
   { source, $source }: Update
 ): boolean {
-  if (source) return source.type === 'NMEA2000'
+  if (source?.type !== undefined) return source.type === 'NMEA2000'
   if (typeof $source !== 'string') return false
   const dot = $source.indexOf('.')
   const label = dot === -1 ? $source : $source.slice(0, dot)

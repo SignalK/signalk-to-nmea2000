@@ -1,11 +1,14 @@
 import _ from 'lodash'
 import {
+  EngineStatus1,
+  EngineStatus2,
   PGN_127488,
   PGN_127489,
   PGN_130312,
   PGN_130316,
   TemperatureSource
 } from '@canboat/ts-pgns'
+import { getBitEnumeration } from '@canboat/ts-pgns/lookups'
 import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
 
@@ -17,6 +20,7 @@ const DEFAULT_TIMEOUT = 10000 // ms
 interface EngineMapping {
   signalkId: string | number
   instanceId: number
+  notificationSources?: Record<string, string | undefined>
 }
 
 interface TemperatureMapping {
@@ -24,8 +28,124 @@ interface TemperatureMapping {
   tempInstanceId: number
 }
 
+const engineStatus1Keys = [
+  'checkEngine',
+  'overTemperature',
+  'lowOilPressure',
+  'lowOilLevel',
+  'lowFuelPressure',
+  'lowSystemVoltage',
+  'lowCoolantLevel',
+  'waterFlow',
+  'waterInFuel',
+  'chargeIndicator',
+  'preheatIndicator',
+  'highBoostPressure',
+  'revLimitExceeded',
+  'eGRSystem',
+  'throttlePositionSensor',
+  'emergencyStopMode'
+]
+
+const engineStatus2Keys = [
+  'warningLevel1',
+  'warningLevel2',
+  'powerReduction',
+  'maintenanceNeeded',
+  'commError',
+  'subOrSecondaryThrottle',
+  'neutralStartProtect',
+  'shuttingDown'
+]
+
+function getEngineStatusNames<T extends string>(
+  fieldId: 'discreteStatus1' | 'discreteStatus2',
+  enumValues: T[]
+): T[] {
+  const field = new PGN_127489({ instance: 0 })
+    .getDefinition()
+    .Fields.find(({ Id }) => Id === fieldId)
+  const lookupName = field?.LookupBitEnumeration
+  if (!lookupName) {
+    throw new Error(`CANboat definition has no bit lookup for ${fieldId}`)
+  }
+
+  const lookup = getBitEnumeration(lookupName)
+  if (!lookup) {
+    throw new Error(`CANboat bit lookup ${lookupName} was not found`)
+  }
+
+  return [...lookup.EnumBitValues]
+    .sort((a, b) => a.Bit - b.Bit)
+    .map(({ Name }) => {
+      const status = enumValues.find((value) => value === Name)
+      if (status === undefined) {
+        throw new Error(
+          `CANboat status ${Name} is not available for ${fieldId}`
+        )
+      }
+      return status
+    })
+}
+
+const engineStatus1 = getEngineStatusNames(
+  'discreteStatus1',
+  Object.values(EngineStatus1)
+)
+const engineStatus2 = getEngineStatusNames(
+  'discreteStatus2',
+  Object.values(EngineStatus2)
+)
+
+if (
+  engineStatus1Keys.length !== engineStatus1.length ||
+  engineStatus2Keys.length !== engineStatus2.length
+) {
+  throw new Error(
+    'Signal K engine notification paths do not match CANboat status bits'
+  )
+}
+
+const statusSourceKeys = [
+  ...engineStatus1Keys.map((key, index) => ({
+    key,
+    title: engineStatus1[index]
+  })),
+  ...engineStatus2Keys.map((key, index) => ({
+    key,
+    title: engineStatus2[index]
+  }))
+]
+
+const notificationSourceProperties = Object.fromEntries(
+  statusSourceKeys.map(({ key, title }) => [
+    key,
+    {
+      title: `Source for ${title}`,
+      description:
+        'Use data only from this source (leave blank to accept any source)',
+      type: 'string'
+    }
+  ])
+)
+
+const isActiveStatus = (value: unknown): boolean =>
+  typeof value === 'object' &&
+  value !== null &&
+  'state' in value &&
+  typeof value.state === 'string' &&
+  value.state !== 'normal' &&
+  value.state !== 'nominal'
+
+const activeEngineStatuses = <T extends string>(
+  statuses: readonly T[],
+  values: unknown[]
+): T[] =>
+  statuses.flatMap((status, index) =>
+    isActiveStatus(values[index]) ? [status] : []
+  )
+
 module.exports = (app: App, plugin: Plugin): Conversion[] => {
-  // discrete status fields are not yet implemented
   const engParKeys = [
     'oilPressure',
     'oilTemperature',
@@ -62,6 +182,13 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               instanceId: {
                 title: 'NMEA2000 Engine Instance Id',
                 type: 'number'
+              },
+              notificationSources: {
+                title: 'Notification Sources',
+                description:
+                  'Select which source to use for each engine notification.',
+                type: 'object',
+                properties: notificationSourceProperties
               }
             }
           }
@@ -85,11 +212,29 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
         }
         const dyn = options.ENGINE_PARAMETERS.engines.map(
           (engine: EngineMapping) => {
+            const statusKeys = statusSourceKeys.map(
+              ({ key }) => `notifications.propulsion.${engine.signalkId}.${key}`
+            )
+            const sourceSelectors = Object.fromEntries(
+              statusSourceKeys.map(({ key }) => [
+                `notifications.propulsion.${engine.signalkId}.${key}`,
+                engine.notificationSources?.[key]
+              ])
+            )
+            const measurementKeys = engParKeys.map(
+              (key) => `propulsion.${engine.signalkId}.${key}`
+            )
+            const timeouts: (number | undefined)[] = [
+              ...engParKeys.map(() => DEFAULT_TIMEOUT),
+              ...statusKeys.map(() => undefined)
+            ]
             return {
-              keys: engParKeys.map(
-                (key) => `propulsion.${engine.signalkId}.${key}`
-              ),
-              timeouts: engParKeys.map((key) => DEFAULT_TIMEOUT),
+              keys: measurementKeys.concat(statusKeys),
+              timeouts,
+              withholdingKeys: measurementKeys,
+              withholdingSourceKeys: statusKeys,
+              initialValueKeys: statusKeys,
+              sourceSelectors,
               callback: (
                 oilPres: Value,
                 oilTemp: Value,
@@ -100,7 +245,8 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 coolPres: Value,
                 fuelPres: Value,
                 engLoad: Value,
-                engTorque: Value
+                engTorque: Value,
+                ...statusValues: unknown[]
               ): PGN_127489[] => {
                 return [
                   withPriority(
@@ -115,8 +261,14 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       totalEngineHours: orUndefined(runTime),
                       coolantPressure: orUndefined(coolPres),
                       fuelPressure: orUndefined(fuelPres),
-                      discreteStatus1: [],
-                      discreteStatus2: [],
+                      discreteStatus1: activeEngineStatuses(
+                        engineStatus1,
+                        statusValues
+                      ),
+                      discreteStatus2: activeEngineStatuses(
+                        engineStatus2,
+                        statusValues.slice(engineStatus1.length)
+                      ),
                       engineLoad: orUndefined(engLoad),
                       engineTorque: orUndefined(engTorque)
                     })
@@ -148,6 +300,66 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                         'Fuel Pressure': 350000,
                         'Discrete Status 1': [],
                         'Discrete Status 2': [],
+                        'Engine Load': 0.5,
+                        'Engine Torque': 1
+                      }
+                    }
+                  ]
+                },
+                {
+                  input: [
+                    102700,
+                    363.15,
+                    353.15,
+                    13.1,
+                    0.0000277778,
+                    201123,
+                    120000,
+                    350000,
+                    0.5,
+                    1.0,
+                    null,
+                    null,
+                    { state: 'alarm' },
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    { state: 'warn' },
+                    null,
+                    null,
+                    null,
+                    null
+                  ],
+                  expected: [
+                    {
+                      prio: 2,
+                      pgn: 127489,
+                      dst: 255,
+                      fields: {
+                        Instance: 'Dual Engine Starboard',
+                        'Oil pressure': 102700,
+                        'Oil temperature': 363.1,
+                        Temperature: 353.15,
+                        'Alternator Potential': 13.1,
+                        'Fuel Rate': 0.0000277778,
+                        'Total Engine hours': 201123,
+                        'Coolant Pressure': 120000,
+                        'Fuel Pressure': 350000,
+                        'Discrete Status 1': ['Low Oil Pressure'],
+                        'Discrete Status 2': ['Maintenance Needed'],
                         'Engine Load': 0.5,
                         'Engine Torque': 1
                       }
