@@ -1,5 +1,7 @@
 import { PGN_130312, PGN_130316, TemperatureSource } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
+import { type PluginOptions, settingsOf } from '../schema'
 import { withPriority } from '../pgn'
 
 interface TemperatureInfo {
@@ -39,6 +41,13 @@ const temperatureMessage = (
 // device; the Source field already says which kind this is
 const defaultInstance = 0
 
+const temperatureProperties = {
+  instance: Type.Optional(
+    Type.Number({ title: 'N2K Temperature Instance', default: defaultInstance })
+  )
+}
+const TemperatureSettings = Type.Object(temperatureProperties)
+
 function makeTemperature(
   pgn: number,
   prefix: string,
@@ -50,13 +59,7 @@ function makeTemperature(
     title: `${info.n2kSource} (${pgn})`,
     optionKey,
     keys: [info.source],
-    properties: {
-      instance: {
-        title: 'N2K Temperature Instance',
-        type: 'number',
-        default: defaultInstance
-      }
-    },
+    properties: temperatureProperties,
 
     testOptions: [
       {
@@ -69,9 +72,10 @@ function makeTemperature(
       }
     ],
 
-    conversions: (options: any) => {
-      let instance = options[optionKey].instance
-      if (instance === undefined) instance = defaultInstance
+    conversions: (options: PluginOptions) => {
+      const instance =
+        settingsOf(options, optionKey, TemperatureSettings)?.instance ??
+        defaultInstance
       return [
         {
           keys: [info.source],

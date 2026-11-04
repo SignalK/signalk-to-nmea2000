@@ -1,0 +1,101 @@
+const Bacon = require('baconjs')
+import chai from 'chai'
+const assert: Chai.AssertStatic = chai.assert
+
+// The plugin's schema is built with TypeBox (#200). The admin UI renders it
+// as a form, so it must stay the JSON Schema it was; plugin.start fills in
+// its defaults and reports settings that do not match it.
+
+function makeApp(self: Record<string, any> = {}): any {
+  const errors: string[] = []
+  const get = (path: string) =>
+    path.split('.').reduce((node, key) => node?.[key], self)
+  return {
+    errors,
+    debug: Object.assign(() => {}, { enabled: false }),
+    error: (message: string) => errors.push(message),
+    emit: () => {},
+    getSelfPath: get,
+    getPath: () => undefined,
+    signalk: { self, on: () => {} },
+    streambundle: { getSelfBus: () => new Bacon.Bus() }
+  }
+}
+
+describe('plugin settings', function () {
+  it('gives each conversion the shared settings, its sources and its own', function () {
+    const plugin = require('../dist/index.js')(makeApp())
+    const rudder = plugin.schema().properties.RUDDER
+    assert.equal(rudder.type, 'object')
+    assert.equal(rudder.title, 'Rudder (127245)')
+    assert.deepEqual(Object.keys(rudder.properties), [
+      'enabled',
+      'resend',
+      'resendTime',
+      'allowNmea2000Sources',
+      'steeringrudderAngle',
+      'instance'
+    ])
+    // Nothing is required: a setting left out takes its default
+    assert.notProperty(rudder, 'required')
+    assert.notProperty(plugin.schema(), 'required')
+  })
+
+  it('offers the tank paths in the Signal K data', function () {
+    const plugin = require('../dist/index.js')(
+      makeApp({ tanks: { fuel: { port: {} }, freshWater: { 0: {} } } })
+    )
+    const tank = plugin.schema().properties.TANKS.properties.tanks.items
+    assert.deepEqual(tank.properties.signalkPath.enum, [
+      'tanks.fuel.port',
+      'tanks.freshWater.0'
+    ])
+  })
+
+  it('fills in the defaults of an enabled conversion', function () {
+    const plugin = require('../dist/index.js')(makeApp())
+    const options: Record<string, any> = { RUDDER: { enabled: true } }
+    plugin.start(options)
+    plugin.stop()
+    assert.deepEqual(options.RUDDER, {
+      enabled: true,
+      resend: 0,
+      resendTime: 30,
+      allowNmea2000Sources: false,
+      instance: 0
+    })
+  })
+
+  it('reports a setting that does not match the schema, and still starts', function () {
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    const options = { RUDDER: { enabled: true, instance: 300 } }
+    plugin.start(options)
+    plugin.stop()
+    assert.lengthOf(app.errors, 1)
+    assert.match(app.errors[0], /^Rudder \(127245\): setting \/instance /)
+  })
+
+  it('does not check a tank path against the tanks that have reported', function () {
+    const app = makeApp({ tanks: { fuel: { port: {} } } })
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({
+      TANKS: {
+        enabled: true,
+        tanks: [{ signalkPath: 'tanks.fuel.starboard', instanceId: 1 }]
+      }
+    })
+    plugin.stop()
+    assert.deepEqual(app.errors, [])
+  })
+
+  it('leaves a disabled conversion alone', function () {
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    const options = { RUDDER: { enabled: false, instance: 'one' } }
+    plugin.start(options)
+    plugin.stop()
+    assert.deepEqual(options.RUDDER, { enabled: false, instance: 'one' })
+    assert.deepEqual(app.errors, [])
+  })
+})

@@ -1,3 +1,5 @@
+import type { ConversionProperties, PluginOptions } from './schema'
+
 // The parts of the Signal K server's app the plugin uses. @signalk/server-api
 // declares them, but wants baconjs 1 as a peer and this plugin uses 3.
 export interface App {
@@ -42,7 +44,12 @@ export interface Conversion {
   callback?: (...values: any[]) => unknown
   tests?: ConversionTest[]
   testOptions?: unknown
-  conversions?: Conversion[] | ((options: any) => Conversion[] | undefined)
-  properties?: unknown
+  conversions?:
+    | Conversion[]
+    // An undefined entry is a mapping that gives no conversion
+    | ((
+        options: PluginOptions
+      ) => (Conversion | undefined)[] | undefined | null)
+  properties?: ConversionProperties
   [key: string]: unknown
 }

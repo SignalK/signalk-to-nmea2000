@@ -1,5 +1,7 @@
 import { PGN_130311, TemperatureSource, HumiditySource } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
+import { type PluginOptions, settingsOf } from '../schema'
 import { withPriority } from '../pgn'
 
 const pressureKey = 'environment.outside.pressure'
@@ -11,29 +13,38 @@ const temperatureHumidityKeys = [
   'environment.outside.relativeHumidity'
 ]
 
+const environmentProperties = {
+  temperatureAndHumidity: Type.Optional(
+    Type.Boolean({
+      title: 'Also send outside temperature and humidity',
+      description:
+        'For displays that read them from 130311 rather than 130312/130313, such as the Raymarine i70s. Nothing is sent while any of these values comes from NMEA 2000.',
+      default: false
+    })
+  )
+}
+const EnvironmentSettings = Type.Object(environmentProperties)
+
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     pgns: [130311],
     title: 'Environmental Parameters (130311)',
     optionKey: 'ENVIRONMENT_PARAMETERS',
     keys: [pressureKey, ...temperatureHumidityKeys],
-    properties: {
-      temperatureAndHumidity: {
-        title: 'Also send outside temperature and humidity',
-        description:
-          'For displays that read them from 130311 rather than 130312/130313, such as the Raymarine i70s. Nothing is sent while any of these values comes from NMEA 2000.',
-        type: 'boolean',
-        default: false
-      }
-    },
+    properties: environmentProperties,
 
     testOptions: [
       { ENVIRONMENT_PARAMETERS: {} },
       { ENVIRONMENT_PARAMETERS: { temperatureAndHumidity: true } }
     ],
 
-    conversions: (options: any): Conversion[] => {
-      if (!options.ENVIRONMENT_PARAMETERS?.temperatureAndHumidity) {
+    conversions: (options: PluginOptions): Conversion[] => {
+      const settings = settingsOf(
+        options,
+        'ENVIRONMENT_PARAMETERS',
+        EnvironmentSettings
+      )
+      if (!settings?.temperatureAndHumidity) {
         return [
           {
             keys: [pressureKey],

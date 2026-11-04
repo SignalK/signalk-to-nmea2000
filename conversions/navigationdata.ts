@@ -11,6 +11,7 @@ import {
   ResidualMode,
   MagneticVariation
 } from '@canboat/ts-pgns'
+import type { PluginOptions } from '../schema'
 import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -297,7 +298,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
       title: 'Cross Track Error (129283)',
       optionKey: 'xte',
       keys: ['navigation.course.calcValues.crossTrackError'],
-      conversions: (options: any): Conversion[] => {
+      conversions: (options: PluginOptions): Conversion[] => {
         // A source picked for the cross track error is sent whatever the course
         const origin = courseOrigin(
           app,
@@ -346,7 +347,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
       pgn: 129284,
       title: 'Navigation Data (129284)',
       optionKey: 'navigationdata',
-      conversions: (options: any): Conversion[] => {
+      conversions: (options: PluginOptions): Conversion[] => {
         let lastCourse: unknown
         let lastChangeSentAt = 0
         let inFlight = false
@@ -528,7 +529,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
     {
       title: 'Route/WP Information (129285)',
       optionKey: 'routewpinformation',
-      conversions: (options: any): Conversion[] => {
+      conversions: (options: PluginOptions): Conversion[] => {
         let lastCourse: unknown
         let lastSentOnChange = 0
         const origin = courseOrigin(
