@@ -496,14 +496,6 @@ function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
   var draft = _.get(findDeltaValue(vessel, delta, 'design.draft'), 'maximum')
   var imo = findDeltaValue(vessel, delta, 'registrations.imo')
   var dest = findDeltaValue(vessel, delta, 'navigation.destination.commonName')
-  /*
-  type = _.isUndefined(type) ? 0 : type
-  callsign = fillASCII(callsign ? callsign : '0', 7)
-  name = fillASCII(name ? name : '0', 20)
-  length = length ? length * 10 : 0xffff;
-  beam = beam ? beam * 10 : 0xffff;
-  draft = _.isUndefined(draft) ? 0xffff : draft * 100
-  */
 
   if (_.isUndefined(imo)) {
     imo = 0
@@ -514,8 +506,6 @@ function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
 
   var fromStarboard = distanceFromStarboard(fromCenter, beam)
   fromBow = distanceOnHull(fromBow, length)
-
-  //2017-04-15T14:58:37.625Z,6,129794,43,255,76,05,28,e0,42,0f,0f,ee,8c,00,39,48,41,33,37,39,35,41,54,4c,41,4e,54,49,43,20,50,52,4f,4a,45,43,54,20,49,49,40,4f,8a,07,18,01,8c,00,fe,06,de,44,00,cc,bf,19,e8,03,52,55,20,4c,45,44,20,3e,20,55,53,20,42,41,4c,40,40,40,40,40,04,00,ff
 
   mmsi = parseInt(mmsi, 10)
 
@@ -539,27 +529,6 @@ function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
       aisTransceiverInformation: 0
     })
   )
-
-  /*
-  var data = Concentrate2()
-      .uint8(0x05)
-      .uint32(mmsi)
-      .uint32(imo)
-      .buffer(callsign)
-      .buffer(name)
-      .uint8(type)
-      .uint16(length)
-      .uint16(beam)
-      .uint16(fromStarboard)
-      .uint16(fromBow)
-      .buffer(int8buff([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]))
-      .uint16(draft)
-      .buffer(dest)
-      .buffer(int8buff([0x05,0x00,0xff]))
-      .result()
-  
-  return { pgn: static_pgn, buffer:data }
-*/
 }
 
 // fromCenter is positive to starboard, as n2k-signalk and nmea0183-signalk
@@ -617,36 +586,6 @@ function generatePosition(
       heading = undefined
     }
 
-    /*
-    cog = _.isUndefined(cog) ? 0xffff : (Math.trunc(cog * 10000))
-    sog = _.isUndefined(sog) ? 0xffff : (sog*100);
-    heading = _.isUndefined(heading) ? 0xffff : (Math.trunc(heading * 10000))
-    rot = _.isUndefined(rot) ? 0x7fff : rot
-
-    var latitude = position.latitude * 10000000;
-    var longitude = position.longitude * 10000000;
-    */
-
-    /*
-      2017-04-15T15:06:37.589Z,4,129038,43,255,28,
-
-      01,
-      ae,e7,e0,15, mmsi
-      36,5c,76,d2, lon
-      93,0b,52,17, lat
-      94, RAIM/TS
-      4d,e9, COG
-      39,01, SOG
-      7e,05,01,
-      ff,ff, heading
-      ff,7f, rat
-      01,
-      00, Nav Status, reserved
-      ff reserved
-    */
-
-    //console.log(`${mmsi} ${position.longitude} ${position.latitude} ${cog} ${sog} ${heading} ${rot}`)
-
     return withPriority(
       new PGN_129038({
         messageId: 1,
@@ -665,28 +604,6 @@ function generatePosition(
         navStatus: status
       })
     )
-
-    /*
-    mmsi = parseInt(mmsi, 10)
-    var data = Concentrate2()
-        .uint8(0x01)
-        .uint32(mmsi)
-        .int32(longitude)
-        .int32(latitude)
-        .uint8(0x94)
-        .uint16(cog)
-        .uint16(sog)
-        .uint8(0x7e)
-        .uint8(0x05)
-        .uint8(0x01)
-        .uint16(heading)
-        .int16(rot)
-        .uint8(0xff)
-        .uint8(0xff)
-        .result()
-    
-    return { pgn: position_pgn, buffer: data }
-    */
   } else {
     return null
   }
@@ -707,39 +624,9 @@ function generateAtoN(
     )
     var beam = finite(findDeltaValue(vessel, delta, 'design.beam'))
     var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
-    var latitude = position.latitude * 10000000
-    var longitude = position.longitude * 10000000
-
-    /*
-    type = _.isUndefined(type) ? 0 : type
-    name = fillASCII(name ? name : '0', 20)
-    length = length ? length * 10 : 0xffff;
-    beam = beam ? beam * 10 : 0xffff;
-    */
-
     var fromStarboard = distanceFromStarboard(fromCenter, beam)
     // No fromBow: an AtoN has no bow, and 129041 measures from its true north
     // facing edge instead. n2k-signalk does not map that field either.
-
-    /*
-  2017-04-15T15:15:08.461Z,4,129041,43,255,49,15,
-
-  77,3c,3a,3b,
-  0d,bf,62,d2,
-  b3,5e,60,17,
-  f5,
-  ff,ff,
-  ff,ff,
-  ff,ff,
-  ff,ff, /from True north egde
-  4e,
-  0e, 
-  00,
-  01,
-  17,01,
-  4e,57,
-  20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,20,40
-  */
 
     mmsi = parseInt(mmsi, 10)
 
@@ -765,38 +652,9 @@ function generateAtoN(
         assignedModeFlag: undefined as unknown as number
       })
     )
-    /*
-    var data = Concentrate2()
-        .uint8(0x15)
-        .uint32(mmsi)
-        .int32(longitude)
-        .int32(latitude)
-        .uint8(0xf5)
-        .uint16(length)
-        .uint16(beam)
-        .uint16(fromStarboard)
-        .uint16(fromBow)
-        .tinyInt(type,5)
-        .tinyInt(0, 1)
-        .tinyInt(0, 1)
-        .tinyInt(0, 1)
-        .uint8(0x0e)
-        .uint8(0x00)
-        .uint8(0x01)
-        .uint8(0x17)
-        .uint8(0x01)
-        .buffer(name)
-        .uint8(0x40)
-        .result()
-    return { pgn: aton_pgn, buffer: data }
-    */
   } else {
     return null
   }
-}
-
-function int8buff(array: number[]) {
-  return new Buffer(new Uint8Array(array).buffer)
 }
 
 function hasAnyKeys(delta: Delta, keys: string[]) {
@@ -840,16 +698,4 @@ function findDeltaValue(vessel: Vessel, delta: Delta, path: string): any {
   }
   let val = _.get(vessel, path)
   return val && !_.isUndefined(val.value) ? val.value : val
-}
-
-function fillASCII(theString: string, len: number) {
-  var res = []
-  var i
-  for (i = 0; i < len && i < theString.length; i++) {
-    res.push(theString.charCodeAt(i))
-  }
-  for (; i < len; i++) {
-    res.push(0x40)
-  }
-  return new Buffer(new Uint8Array(res).buffer)
 }
