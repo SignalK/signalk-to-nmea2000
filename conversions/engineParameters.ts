@@ -74,7 +74,7 @@ const notificationSourceProperties = Object.fromEntries(
     {
       title: `Source for ${title}`,
       description:
-        'Use data only from this source (leave blank to accept any source)',
+        'Use data only from this source (leave blank to accept any source except NMEA 2000)',
       type: 'string'
     }
   ])
@@ -137,7 +137,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               notificationSources: {
                 title: 'Notification Sources',
                 description:
-                  'Select which source to use for each engine notification.',
+                  'Select which source to use for each engine notification. Notifications from NMEA 2000 come from an engine that already sends this PGN: left blank, they are ignored; picking an NMEA 2000 source here stops this plugin sending the PGN for this engine.',
                 type: 'object',
                 properties: notificationSourceProperties
               }
