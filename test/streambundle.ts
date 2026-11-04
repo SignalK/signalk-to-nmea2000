@@ -334,9 +334,7 @@ describe('onValueChange conversions over the streambundle', () => {
       }
     })
     const plugin = startEngineParameters(app)
-    publish(app, notificationPath, { state: 'alarm' }, 'n2k.100', {
-      type: 'NMEA2000'
-    })
+    publish(app, notificationPath, { state: 'alarm' }, 'n2k.100')
     publish(app, 'propulsion.engines.port.oilPressure', 120000, 'sensor.1', {
       type: 'Signal K'
     })
@@ -381,9 +379,7 @@ describe('onValueChange conversions over the streambundle', () => {
     const allowedPlugin = startEngineParameters(allowedApp, engine, {
       allowNmea2000Sources: true
     })
-    publish(allowedApp, notificationPath, { state: 'alarm' }, 'n2k.100', {
-      type: 'NMEA2000'
-    })
+    publish(allowedApp, notificationPath, { state: 'alarm' }, 'n2k.100')
     publish(allowedApp, 'propulsion.engines.port.oilPressure', 120000)
     await settle()
     allowedPlugin.stop()
