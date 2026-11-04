@@ -179,6 +179,9 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               ...engParKeys.map(() => DEFAULT_TIMEOUT),
               ...statusKeys.map(() => undefined)
             ]
+            // Whether the last 127489 sent had an active status, so clearing
+            // it is sent even without a reading
+            let sentActiveStatus = false
             return {
               keys: measurementKeys.concat(statusKeys),
               timeouts,
@@ -199,6 +202,41 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 engTorque: Value,
                 ...statusValues: unknown[]
               ): PGN_127489[] => {
+                const readings = [
+                  oilPres,
+                  oilTemp,
+                  temp,
+                  altVolt,
+                  fuelRate,
+                  runTime,
+                  coolPres,
+                  fuelPres,
+                  engLoad,
+                  engTorque
+                ]
+                const discreteStatus1 = activeEngineStatuses(
+                  engineStatus1,
+                  statusValues
+                )
+                const discreteStatus2 = activeEngineStatuses(
+                  engineStatus2,
+                  statusValues.slice(engineStatus1.length)
+                )
+                // Without a current reading, only an active status, or the clearing
+                // of one, is worth sending: a notification that is normal, or
+                // absent, would put an engine with every field "not available"
+                // on the bus
+                const activeStatus =
+                  discreteStatus1.length > 0 || discreteStatus2.length > 0
+                const clearsStatus = sentActiveStatus && !activeStatus
+                if (
+                  readings.every((reading) => reading == null) &&
+                  !activeStatus &&
+                  !clearsStatus
+                ) {
+                  return []
+                }
+                sentActiveStatus = activeStatus
                 return [
                   withPriority(
                     new PGN_127489({
@@ -212,14 +250,8 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       totalEngineHours: orUndefined(runTime),
                       coolantPressure: orUndefined(coolPres),
                       fuelPressure: orUndefined(fuelPres),
-                      discreteStatus1: activeEngineStatuses(
-                        engineStatus1,
-                        statusValues
-                      ),
-                      discreteStatus2: activeEngineStatuses(
-                        engineStatus2,
-                        statusValues.slice(engineStatus1.length)
-                      ),
+                      discreteStatus1,
+                      discreteStatus2,
                       engineLoad: orUndefined(engLoad),
                       engineTorque: orUndefined(engTorque)
                     })

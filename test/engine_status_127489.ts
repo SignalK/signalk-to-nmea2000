@@ -77,3 +77,70 @@ describe('Engine Parameters 127489 discrete status', function () {
     })
   })
 })
+
+// #213: without a current reading, 127489 goes out only for an active status
+describe('Engine Parameters 127489 without readings', function () {
+  const app: any = { debug: () => {}, getSelfPath: () => undefined }
+  const conversions: Conversion[] =
+    require('../dist/conversions/engineParameters')(app, {})
+  const engine = conversions.find((c) => c.optionKey === 'ENGINE_PARAMETERS')!
+  // A fresh conversion per test: it remembers whether it sent a status
+  let dynamic: Conversion
+  let keys: string[]
+  beforeEach(function () {
+    dynamic = (engine.conversions as (options: unknown) => Conversion[])({
+      ENGINE_PARAMETERS: { engines: [{ signalkId: 'port', instanceId: 0 }] }
+    }).find((c) =>
+      (c.keys as string[]).includes('propulsion.port.oilPressure')
+    )!
+    keys = dynamic.keys as string[]
+  })
+
+  function send(values: Record<string, unknown>): unknown[] {
+    return dynamic.callback!(
+      ...keys.map((key) => (key in values ? values[key] : null))
+    ) as unknown[]
+  }
+
+  it('sends nothing with no inputs at all', function () {
+    assert.deepEqual(send({}), [])
+  })
+
+  it('sends nothing for normal and nominal notifications', function () {
+    assert.deepEqual(
+      send({
+        'notifications.propulsion.port.lowOilPressure': { state: 'normal' },
+        'notifications.propulsion.port.warningLevel1': { state: 'nominal' }
+      }),
+      []
+    )
+  })
+
+  it('sends an active status', function () {
+    assert.lengthOf(
+      send({
+        'notifications.propulsion.port.overTemperature': { state: 'alarm' }
+      }),
+      1
+    )
+  })
+
+  it('sends a reading with no active status', function () {
+    assert.lengthOf(
+      send({
+        'propulsion.port.oilPressure': 102700,
+        'notifications.propulsion.port.lowOilPressure': { state: 'normal' }
+      }),
+      1
+    )
+  })
+
+  it('sends the clearing of an active status once', function () {
+    const path = 'notifications.propulsion.port.overTemperature'
+    send({ [path]: { state: 'alarm' } })
+    const cleared = send({ [path]: { state: 'normal' } }) as any[]
+    assert.lengthOf(cleared, 1)
+    assert.deepEqual(cleared[0].fields.discreteStatus1, [])
+    assert.deepEqual(send({ [path]: { state: 'normal' } }), [])
+  })
+})
