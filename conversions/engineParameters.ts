@@ -30,7 +30,7 @@ interface TemperatureMapping {
 // The Signal K notification for each discrete status, under
 // notifications.propulsion.<engine>, as n2k-signalk names it when it decodes
 // 127489. Each is paired with its ts-pgns status, so a status renamed in
-// canboat fails the build instead of the plugin at startup.
+// canboat fails the build.
 const engineStatus1Paths: [string, EngineStatus1][] = [
   ['checkEngine', EngineStatus1.CheckEngine],
   ['overTemperature', EngineStatus1.OverTemperature],
@@ -137,7 +137,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               notificationSources: {
                 title: 'Notification Sources',
                 description:
-                  'Select which source to use for each engine notification. Notifications from NMEA 2000 come from an engine that already sends this PGN: left blank, they are ignored; picking an NMEA 2000 source here stops this plugin sending the PGN for this engine.',
+                  'Select which source to use for each engine notification. Notifications from NMEA 2000 come from an engine that already sends this PGN: left blank, they are ignored; picking an NMEA 2000 source here stops this plugin sending the PGN for this engine while that source has the notification. "Also send data that came from NMEA 2000" turns both off.',
                 type: 'object',
                 properties: notificationSourceProperties
               }
