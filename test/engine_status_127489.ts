@@ -78,7 +78,10 @@ describe('Engine Parameters 127489 discrete status', function () {
   })
 })
 
-// #213: without a current reading, 127489 goes out only for an active status
+// #213: a 127489 without readings shows the engine with every field "not
+// available", so a normal notification, or one loaded at startup, must not
+// send one. An active status still goes out, and so does its clearing, once,
+// so a display drops the alarm.
 describe('Engine Parameters 127489 without readings', function () {
   const app: any = { debug: () => {}, getSelfPath: () => undefined }
   const conversions: Conversion[] =
