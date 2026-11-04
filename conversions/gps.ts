@@ -8,7 +8,6 @@ import {
   GnsIntegrity
 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 // Signal K's navigation.gnss values, as nmea0183-signalk and n2k-signalk set
 // them, mapped to the names canboat uses in 129029. A value without a match
@@ -120,12 +119,10 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
         if (position !== lastPosition) {
           lastPosition = position
           res.push(
-            withPriority(
-              new PGN_129025({
-                latitude: position.latitude,
-                longitude: position.longitude
-              })
-            )
+            new PGN_129025({
+              latitude: position.latitude,
+              longitude: position.longitude
+            })
           )
         }
 
@@ -146,39 +143,37 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
           const hasReference = differentialReference != null
 
           res.push(
-            withPriority(
-              new PGN_129029({
-                // Days since 1970, as canboatjs takes a DATE; ts-pgns types it
-                // as the date string the decoder gives.
-                date: date as unknown as string,
-                time: time,
-                latitude: position.latitude,
-                longitude: position.longitude,
-                altitude: altitude ?? undefined,
-                gnssType: gnssType as Gns | undefined,
-                // A position without a reported method is still a fix
-                method: (methodQuality == null
-                  ? 'GNSS fix'
-                  : lookup(methodQualities, methodQuality)) as
-                  GnsMethod | undefined,
-                // Integrity is two bits, so "not available" would read as Unsafe
-                integrity: (lookup(integrities, integrity) ||
-                  'No integrity checking') as GnsIntegrity,
-                numberOfSvs: satellites ?? undefined,
-                hdop: hdop ?? undefined,
-                pdop: pdop ?? undefined,
-                geoidalSeparation: geoidalSeparation ?? undefined,
-                referenceStations: hasReference ? 1 : 0,
-                list: hasReference
-                  ? [
-                      {
-                        referenceStationId: differentialReference ?? undefined,
-                        ageOfDgnssCorrections: differentialAge ?? undefined
-                      }
-                    ]
-                  : []
-              })
-            )
+            new PGN_129029({
+              // Days since 1970, as canboatjs takes a DATE; ts-pgns types it
+              // as the date string the decoder gives.
+              date: date as unknown as string,
+              time: time,
+              latitude: position.latitude,
+              longitude: position.longitude,
+              altitude: altitude ?? undefined,
+              gnssType: gnssType as Gns | undefined,
+              // A position without a reported method is still a fix
+              method: (methodQuality == null
+                ? 'GNSS fix'
+                : lookup(methodQualities, methodQuality)) as
+                GnsMethod | undefined,
+              // Integrity is two bits, so "not available" would read as Unsafe
+              integrity: (lookup(integrities, integrity) ||
+                'No integrity checking') as GnsIntegrity,
+              numberOfSvs: satellites ?? undefined,
+              hdop: hdop ?? undefined,
+              pdop: pdop ?? undefined,
+              geoidalSeparation: geoidalSeparation ?? undefined,
+              referenceStations: hasReference ? 1 : 0,
+              list: hasReference
+                ? [
+                    {
+                      referenceStationId: differentialReference ?? undefined,
+                      ageOfDgnssCorrections: differentialAge ?? undefined
+                    }
+                  ]
+                : []
+            })
           )
         }
         return res
@@ -202,7 +197,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 delete testResult.fields.Date
                 delete testResult.fields.Time
               },
-              prio: 2,
+              prio: 3,
               pgn: 129029,
               dst: 255,
               fields: {
@@ -233,17 +228,15 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
           return []
         }
         return [
-          withPriority(
-            new PGN_129540({
-              satsInView: satellites.length,
-              list: satellites.map((sat) => ({
-                prn: sat.id,
-                elevation: sat.elevation ?? undefined,
-                azimuth: sat.azimuth ?? undefined,
-                snr: sat.SNR ?? undefined
-              }))
-            })
-          )
+          new PGN_129540({
+            satsInView: satellites.length,
+            list: satellites.map((sat) => ({
+              prn: sat.id,
+              elevation: sat.elevation ?? undefined,
+              azimuth: sat.azimuth ?? undefined,
+              snr: sat.SNR ?? undefined
+            }))
+          })
         ]
       },
       tests: [
@@ -259,7 +252,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
           ],
           expected: [
             {
-              prio: 2,
+              prio: 6,
               pgn: 129540,
               dst: 255,
               fields: {

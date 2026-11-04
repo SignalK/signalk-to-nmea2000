@@ -1,6 +1,5 @@
 import { PGN_129026 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   var lastUpdate = null
@@ -12,13 +11,11 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     callback: (course: number, speed: number): PGN_129026[] | undefined => {
       try {
         return [
-          withPriority(
-            new PGN_129026({
-              cogReference: 0,
-              cog: course,
-              sog: speed
-            })
-          )
+          new PGN_129026({
+            cogReference: 0,
+            cog: course,
+            sog: speed
+          })
         ]
       } catch (err) {
         console.error(err)

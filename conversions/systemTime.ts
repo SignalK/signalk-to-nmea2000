@@ -1,6 +1,5 @@
 import { PGN_126992, PGN_126992Fields } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -23,14 +22,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         date: days as unknown as string,
         time: time
       } as PGN_126992Fields
-      return [withPriority(new PGN_126992(fields))]
+      return [new PGN_126992(fields)]
     },
     tests: [
       {
         input: [undefined, new Date('2017-04-15T14:59:53.123Z')],
         expected: [
           {
-            prio: 2,
+            prio: 3,
             pgn: 126992,
             dst: 255,
             fields: {

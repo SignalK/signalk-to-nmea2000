@@ -1,6 +1,5 @@
 import { PGN_127250, DirectionReference } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -10,14 +9,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     keys: ['navigation.headingTrue'],
     callback: (heading: number): PGN_127250[] => {
       return [
-        withPriority(
-          new PGN_127250({
-            sid: 87,
-            heading: heading,
-            variation: undefined,
-            reference: DirectionReference.True
-          })
-        )
+        new PGN_127250({
+          sid: 87,
+          heading: heading,
+          variation: undefined,
+          reference: DirectionReference.True
+        })
       ]
     },
     tests: [

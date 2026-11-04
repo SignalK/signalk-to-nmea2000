@@ -1,6 +1,5 @@
 import { PGN_128000 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -12,11 +11,9 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     callback: (leeway: number): PGN_128000[] | undefined => {
       try {
         return [
-          withPriority(
-            new PGN_128000({
-              leewayAngle: leeway
-            })
-          )
+          new PGN_128000({
+            leewayAngle: leeway
+          })
         ]
       } catch (err) {
         console.error(err)
@@ -27,7 +24,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         input: [0.24],
         expected: [
           {
-            prio: 2,
+            prio: 3,
             pgn: 128000,
             dst: 255,
             fields: {

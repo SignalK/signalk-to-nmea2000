@@ -2,7 +2,6 @@ import { PGN_127508 } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { withPriority } from '../pgn'
 
 const solarProperties = (ids: string[]) => ({
   chargers: Type.Optional(
@@ -77,24 +76,20 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             var res: PGN_127508[] = []
             if (voltage != null || current != null) {
               res.push(
-                withPriority(
-                  new PGN_127508({
-                    instance: charger.instanceId,
-                    voltage: voltage as number,
-                    current: current as number
-                  })
-                )
+                new PGN_127508({
+                  instance: charger.instanceId,
+                  voltage: voltage as number,
+                  current: current as number
+                })
               )
             }
             if (panelVoltage != null || panelCurrent != null) {
               res.push(
-                withPriority(
-                  new PGN_127508({
-                    instance: charger.panelInstanceId,
-                    voltage: panelVoltage as number,
-                    current: panelCurrent as number
-                  })
-                )
+                new PGN_127508({
+                  instance: charger.panelInstanceId,
+                  voltage: panelVoltage as number,
+                  current: panelCurrent as number
+                })
               )
             }
 
@@ -105,7 +100,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               input: [13, 5, 2, 45.0],
               expected: [
                 {
-                  prio: 2,
+                  prio: 6,
                   pgn: 127508,
                   dst: 255,
                   fields: {
@@ -115,7 +110,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                   }
                 },
                 {
-                  prio: 2,
+                  prio: 6,
                   pgn: 127508,
                   dst: 255,
                   fields: {

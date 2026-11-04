@@ -1,6 +1,5 @@
 import { PGN_129291 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -10,13 +9,11 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     callback: (set: number, drift: number): PGN_129291[] | undefined => {
       try {
         return [
-          withPriority(
-            new PGN_129291({
-              set: set,
-              drift: drift,
-              setReference: 0
-            })
-          )
+          new PGN_129291({
+            set: set,
+            drift: drift,
+            setReference: 0
+          })
         ]
       } catch (err) {
         console.error(err)
@@ -30,7 +27,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           {
             pgn: 129291,
             dst: 255,
-            prio: 2,
+            prio: 3,
             fields: {
               Drift: 1.2,
               Set: 2.0944,
@@ -45,7 +42,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           {
             pgn: 129291,
             dst: 255,
-            prio: 2,
+            prio: 3,
             fields: {
               Drift: 1.5,
               Set: 1.0944,

@@ -211,27 +211,25 @@ async function navigationData(app: App): Promise<PGN_129284[] | null> {
   sid129284 = sid129284 == 252 ? 0 : sid129284 + 1
 
   return [
-    withPriority(
-      new PGN_129284({
-        sid: sid129284,
-        distanceToWaypoint: distance,
-        courseBearingReference: 0,
-        perpendicularCrossed: isRaised(pp) ? YesNo.Yes : YesNo.No,
-        arrivalCircleEntered: isRaised(ace) ? YesNo.Yes : YesNo.No,
-        calculationType:
-          calcMethod == null ? undefined : calcMethod == 'GreatCircle' ? 0 : 1,
-        etaTime: WCV > 0 ? etaTime : undefined,
-        // Days since 1970, which the encoder takes for a date
-        etaDate: WCV > 0 ? (etaDate as unknown as string) : undefined,
-        bearingOriginToDestinationWaypoint: bearingOriginToDest,
-        bearingPositionToDestinationWaypoint: bearingToDest,
-        originWaypointNumber: undefined,
-        destinationWaypointNumber: waypointId,
-        destinationLatitude: course.nextPoint.position.latitude,
-        destinationLongitude: course.nextPoint.position.longitude,
-        waypointClosingVelocity: WCV
-      })
-    )
+    new PGN_129284({
+      sid: sid129284,
+      distanceToWaypoint: distance,
+      courseBearingReference: 0,
+      perpendicularCrossed: isRaised(pp) ? YesNo.Yes : YesNo.No,
+      arrivalCircleEntered: isRaised(ace) ? YesNo.Yes : YesNo.No,
+      calculationType:
+        calcMethod == null ? undefined : calcMethod == 'GreatCircle' ? 0 : 1,
+      etaTime: WCV > 0 ? etaTime : undefined,
+      // Days since 1970, which the encoder takes for a date
+      etaDate: WCV > 0 ? (etaDate as unknown as string) : undefined,
+      bearingOriginToDestinationWaypoint: bearingOriginToDest,
+      bearingPositionToDestinationWaypoint: bearingToDest,
+      originWaypointNumber: undefined,
+      destinationWaypointNumber: waypointId,
+      destinationLatitude: course.nextPoint.position.latitude,
+      destinationLongitude: course.nextPoint.position.longitude,
+      waypointClosingVelocity: WCV
+    })
   ]
 }
 
@@ -260,16 +258,14 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
         const formattedSource = source ? source.replace('-', ' ') : 'Manual'
 
         return [
-          withPriority(
-            new PGN_127258({
-              sid: 0xff,
-              // "WMM 2025" and the like, as MAGNETIC_VARIATION names them
-              source: formattedSource as MagneticVariation,
-              // Days since 1970, which the encoder takes for a date
-              ageOfService: ageOfServiceDays as unknown as string,
-              variation: variation
-            })
-          )
+          new PGN_127258({
+            sid: 0xff,
+            // "WMM 2025" and the like, as MAGNETIC_VARIATION names them
+            source: formattedSource as MagneticVariation,
+            // Days since 1970, which the encoder takes for a date
+            ageOfService: ageOfServiceDays as unknown as string,
+            variation: variation
+          })
         ]
       },
       tests: [
@@ -281,7 +277,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 // Age of service changes every day
                 delete testResult.fields['Age of service']
               },
-              prio: 2,
+              prio: 7,
               pgn: 127258,
               dst: 255,
               fields: {
@@ -313,20 +309,18 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               origin.withheld()
                 ? null
                 : [
-                    withPriority(
-                      new PGN_129283({
-                        xte: XTE,
-                        xteMode: ResidualMode.Autonomous,
-                        navigationTerminated: YesNo.No
-                      })
-                    )
+                    new PGN_129283({
+                      xte: XTE,
+                      xteMode: ResidualMode.Autonomous,
+                      navigationTerminated: YesNo.No
+                    })
                   ],
             tests: [
               {
                 input: [0.12],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 3,
                     pgn: 129283,
                     dst: 255,
                     fields: {
@@ -402,7 +396,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       delete testResult.fields['ETA Date']
                       delete testResult.fields['ETA Time']
                     },
-                    prio: 2,
+                    prio: 3,
                     pgn: 129284,
                     dst: 255,
                     fields: {
@@ -431,7 +425,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       delete testResult.fields['ETA Date']
                       delete testResult.fields['ETA Time']
                     },
-                    prio: 2,
+                    prio: 3,
                     pgn: 129284,
                     dst: 255,
                     fields: {
@@ -458,7 +452,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     __preprocess__: (testResult: any) => {
                       delete testResult.fields['SID']
                     },
-                    prio: 2,
+                    prio: 3,
                     pgn: 129284,
                     dst: 255,
                     fields: {

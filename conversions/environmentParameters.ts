@@ -2,7 +2,6 @@ import { PGN_130311, TemperatureSource, HumiditySource } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { withPriority } from '../pgn'
 
 const pressureKey = 'environment.outside.pressure'
 // environment.outside.humidity is the Signal K schema path;
@@ -49,20 +48,18 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           {
             keys: [pressureKey],
             callback: (pressure: number): PGN_130311[] => [
-              withPriority(
-                new PGN_130311({
-                  // Not available: this callback has no temperature source
-                  temperatureSource: undefined as unknown as TemperatureSource,
-                  atmosphericPressure: pressure
-                })
-              )
+              new PGN_130311({
+                // Not available: this callback has no temperature source
+                temperatureSource: undefined as unknown as TemperatureSource,
+                atmosphericPressure: pressure
+              })
             ],
             tests: [
               {
                 input: [3507100],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 5,
                     pgn: 130311,
                     dst: 255,
                     fields: {
@@ -87,18 +84,16 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           ): PGN_130311[] => {
             humidity = humidity ?? relativeHumidity
             return [
-              withPriority(
-                new PGN_130311({
-                  temperatureSource: (temperature == null
-                    ? undefined
-                    : TemperatureSource.OutsideTemperature) as TemperatureSource,
-                  humiditySource:
-                    humidity == null ? undefined : HumiditySource.Outside,
-                  temperature: temperature ?? undefined,
-                  humidity: humidity ?? undefined,
-                  atmosphericPressure: pressure ?? undefined
-                })
-              )
+              new PGN_130311({
+                temperatureSource: (temperature == null
+                  ? undefined
+                  : TemperatureSource.OutsideTemperature) as TemperatureSource,
+                humiditySource:
+                  humidity == null ? undefined : HumiditySource.Outside,
+                temperature: temperature ?? undefined,
+                humidity: humidity ?? undefined,
+                atmosphericPressure: pressure ?? undefined
+              })
             ]
           },
           tests: [
@@ -106,7 +101,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               input: [101300, 291.2, 0.64, null],
               expected: [
                 {
-                  prio: 2,
+                  prio: 5,
                   pgn: 130311,
                   dst: 255,
                   fields: {
@@ -124,7 +119,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               input: [null, null, null, 0.5],
               expected: [
                 {
-                  prio: 2,
+                  prio: 5,
                   pgn: 130311,
                   dst: 255,
                   fields: {

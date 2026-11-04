@@ -1,6 +1,5 @@
 import { PGN_128259 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -12,11 +11,9 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     callback: (speed: number): PGN_128259[] | undefined => {
       try {
         return [
-          withPriority(
-            new PGN_128259({
-              speedWaterReferenced: speed
-            })
-          )
+          new PGN_128259({
+            speedWaterReferenced: speed
+          })
         ]
       } catch (err) {
         console.error(err)

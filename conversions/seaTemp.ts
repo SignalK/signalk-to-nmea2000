@@ -1,6 +1,5 @@
 import { PGN_130310 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -18,14 +17,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     ): PGN_130310[] | undefined => {
       try {
         return [
-          withPriority(
-            new PGN_130310({
-              sid: 0xff,
-              waterTemperature: water,
-              outsideAmbientAirTemperature: air,
-              atmosphericPressure: pressure
-            })
-          )
+          new PGN_130310({
+            sid: 0xff,
+            waterTemperature: water,
+            outsideAmbientAirTemperature: air,
+            atmosphericPressure: pressure
+          })
         ]
       } catch (err) {
         console.error(err)
@@ -36,7 +33,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         input: [281.2, 291, 20100],
         expected: [
           {
-            prio: 2,
+            prio: 5,
             pgn: 130310,
             dst: 255,
             fields: {

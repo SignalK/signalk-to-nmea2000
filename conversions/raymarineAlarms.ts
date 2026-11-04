@@ -5,7 +5,6 @@ import {
   SeatalkAlarmGroup
 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 // The alarms sent, each with the notification path it is for.
 let alarms: { path: string; pgn: PGN_65288_SeatalkAlarm }[] = []
@@ -58,16 +57,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       if (state && alarmId) {
         alarms.push({
           path,
-          pgn: withPriority(
-            new PGN_65288_SeatalkAlarm({
-              sid: 1,
-              alarmStatus: state,
-              alarmId: alarmId,
-              alarmGroup: SeatalkAlarmGroup.Instrument,
-              alarmPriority: 1
-              // The class sets Raymarine and Marine Industry itself.
-            })
-          )
+          pgn: new PGN_65288_SeatalkAlarm({
+            sid: 1,
+            alarmStatus: state,
+            alarmId: alarmId,
+            alarmGroup: SeatalkAlarmGroup.Instrument,
+            alarmPriority: 1
+            // The class sets Raymarine and Marine Industry itself.
+          })
         })
       }
 
@@ -99,7 +96,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 7,
             pgn: 65288,
             dst: 255,
             fields: {
