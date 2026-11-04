@@ -8,7 +8,6 @@ import {
   PGN_130316,
   TemperatureSource
 } from '@canboat/ts-pgns'
-import { getBitEnumeration } from '@canboat/ts-pgns/lookups'
 import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
 
@@ -28,94 +27,46 @@ interface TemperatureMapping {
   tempInstanceId: number
 }
 
-const engineStatus1Keys = [
-  'checkEngine',
-  'overTemperature',
-  'lowOilPressure',
-  'lowOilLevel',
-  'lowFuelPressure',
-  'lowSystemVoltage',
-  'lowCoolantLevel',
-  'waterFlow',
-  'waterInFuel',
-  'chargeIndicator',
-  'preheatIndicator',
-  'highBoostPressure',
-  'revLimitExceeded',
-  'eGRSystem',
-  'throttlePositionSensor',
-  'emergencyStopMode'
+// The Signal K notification for each discrete status, under
+// notifications.propulsion.<engine>, as n2k-signalk names it when it decodes
+// 127489. Each is paired with its ts-pgns status, so a status renamed in
+// canboat fails the build.
+const engineStatus1Paths: [string, EngineStatus1][] = [
+  ['checkEngine', EngineStatus1.CheckEngine],
+  ['overTemperature', EngineStatus1.OverTemperature],
+  ['lowOilPressure', EngineStatus1.LowOilPressure],
+  ['lowOilLevel', EngineStatus1.LowOilLevel],
+  ['lowFuelPressure', EngineStatus1.LowFuelPressure],
+  ['lowSystemVoltage', EngineStatus1.LowSystemVoltage],
+  ['lowCoolantLevel', EngineStatus1.LowCoolantLevel],
+  ['waterFlow', EngineStatus1.WaterFlow],
+  ['waterInFuel', EngineStatus1.WaterInFuel],
+  ['chargeIndicator', EngineStatus1.ChargeIndicator],
+  ['preheatIndicator', EngineStatus1.PreheatIndicator],
+  ['highBoostPressure', EngineStatus1.HighBoostPressure],
+  ['revLimitExceeded', EngineStatus1.RevLimitExceeded],
+  ['eGRSystem', EngineStatus1.EgrSystem],
+  ['throttlePositionSensor', EngineStatus1.ThrottlePositionSensor],
+  ['emergencyStopMode', EngineStatus1.EmergencyStop]
 ]
 
-const engineStatus2Keys = [
-  'warningLevel1',
-  'warningLevel2',
-  'powerReduction',
-  'maintenanceNeeded',
-  'commError',
-  'subOrSecondaryThrottle',
-  'neutralStartProtect',
-  'shuttingDown'
+const engineStatus2Paths: [string, EngineStatus2][] = [
+  ['warningLevel1', EngineStatus2.WarningLevel1],
+  ['warningLevel2', EngineStatus2.WarningLevel2],
+  ['powerReduction', EngineStatus2.PowerReduction],
+  ['maintenanceNeeded', EngineStatus2.MaintenanceNeeded],
+  ['commError', EngineStatus2.EngineCommError],
+  ['subOrSecondaryThrottle', EngineStatus2.SubOrSecondaryThrottle],
+  ['neutralStartProtect', EngineStatus2.NeutralStartProtect],
+  ['shuttingDown', EngineStatus2.EngineShuttingDown]
 ]
 
-function getEngineStatusNames<T extends string>(
-  fieldId: 'discreteStatus1' | 'discreteStatus2',
-  enumValues: T[]
-): T[] {
-  const field = new PGN_127489({ instance: 0 })
-    .getDefinition()
-    .Fields.find(({ Id }) => Id === fieldId)
-  const lookupName = field?.LookupBitEnumeration
-  if (!lookupName) {
-    throw new Error(`CANboat definition has no bit lookup for ${fieldId}`)
-  }
+const engineStatus1 = engineStatus1Paths.map(([, status]) => status)
+const engineStatus2 = engineStatus2Paths.map(([, status]) => status)
 
-  const lookup = getBitEnumeration(lookupName)
-  if (!lookup) {
-    throw new Error(`CANboat bit lookup ${lookupName} was not found`)
-  }
-
-  return [...lookup.EnumBitValues]
-    .sort((a, b) => a.Bit - b.Bit)
-    .map(({ Name }) => {
-      const status = enumValues.find((value) => value === Name)
-      if (status === undefined) {
-        throw new Error(
-          `CANboat status ${Name} is not available for ${fieldId}`
-        )
-      }
-      return status
-    })
-}
-
-const engineStatus1 = getEngineStatusNames(
-  'discreteStatus1',
-  Object.values(EngineStatus1)
+const statusSourceKeys = [...engineStatus1Paths, ...engineStatus2Paths].map(
+  ([key, title]) => ({ key, title })
 )
-const engineStatus2 = getEngineStatusNames(
-  'discreteStatus2',
-  Object.values(EngineStatus2)
-)
-
-if (
-  engineStatus1Keys.length !== engineStatus1.length ||
-  engineStatus2Keys.length !== engineStatus2.length
-) {
-  throw new Error(
-    'Signal K engine notification paths do not match CANboat status bits'
-  )
-}
-
-const statusSourceKeys = [
-  ...engineStatus1Keys.map((key, index) => ({
-    key,
-    title: engineStatus1[index]
-  })),
-  ...engineStatus2Keys.map((key, index) => ({
-    key,
-    title: engineStatus2[index]
-  }))
-]
 
 const notificationSourceProperties = Object.fromEntries(
   statusSourceKeys.map(({ key, title }) => [
@@ -123,7 +74,7 @@ const notificationSourceProperties = Object.fromEntries(
     {
       title: `Source for ${title}`,
       description:
-        'Use data only from this source (leave blank to accept any source)',
+        'Use data only from this source (leave blank to accept any source except NMEA 2000)',
       type: 'string'
     }
   ])
@@ -186,7 +137,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               notificationSources: {
                 title: 'Notification Sources',
                 description:
-                  'Select which source to use for each engine notification.',
+                  'Select which source to use for each engine notification. Notifications from NMEA 2000 come from an engine that already sends this PGN: left blank, they are ignored; picking an NMEA 2000 source here stops this plugin sending the PGN for this engine while that source has the notification. "Also send data that came from NMEA 2000" turns both off.',
                 type: 'object',
                 properties: notificationSourceProperties
               }

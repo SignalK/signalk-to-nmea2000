@@ -66,6 +66,10 @@ module.exports = function (app: App) {
     (notifications skips notifications.nmea.*) and gets all its data.
     A conversion can limit the keys whose NMEA 2000 data withholds its PGNs
     with withholdingKeys; NMEA 2000 data for its other keys is ignored.
+    NMEA 2000 data from a source the user picked is sent, except for the keys
+    in withholdingSourceKeys, where a value from it withholds the PGN instead
+    (engine notifications: an NMEA 2000 engine already sends 127489). With
+    allowNmea2000Sources set, none of this applies and everything is sent.
     A conversion whose output depends on more than its inputs gives a
     withheld function; resending stops once it returns true.
    */
