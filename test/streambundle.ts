@@ -195,6 +195,7 @@ describe('onValueChange conversions over the streambundle', () => {
     publish(app, 'notifications.propulsion.engines.port.lowOilPressure', {
       state: 'nominal'
     })
+    publish(app, 'propulsion.engines.port.oilPressure', 102700)
 
     await settle()
     plugin.stop()
@@ -202,6 +203,19 @@ describe('onValueChange conversions over the streambundle', () => {
     const enginePgn = app.emitted.find((pgn: TestPgn) => pgn.pgn === 127489)
     assert.exists(enginePgn)
     assert.deepEqual(enginePgn.fields['Discrete Status 1'], [])
+  })
+
+  it('does not send 127489 for a nominal notification without readings', async () => {
+    const app = makeApp()
+    const plugin = startEngineParameters(app)
+    publish(app, 'notifications.propulsion.engines.port.lowOilPressure', {
+      state: 'nominal'
+    })
+
+    await settle()
+    plugin.stop()
+
+    assert.notExists(app.emitted.find((pgn: TestPgn) => pgn.pgn === 127489))
   })
 
   it('clears an active notification on normal and null updates', async () => {
