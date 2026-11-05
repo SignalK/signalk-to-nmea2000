@@ -128,6 +128,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                     value: { id: 52, name: 'Tug' }
                   },
                   { path: 'design.beam', value: 7 },
+                  { path: 'registrations.imo', value: 'IMO 9074729' },
                   { path: '', value: { mmsi: '367301250' } },
                   { path: '', value: { name: 'SOME BOAT' } }
                 ]
@@ -165,6 +166,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             fields: {
               'Message ID': 'Static and voyage related data',
               'User ID': 367301250,
+              'IMO number': 9074729,
               Name: 'SOME BOAT',
               'Type of ship': 'Tug',
               Length: 30,
@@ -477,6 +479,45 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           }
         ]
+      },
+      {
+        // On the prime meridian: a longitude of 0 is still a position
+        input: [
+          {
+            context: 'vessels.urn:mrn:imo:mmsi:235000001',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'navigation.position',
+                    value: { longitude: 0, latitude: 51.4769 }
+                  },
+                  { path: '', value: { mmsi: '235000001' } }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 4,
+            pgn: 129038,
+            dst: 255,
+            fields: {
+              'Message ID': 'Scheduled Class A position report',
+              'User ID': 235000001,
+              Longitude: 0,
+              Latitude: 51.4769,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use',
+              'Time Stamp': 0,
+              'AIS Transceiver information': 'Channel A VDL reception',
+              'Nav Status': 'Under way using engine',
+              'Repeat Indicator': 'Final retransmission',
+              'Special Maneuver Indicator': 'Reserved'
+            }
+          }
+        ]
       }
     ]
   }
@@ -493,26 +534,17 @@ function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
   var fromCenter = findDeltaValue(vessel, delta, 'sensors.ais.fromCenter')
   var fromBow = findDeltaValue(vessel, delta, 'sensors.ais.fromBow')
   var draft = _.get(findDeltaValue(vessel, delta, 'design.draft'), 'maximum')
-  var imo = findDeltaValue(vessel, delta, 'registrations.imo')
+  var imo = imoNumber(findDeltaValue(vessel, delta, 'registrations.imo'))
   var dest = findDeltaValue(vessel, delta, 'navigation.destination.commonName')
-
-  if (_.isUndefined(imo)) {
-    imo = 0
-  } else {
-    var parts = imo.split(imo)
-    imo = Number(parts[parts.length - 1])
-  }
 
   var fromStarboard = distanceFromStarboard(fromCenter, beam)
   fromBow = distanceOnHull(fromBow, length)
 
-  mmsi = parseInt(mmsi, 10)
-
   return new PGN_129794({
     messageId: 5,
     //repeatIndicator: 0,
-    // A number, as parsed above; ts-pgns types an MMSI as its string
-    userId: mmsi as unknown as string,
+    userId: String(mmsi),
+    imoNumber: imo,
     callsign: callsign,
     name: name,
     typeOfShip: type,
@@ -526,6 +558,20 @@ function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
     dte: 0,
     aisTransceiverInformation: 0
   })
+}
+
+// Signal K gives the IMO number as "IMO 1234567"; take its digits
+function imoNumber(imo: unknown): number | undefined {
+  const digits = /(\d+)\s*$/.exec(String(imo ?? ''))
+  return digits ? Number(digits[1]) : undefined
+}
+
+// A latitude or longitude of 0 is a position too: on the equator or the
+// prime meridian
+function hasPosition(position: any): boolean {
+  return (
+    Number.isFinite(position?.latitude) && Number.isFinite(position?.longitude)
+  )
 }
 
 // fromCenter is positive to starboard, as n2k-signalk and nmea0183-signalk
@@ -561,7 +607,7 @@ function generatePosition(
 ): PGN_129038 | null {
   var position = findDeltaValue(vessel, delta, 'navigation.position')
 
-  if (position && position.latitude && position.longitude) {
+  if (hasPosition(position)) {
     var cog = findDeltaValue(vessel, delta, 'navigation.courseOverGroundTrue')
     var sog = findDeltaValue(vessel, delta, 'navigation.speedOverGround')
     var heading = findDeltaValue(vessel, delta, 'navigation.headingTrue')
@@ -586,7 +632,7 @@ function generatePosition(
     return new PGN_129038({
       messageId: 1,
       //repeatIndicator: 0,
-      userId: mmsi,
+      userId: String(mmsi),
       longitude: position.longitude,
       latitude: position.latitude,
       positionAccuracy: 0,
@@ -611,7 +657,7 @@ function generateAtoN(
 ): PGN_129041 | null {
   var position = findDeltaValue(vessel, delta, 'navigation.position')
 
-  if (position && position.latitude && position.longitude) {
+  if (hasPosition(position)) {
     var name = _.get(vessel, 'name') || findDeltaValue(vessel, delta, 'name')
     var type = _.get(findDeltaValue(vessel, delta, 'atonType'), 'id')
     var length = finite(
@@ -623,13 +669,10 @@ function generateAtoN(
     // No fromBow: an AtoN has no bow, and 129041 measures from its true north
     // facing edge instead. n2k-signalk does not map that field either.
 
-    mmsi = parseInt(mmsi, 10)
-
     return new PGN_129041({
       messageId: 0,
       repeatIndicator: 0,
-      // A number, as parsed above; ts-pgns types an MMSI as its string
-      userId: mmsi as unknown as string,
+      userId: String(mmsi),
       longitude: position.longitude,
       latitude: position.latitude,
       positionAccuracy: 0,
