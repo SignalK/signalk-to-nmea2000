@@ -54,6 +54,21 @@ export const outputDescription =
 export const conversionBusesDescription =
   'None chosen: the buses chosen under Output to NMEA 2000, or every bus.'
 
+// The buses chosen in saved settings, as app.readPluginOptions gives them
+export function savedBuses(saved: unknown): string[] {
+  const configuration = (saved as { configuration?: unknown })?.configuration
+  if (!configuration || typeof configuration !== 'object') {
+    return []
+  }
+  return _.uniq(
+    Object.values(configuration).flatMap((settings) =>
+      Array.isArray(settings?.nmea2000Buses)
+        ? settings.nmea2000Buses.filter((id: unknown) => typeof id === 'string')
+        : []
+    )
+  )
+}
+
 // The buses a conversion sends to, each once: its own choice, else the
 // plugin-wide one; empty for every bus
 export function chosenBuses(options: PluginOptions, optionKey: string) {

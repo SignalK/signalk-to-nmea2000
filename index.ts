@@ -9,6 +9,7 @@ import { Type, type TProperties } from 'typebox'
 import { Value } from 'typebox/value'
 import { App, Conversion, Plugin } from './types'
 import {
+  savedBuses,
   busEvents,
   busesProperty,
   busList,
@@ -115,9 +116,12 @@ module.exports = function (app: App) {
   const buses = busList(app)
 
   // The buses offered in the admin UI's form, none on a server that cannot
-  // send to one bus; any, when the saved settings are checked
+  // send to one bus; any, when the saved settings are checked. A saved bus
+  // that is not listed now stays a choice, or the form could not be saved.
   function busChoices(liveData: boolean) {
-    return liveData ? [...buses.keys()] : undefined
+    return liveData
+      ? _.uniq([...buses.keys(), ...savedBuses(app.readPluginOptions?.())])
+      : undefined
   }
   const offersBuses = (liveData: boolean) => !liveData || buses.size > 0
 

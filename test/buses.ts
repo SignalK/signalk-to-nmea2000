@@ -98,6 +98,22 @@ describe('NMEA 2000 buses', function () {
     assert.deepEqual(rudder.items.enum, ['bus1', 'bus2'])
   })
 
+  it('keeps a saved bus that is not listed now a choice', function () {
+    const app = makeApp(SERVER_BUSES)
+    app.readPluginOptions = () => ({
+      enabled: true,
+      configuration: {
+        OUTPUT: { nmea2000Buses: ['old'] },
+        RUDDER: { enabled: true, nmea2000Buses: ['bus1', 'gone'] }
+      }
+    })
+    const schema = require('../dist/index.js')(app).schema()
+    assert.deepEqual(
+      schema.properties.OUTPUT.properties.nmea2000Buses.items.enum,
+      ['bus1', 'bus2', 'old', 'gone']
+    )
+  })
+
   it('sends to every bus when none is chosen', async function () {
     const events = await rudderEvents(makeApp(SERVER_BUSES), {})
     assert.deepEqual(events, ['nmea2000out'])
