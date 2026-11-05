@@ -188,6 +188,22 @@ module.exports = function (app: App) {
     return pluginSchema(true)
   }
 
+  // The bus choices as checkboxes, easier than a multiple select, above all
+  // on a touch screen
+  plugin.uiSchema = function () {
+    const checkboxes = {
+      nmea2000Buses: {
+        'ui:widget': 'checkboxes',
+        'ui:options': { inline: true }
+      }
+    }
+    const uiSchema: Record<string, unknown> = { [OUTPUT_KEY]: checkboxes }
+    conversions.forEach((conversion) => {
+      uiSchema[conversion.optionKey!] = checkboxes
+    })
+    return uiSchema
+  }
+
   // Fill in the defaults of an enabled conversion's settings, and report the
   // ones that do not match the schema. The conversion still starts: the
   // settings were saved by an earlier version, or edited by hand.

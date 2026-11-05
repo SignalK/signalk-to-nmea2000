@@ -114,6 +114,18 @@ describe('NMEA 2000 buses', function () {
     )
   })
 
+  it('shows the bus choices as checkboxes', function () {
+    const uiSchema = require('../dist/index.js')(
+      makeApp(SERVER_BUSES)
+    ).uiSchema()
+    const checkboxes = {
+      'ui:widget': 'checkboxes',
+      'ui:options': { inline: true }
+    }
+    assert.deepEqual(uiSchema.OUTPUT.nmea2000Buses, checkboxes)
+    assert.deepEqual(uiSchema.RUDDER.nmea2000Buses, checkboxes)
+  })
+
   it('sends to every bus when none is chosen', async function () {
     const events = await rudderEvents(makeApp(SERVER_BUSES), {})
     assert.deepEqual(events, ['nmea2000out'])
