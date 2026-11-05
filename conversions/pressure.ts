@@ -3,7 +3,7 @@ import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
 
-// 100 is what the plugin always sent before the instance could be set
+// Instance 100 when none is configured, so existing setups keep theirs
 const defaultInstance = 100
 
 const pressureProperties = {
