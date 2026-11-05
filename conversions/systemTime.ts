@@ -1,4 +1,4 @@
-import { PGN_126992, PGN_126992Fields, SystemTime } from '@canboat/ts-pgns'
+import { PGN_126992, PGN_126992Fields } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
@@ -16,10 +16,9 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         dateObj.getUTCSeconds()
 
       // The date goes as days since 1970, which the encoder takes as well as
-      // ts-pgns's date string. The time is the server's own clock; whether
-      // that follows GPS or NTP is not known here, so it is not claimed.
+      // ts-pgns's date string. Source is left out, as not available: whether
+      // the server's clock follows GPS, NTP or nothing is not known here.
       const fields = {
-        source: SystemTime.LocalCrystalClock,
         date: days as unknown as string,
         time: time
       } as PGN_126992Fields
@@ -34,7 +33,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             pgn: 126992,
             dst: 255,
             fields: {
-              Source: 'Local Crystal clock',
               Date: '2017.04.15',
               Time: 53993
             }
