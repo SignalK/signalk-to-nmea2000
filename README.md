@@ -33,3 +33,14 @@ Two settings change this per conversion:
 
 - **Source for …**: a source chosen here is always used, including an NMEA 2000 one.
 - **Also send data that came from NMEA 2000**: turns the check off. Only useful for bridging between separate NMEA 2000 networks, with each connection's output event configured so data does not go back to the network it came from.
+
+## More than one NMEA 2000 bus
+
+By default the plugin sends every PGN to every NMEA 2000 connection, on `nmea2000out`. On a server that can send to one connection at a time (SignalK/signalk-server#3283), the plugin's settings list the NMEA 2000 connections that write, and a PGN can go to some of them only:
+
+- **Output to NMEA 2000 → Send to these NMEA 2000 buses**: the buses every conversion sends to.
+- **Send to these NMEA 2000 buses**, in a conversion: that conversion's own choice, instead of the one above.
+
+With none chosen, a PGN goes to every bus, as before. A connection whose **Send broadcast N2K output** setting is off in the server gets only what is sent to it by name, so choose it here to send to it. On an older server the settings don't show, and everything goes to every bus.
+
+A bus is chosen by the connection's ID in the server's admin UI. A chosen connection that is removed, or renamed, gets nothing until the setting is changed.

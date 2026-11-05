@@ -16,6 +16,11 @@ export interface App {
   emit(event: string, ...args: unknown[]): boolean | void
   setPluginError?(msg: string): void
   reportOutputMessages?(count?: number): void
+  readPluginOptions?(): unknown
+  onPropertyValues?(
+    name: string,
+    cb: (values: ({ value: any } | undefined)[]) => void
+  ): () => void
 }
 
 /** The plugin object a conversion module is given. */

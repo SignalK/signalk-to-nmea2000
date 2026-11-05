@@ -9,6 +9,16 @@ import { Type, type TProperties } from 'typebox'
 import { Value } from 'typebox/value'
 import { App, Conversion, Plugin } from './types'
 import {
+  savedBuses,
+  busEvents,
+  busesProperty,
+  busList,
+  chosenBuses,
+  conversionBusesDescription,
+  OUTPUT_KEY,
+  outputDescription
+} from './buses'
+import {
   allowNmea2000SourcesProperty,
   conversionProperties,
   type ConversionSettings,
@@ -32,6 +42,8 @@ type RunningConversion = Conversion & {
   initialValueKeys?: string[]
   sourceSelectors?: Record<string, string | undefined>
   preventsNmea2000Echo?: boolean
+  // The NMEA 2000 buses its PGNs go to; empty for every bus
+  buses?: string[]
 }
 
 interface Delta {
@@ -90,7 +102,10 @@ module.exports = function (app: App) {
     timer: mapTimer
   }
 
-  var outputTypes: Record<string, (values: Output) => void> = {
+  var outputTypes: Record<
+    string,
+    (values: Output, conversion: RunningConversion) => void
+  > = {
     'to-n2k': processToN2K
   }
 
@@ -98,10 +113,35 @@ module.exports = function (app: App) {
   plugin.name = 'Signal K to NMEA 2000'
   plugin.description = 'Plugin to convert Signal K to NMEA2000'
 
+  const buses = busList(app)
+
+  // The buses offered in the admin UI's form, none on a server that cannot
+  // send to one bus; any, when the saved settings are checked. A saved bus
+  // that is not listed now stays a choice, or the form could not be saved.
+  function busChoices(liveData: boolean) {
+    return liveData
+      ? _.uniq([...buses.keys(), ...savedBuses(app.readPluginOptions?.())])
+      : undefined
+  }
+  const offersBuses = (liveData: boolean) => !liveData || buses.size > 0
+
   // The plugin's schema; liveData offers the ids in the Signal K data as
   // choices, for the admin UI's form
   function pluginSchema(liveData: boolean) {
     const properties: TProperties = {}
+    if (offersBuses(liveData)) {
+      properties[OUTPUT_KEY] = Type.Optional(
+        Type.Object(
+          {
+            nmea2000Buses: busesProperty(
+              busChoices(liveData),
+              outputDescription
+            )
+          },
+          { title: 'Output to NMEA 2000' }
+        )
+      )
+    }
     conversions.forEach((conversion) => {
       properties[conversion.optionKey!] = Type.Optional(
         conversionSchema(conversion, liveData)
@@ -130,7 +170,15 @@ module.exports = function (app: App) {
           ? {}
           : allowNmea2000SourcesProperty),
         ...sources,
-        ...own
+        ...own,
+        ...(offersBuses(liveData)
+          ? {
+              nmea2000Buses: busesProperty(
+                busChoices(liveData),
+                conversionBusesDescription
+              )
+            }
+          : {})
       },
       { title: conversion.title }
     )
@@ -138,6 +186,20 @@ module.exports = function (app: App) {
 
   plugin.schema = function () {
     return pluginSchema(true)
+  }
+
+  // The bus choices as checkboxes, easier than a multiple select, above all
+  // on a touch screen. One per line: the admin UI has no style for inline
+  // checkboxes, which run into each other.
+  plugin.uiSchema = function () {
+    const checkboxes = {
+      nmea2000Buses: { 'ui:widget': 'checkboxes' }
+    }
+    const uiSchema: Record<string, unknown> = { [OUTPUT_KEY]: checkboxes }
+    conversions.forEach((conversion) => {
+      uiSchema[conversion.optionKey!] = checkboxes
+    })
+    return uiSchema
   }
 
   // Fill in the defaults of an enabled conversion's settings, and report the
@@ -189,6 +251,7 @@ module.exports = function (app: App) {
                   if (_.isUndefined(subConversion.outputType)) {
                     subConversion.outputType = 'to-n2k'
                   }
+                  subConversion.buses = chosenBuses(options, optionKey)
                   mapper(subConversion, options[optionKey]!)
                 }
               }
@@ -233,7 +296,7 @@ module.exports = function (app: App) {
   // A PGN that cannot be encoded here is dropped, not handed to the server
   // as JSON: a server on canboatjs 3 would read its SI values in the old
   // units and put wrong values on the bus.
-  function emitPgn(pgn: PGN) {
+  function emitPgn(pgn: PGN, chosen: string[] = []) {
     let line
     try {
       line = pgnToActisenseSerialFormat(pgn)
@@ -245,11 +308,13 @@ module.exports = function (app: App) {
       app.error(`cannot encode PGN ${pgn.pgn}`)
       return
     }
-    app.debug(`emit nmea2000out ${line}`)
-    app.emit('nmea2000out', line)
+    busEvents(buses, chosen).forEach((event) => {
+      app.debug(`emit ${event} ${line}`)
+      app.emit(event, line)
+    })
   }
 
-  function processToN2K(values: Output) {
+  function processToN2K(values: Output, conversion: RunningConversion) {
     if (values) {
       Promise.all(values as (PGN | null | Promise<PGN | null>)[]).then(
         (pgns) => {
@@ -257,7 +322,7 @@ module.exports = function (app: App) {
             .filter((pgn) => pgn != null)
             .forEach((pgn) => {
               try {
-                emitPgn(pgn)
+                emitPgn(pgn, conversion.buses)
               } catch (err: any) {
                 console.error(`error writing pgn ${JSON.stringify(pgn)}`)
                 console.error(err.stack)
@@ -304,7 +369,7 @@ module.exports = function (app: App) {
           return
         }
         Promise.resolve(output).then((values) => {
-          outputTypes[conversion.outputType!](values)
+          outputTypes[conversion.outputType!](values, conversion)
         })
         if (Date.now() - startedAt > (options.resendTime || 30) * 1000) {
           clearResendInterval(conversion.resendTimer)
@@ -313,7 +378,7 @@ module.exports = function (app: App) {
       timers.push(conversion.resendTimer)
     }
     Promise.resolve(output).then((values) => {
-      outputTypes[conversion.outputType!](values)
+      outputTypes[conversion.outputType!](values, conversion)
     })
   }
 
