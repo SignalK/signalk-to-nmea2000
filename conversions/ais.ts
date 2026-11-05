@@ -1,5 +1,10 @@
 import _ from 'lodash'
-import { PGN_129794, PGN_129038, PGN_129041 } from '@canboat/ts-pgns'
+import {
+  PGN_129794,
+  PGN_129038,
+  PGN_129041,
+  PGN_129793
+} from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
 
 // A Signal K delta and a vessel's tree, as loose as Signal K has them
@@ -23,6 +28,7 @@ const position_keys = ['navigation.position']
 const static_pgn = 129794
 const position_pgn = 129038
 const aton_pgn = 129041
+const base_station_pgn = 129793
 
 const navStatusMapping: Record<string, number> = {
   'not under command': 2,
@@ -52,7 +58,7 @@ const navStatusMapping: Record<string, number> = {
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
-    title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
+    title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn}, ${base_station_pgn})`,
     sourceType: 'onDelta',
     //outputType: 'buffer',
     optionKey: 'AISv2',
@@ -96,6 +102,19 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         }
 
         return [generateAtoN(vessel, mmsi, delta)]
+      } else if (delta.context.startsWith('shore.basestations.')) {
+        if (!hasAnyKeys(delta, position_keys)) {
+          return null
+        }
+        var station = app.getPath(delta.context)
+        var mmsi = findDeltaValue(station, delta, 'mmsi')
+
+        if (!mmsi) {
+          return null
+        }
+
+        const report = generateBaseStation(station, mmsi, delta)
+        return report ? [report] : null
       }
     },
     tests: [
@@ -608,6 +627,59 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           }
         ]
+      },
+      {
+        // A base station (AIS message 4)
+        input: [
+          {
+            context: 'shore.basestations.urn:mrn:imo:mmsi:002442000',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'navigation.position',
+                    value: { longitude: 4.7731667, latitude: 52.9578333 }
+                  },
+                  { path: '', value: { mmsi: '002442000' } },
+                  { path: 'sensors.ais.class', value: 'BASE' }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 7,
+            pgn: 129793,
+            dst: 255,
+            fields: {
+              'Message ID': 'Base station report',
+              'Repeat Indicator': 'Initial',
+              'User ID': 2442000,
+              Longitude: 4.7731667,
+              Latitude: 52.9578333,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use'
+            }
+          }
+        ]
+      },
+      {
+        // A base station without a position sends nothing
+        input: [
+          {
+            context: 'shore.basestations.urn:mrn:imo:mmsi:002442000',
+            updates: [
+              {
+                values: [
+                  { path: 'navigation.position', value: null },
+                  { path: '', value: { mmsi: '002442000' } }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: []
       }
     ]
   }
@@ -781,6 +853,28 @@ function generateAtoN(
   } else {
     return null
   }
+}
+
+// AIS message 4. The UTC time a base station reports is not in Signal K, so
+// it is left out.
+function generateBaseStation(
+  station: Vessel,
+  mmsi: any,
+  delta: Delta
+): PGN_129793 | null {
+  var position = findDeltaValue(station, delta, 'navigation.position')
+  if (!hasPosition(position)) {
+    return null
+  }
+  return new PGN_129793({
+    messageId: 4,
+    repeatIndicator: 0,
+    userId: String(mmsi),
+    longitude: position.longitude,
+    latitude: position.latitude,
+    positionAccuracy: 0,
+    raim: 0
+  })
 }
 
 function hasAnyKeys(delta: Delta, keys: string[]) {
