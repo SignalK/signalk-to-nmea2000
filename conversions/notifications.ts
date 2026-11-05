@@ -90,7 +90,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         }
 
         // The NAME as a 16-digit string, which the encoder writes as is.
-        let idName = alertId.toString().padStart(16, '0') as unknown as number
+        const idName = alertId.toString().padStart(16, '0')
         pgns.push(
           withPriority(
             new PGN_126985({
@@ -201,7 +201,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               'Alert System': 5,
               'Alert Sub-System': 0,
               'Alert ID': 1,
-              'Data Source Network ID NAME': 1,
+              'Data Source Network ID NAME': '1',
               'Data Source Instance': 0,
               'Data Source Index-Source': 0,
               'Alert Occurrence Number': 0,
@@ -219,7 +219,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               'Alert System': 5,
               'Alert Sub-System': 0,
               'Alert ID': 1,
-              'Data Source Network ID NAME': 1,
+              'Data Source Network ID NAME': '1',
               'Data Source Instance': 0,
               'Data Source Index-Source': 0,
               'Alert Occurrence Number': 0,
