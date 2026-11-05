@@ -703,3 +703,51 @@ function goto(destination: { latitude: number; longitude: number }) {
     nextPoint: { type: 'Location', name: 'DP', position: destination }
   }
 }
+
+describe('man overboard', function () {
+  const mob = (value: unknown) => ({
+    context: 'vessels.self',
+    updates: [{ values: [{ path: 'notifications.mob.1', value }] }]
+  })
+  const sentMobs = (app: any) =>
+    app.emitted.filter((pgn: TestPgn) => pgn.pgn === 127233)
+
+  it('leaves repeating to its timer, not the resend option', async function () {
+    // A resent snapshot would outlast the MOB it shows
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ MOB: { enabled: true, resend: 0.02 } })
+    try {
+      app.subscribers.forEach((subscriber: Subscriber) =>
+        subscriber.callback(mob({ state: 'emergency', createdAt: new Date() }))
+      )
+      await settle()
+      assert.equal(sentMobs(app).length, 1)
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('sends a cleared MOB as not active for ten seconds', async function () {
+    const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ MOB: { enabled: true } })
+    try {
+      const [subscriber] = app.subscribers
+      subscriber.callback(mob({ state: 'emergency', createdAt: new Date() }))
+      subscriber.callback(mob(null))
+      await settle()
+      const notActive = sentMobs(app).at(-1)
+      assert.equal(notActive.fields['Man Overboard Status'], 'MOB Not Active')
+      clock.tick(11000)
+      const before = sentMobs(app).length
+      // The timer's next repeat finds it over
+      await new Promise((resolve) => setTimeout(resolve, 1100))
+      assert.equal(sentMobs(app).length, before)
+    } finally {
+      plugin.stop()
+      clock.restore()
+    }
+  })
+})

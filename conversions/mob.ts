@@ -22,7 +22,7 @@ const REPEAT_CLEARED_MS = 10000
 interface Mob {
   emitterId: number
   value: any
-  // When the MOB was cleared
+  // Set while a cleared MOB is still sent as not active
   clearedAt?: number
 }
 
@@ -133,6 +133,9 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           keys: ['notifications.mob*'],
           context: 'vessels.self',
           sourceType: 'subscription',
+          // The timer below repeats a MOB, with its current state: resending
+          // what a change gave would repeat a cleared MOB for too long
+          withheld: () => true,
           callback: (delta: any): PGN_127233[] | null => {
             let changed = false
             ;(delta.updates || []).forEach((update: any) =>
