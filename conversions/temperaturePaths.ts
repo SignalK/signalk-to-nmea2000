@@ -31,7 +31,12 @@ const temperatureProperties = (paths: string[]) => ({
           })
         ),
         instance: Type.Optional(
-          Type.Number({ title: 'N2K Temperature Instance', default: 0 })
+          Type.Integer({
+            title: 'N2K Temperature Instance',
+            minimum: 0,
+            maximum: 252,
+            default: 0
+          })
         )
       }),
       { title: 'Temperatures' }
@@ -81,7 +86,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => ({
           source: TemperatureSource.InsideTemperature,
           instance: 1
         },
-        { path: 'environment.inside.aftCabin.temperature' }
+        { path: 'environment.inside.aftCabin.temperature' },
+        {
+          path: 'environment.outside.temperature',
+          source: TemperatureSource.OutsideTemperature,
+          instance: 2
+        }
       ]
     }
   },
@@ -114,8 +124,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => ({
                 pgn: 130316,
                 dst: 255,
                 fields: {
-                  Instance: [1, 0][index],
-                  Source: 'Inside Temperature',
+                  Instance: [1, 0, 2][index],
+                  Source: [
+                    'Inside Temperature',
+                    'Inside Temperature',
+                    'Outside Temperature'
+                  ][index],
                   Temperature: 294.15 + index
                 }
               }
