@@ -17,6 +17,20 @@ function normalizeMmsi(pgn: any) {
   }
 }
 
+// canboatjs decodes an unnamed AIS Time Stamp value (0-59, the UTC second)
+// as a number from canboat/canboatjs#576 on, as a string before; compare it
+// as the number either way.
+function normalizeTimeStamp(pgn: any) {
+  const fields = pgn && pgn.fields
+  if (
+    fields &&
+    typeof fields['Time Stamp'] === 'string' &&
+    /^\d+$/.test(fields['Time Stamp'])
+  ) {
+    fields['Time Stamp'] = Number(fields['Time Stamp'])
+  }
+}
+
 // Reserved and spare fields are filled in by the encoder, not by the
 // conversions, so compare without them.
 function dropReservedAndSpare(pgn: any) {
@@ -145,6 +159,7 @@ describe('conversions work', () => {
                         // it as the string either way.
                         normalizeMmsi(pgn)
                         normalizeMmsi(expected)
+                        normalizeTimeStamp(pgn)
                         dropReservedAndSpare(pgn)
                         pgn.should.jsonEqual(expected)
                       } catch (e) {
