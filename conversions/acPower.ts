@@ -396,6 +396,68 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 ]
               },
               {
+                // only the frequency: 127747 without a voltage
+                input: [null, null, 50, ..._.times(21, () => null)],
+                expected: [
+                  {
+                    prio: 6,
+                    pgn: 127503,
+                    dst: 255,
+                    fields: {
+                      Instance: 2,
+                      'Number of Lines': 1,
+                      list: [
+                        {
+                          Line: 'Line 1',
+                          Acceptability: 'Good',
+                          Frequency: 50
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127744,
+                    dst: 255,
+                    fields: { 'Connection Number': 2 }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127747,
+                    dst: 255,
+                    fields: { 'Connection Number': 2, Frequency: 50 }
+                  }
+                ]
+              },
+              {
+                // only the current: no 127747
+                input: [null, 12.3, ..._.times(22, () => null)],
+                expected: [
+                  {
+                    prio: 6,
+                    pgn: 127503,
+                    dst: 255,
+                    fields: {
+                      Instance: 2,
+                      'Number of Lines': 1,
+                      list: [
+                        {
+                          Line: 'Line 1',
+                          Acceptability: 'Good',
+                          Current: 12.3
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127744,
+                    dst: 255,
+                    fields: { 'Connection Number': 2, 'AC RMS Current': 12.3 }
+                  }
+                ]
+              },
+              {
                 // nothing known
                 input: _.times(24, () => null),
                 expected: []
