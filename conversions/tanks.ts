@@ -132,9 +132,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         } else {
           const msg = `unknown tank type: ${split[1]}`
           app.error(msg)
-          // The server's setProviderError takes a provider id first; this
-          // passes only the message (#197).
-          ;(app.setProviderError as unknown as (msg: string) => void)(msg)
+          app.setPluginError?.(msg)
         }
       })
     }

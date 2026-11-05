@@ -14,7 +14,7 @@ export interface App {
   debug: { (...args: unknown[]): void; enabled?: boolean }
   error(...args: unknown[]): void
   emit(event: string, ...args: unknown[]): boolean | void
-  setProviderError?(id: string, msg: string): void
+  setPluginError?(msg: string): void
   reportOutputMessages?(count?: number): void
 }
 

@@ -1,6 +1,8 @@
 import { PGN_127250, DirectionReference } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
 
+// No SID: a fixed one would tie every message to the same moment, so it
+// goes out as not available
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     pgn: 127250,
@@ -10,7 +12,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     callback: (heading: number): PGN_127250[] => {
       return [
         new PGN_127250({
-          sid: 87,
           heading: heading,
           variation: undefined,
           reference: DirectionReference.True
@@ -26,7 +27,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             pgn: 127250,
             dst: 255,
             fields: {
-              SID: 87,
               Heading: 1.35,
               Variation: undefined,
               Reference: 'True'
