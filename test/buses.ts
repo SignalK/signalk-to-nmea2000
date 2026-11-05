@@ -286,6 +286,26 @@ describe('NMEA 2000 buses', function () {
       assert.isEmpty(app.events)
     })
 
+    it('withholds NMEA 2000 data from a connection that only reads', async function () {
+      // It may be a second gateway on a bus that is listed
+      const events = await rudderEvents(
+        makeApp(SERVER_BUSES),
+        BRIDGE,
+        fromBus('reader')
+      )
+      assert.isEmpty(events)
+
+      const app = makeApp(SERVER_BUSES)
+      const plugin = require('../dist/index.js')(app)
+      plugin.start({ ...BRIDGE, AISv2: { enabled: true } })
+      app.deltaHandlers.forEach((handler: any) =>
+        handler(aisDelta([{ ...fromBus('reader'), values: aisPosition }]))
+      )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plugin.stop()
+      assert.isEmpty(app.events)
+    })
+
     it('keeps resending when another bus in the delta gives nothing', async function () {
       const app = makeApp(SERVER_BUSES)
       const plugin = require('../dist/index.js')(app)
@@ -308,7 +328,8 @@ describe('NMEA 2000 buses', function () {
     })
 
     it('does not bridge a PGN that follows the course', async function () {
-      // Cross track error is withheld while the course is from NMEA 2000
+      // A conversion with a withheld function is not bridged: its NMEA 2000
+      // input withholds the PGN instead of sending it to the other buses
       const app = makeApp(SERVER_BUSES)
       app.subscriptionmanager = { subscribe: () => {} }
       const plugin = require('../dist/index.js')(app)

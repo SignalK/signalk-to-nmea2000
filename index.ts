@@ -483,13 +483,15 @@ module.exports = function (app: App) {
     if (!bridged(conversion) || !delta.updates) {
       return inputs
     }
-    // An update whose bus is not known is withheld
+    // An update from a connection that is not a listed bus is withheld: one
+    // that only reads may be a second gateway on a bus that is listed
     const byBus = _.groupBy(
-      delta.updates.filter(
-        (update) =>
-          isNmea2000Update(app, update) &&
-          sourceConnection(update) !== undefined
-      ),
+      delta.updates.filter((update) => {
+        const bus = sourceConnection(update)
+        return (
+          isNmea2000Update(app, update) && bus !== undefined && buses.has(bus)
+        )
+      }),
       (update) => sourceConnection(update)
     )
     Object.entries(byBus).forEach(([bus, updates]) => {
@@ -498,7 +500,8 @@ module.exports = function (app: App) {
     return inputs
   }
 
-  // Whether NMEA 2000 data goes to the other buses
+  // A conversion with a withheld function is not bridged: the buses the rest
+  // of its output came from are not known
   function bridged(conversion: RunningConversion) {
     return bridging() && !conversion.withheld
   }
@@ -676,7 +679,10 @@ module.exports = function (app: App) {
       )
       if (
         fromBuses.length > 0 &&
-        (!bridged || fromBuses.some((entry) => entry.bus === undefined))
+        (!bridged ||
+          fromBuses.some(
+            (entry) => entry.bus === undefined || !buses.has(entry.bus)
+          ))
       ) {
         return WITHHELD
       }
