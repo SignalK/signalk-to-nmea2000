@@ -3,7 +3,7 @@ import { PGN_127505, TankType } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { mappedInstance, withPriority } from '../pgn'
+import { mappedInstance } from '../pgn'
 
 // The tank paths offered are those in the Signal K data; the saved settings
 // are checked without them, as a tank need not have reported yet
@@ -97,16 +97,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               var res: PGN_127505[] = []
               if (currentLevel != null || capacity != null) {
                 res.push(
-                  withPriority(
-                    new PGN_127505({
-                      instance: mappedInstance(tank.instanceId),
-                      type: type,
-                      // canboatjs 4 takes the level as a ratio and the capacity
-                      // in m3, as Signal K gives them.
-                      level: currentLevel == null ? undefined : currentLevel,
-                      capacity: capacity == null ? undefined : capacity
-                    })
-                  )
+                  new PGN_127505({
+                    instance: mappedInstance(tank.instanceId),
+                    type: type,
+                    // canboatjs 4 takes the level as a ratio and the capacity
+                    // in m3, as Signal K gives them.
+                    level: currentLevel == null ? undefined : currentLevel,
+                    capacity: capacity == null ? undefined : capacity
+                  })
                 )
               }
 
@@ -117,7 +115,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                 input: [0.35, 0.012],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 6,
                     pgn: 127505,
                     dst: 255,
                     fields: {

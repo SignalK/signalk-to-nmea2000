@@ -2,7 +2,6 @@ import { PGN_127245 } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { withPriority } from '../pgn'
 
 // The rudder angle as reported by a rudder angle sensor. Signal K has no
 // path for the angle order, so only the position is sent.
@@ -40,12 +39,10 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           keys: ['steering.rudderAngle'],
           callback: (angle: number): PGN_127245[] => {
             return [
-              withPriority(
-                new PGN_127245({
-                  instance,
-                  position: angle
-                })
-              )
+              new PGN_127245({
+                instance,
+                position: angle
+              })
             ]
           },
           tests: [

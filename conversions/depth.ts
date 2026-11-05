@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import { PGN_128267 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -22,13 +21,11 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         : surfaceToTransducer
       try {
         return [
-          withPriority(
-            new PGN_128267({
-              sid: 0xff,
-              depth: belowTransducer,
-              offset: offset
-            })
-          )
+          new PGN_128267({
+            sid: 0xff,
+            depth: belowTransducer,
+            offset: offset
+          })
         ]
       } catch (err) {
         console.error(err)
@@ -42,7 +39,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         },
         expected: [
           {
-            prio: 2,
+            prio: 3,
             pgn: 128267,
             dst: 255,
             fields: {
@@ -59,7 +56,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         },
         expected: [
           {
-            prio: 2,
+            prio: 3,
             pgn: 128267,
             dst: 255,
             fields: {

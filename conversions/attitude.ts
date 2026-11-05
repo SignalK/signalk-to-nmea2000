@@ -1,6 +1,5 @@
 import { PGN_127257 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -14,14 +13,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       roll?: number
     }): PGN_127257[] => {
       return [
-        withPriority(
-          new PGN_127257({
-            sid: 87,
-            pitch: attitude.pitch,
-            yaw: attitude.yaw,
-            roll: attitude.roll
-          })
-        )
+        new PGN_127257({
+          sid: 87,
+          pitch: attitude.pitch,
+          yaw: attitude.yaw,
+          roll: attitude.roll
+        })
       ]
     },
     tests: [
@@ -43,7 +40,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               Yaw: 1.8843
             },
             pgn: 127257,
-            prio: 2
+            prio: 3
           }
         ]
       }

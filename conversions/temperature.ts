@@ -2,7 +2,6 @@ import { PGN_130312, PGN_130316, TemperatureSource } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { withPriority } from '../pgn'
 
 interface TemperatureInfo {
   n2kSource: TemperatureSource
@@ -14,7 +13,8 @@ interface TemperatureInfo {
 let tempMessage = (pgn: number, temp: number, inst: number, src: string) => {
   return {
     pgn,
-    prio: 2,
+    // canboat's default for both 130312 and 130316
+    prio: 5,
     dst: 255,
     fields: {
       Instance: inst,
@@ -31,11 +31,9 @@ const temperatureMessage = (
   inst: number,
   src: TemperatureSource
 ): PGN_130312 | PGN_130316 =>
-  withPriority(
-    pgn == 130316
-      ? new PGN_130316({ instance: inst, source: src, temperature: temp })
-      : new PGN_130312({ instance: inst, source: src, actualTemperature: temp })
-  )
+  pgn == 130316
+    ? new PGN_130316({ instance: inst, source: src, temperature: temp })
+    : new PGN_130312({ instance: inst, source: src, actualTemperature: temp })
 
 // The data instance tells apart several sensors of the same kind on one
 // device; the Source field already says which kind this is

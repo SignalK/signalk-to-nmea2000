@@ -10,7 +10,7 @@ import {
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { mappedInstance, withPriority } from '../pgn'
+import { mappedInstance } from '../pgn'
 
 type Value = number | null | undefined
 
@@ -246,24 +246,22 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               }
               sentActiveStatus = activeStatus
               return [
-                withPriority(
-                  new PGN_127489({
-                    instance: mappedInstance(engine.instanceId),
-                    // canboatjs 4 takes every value in SI, as Signal K gives it.
-                    oilPressure: orUndefined(oilPres),
-                    oilTemperature: orUndefined(oilTemp),
-                    temperature: orUndefined(temp),
-                    alternatorPotential: orUndefined(altVolt),
-                    fuelRate: orUndefined(fuelRate),
-                    totalEngineHours: orUndefined(runTime),
-                    coolantPressure: orUndefined(coolPres),
-                    fuelPressure: orUndefined(fuelPres),
-                    discreteStatus1,
-                    discreteStatus2,
-                    engineLoad: orUndefined(engLoad),
-                    engineTorque: orUndefined(engTorque)
-                  })
-                )
+                new PGN_127489({
+                  instance: mappedInstance(engine.instanceId),
+                  // canboatjs 4 takes every value in SI, as Signal K gives it.
+                  oilPressure: orUndefined(oilPres),
+                  oilTemperature: orUndefined(oilTemp),
+                  temperature: orUndefined(temp),
+                  alternatorPotential: orUndefined(altVolt),
+                  fuelRate: orUndefined(fuelRate),
+                  totalEngineHours: orUndefined(runTime),
+                  coolantPressure: orUndefined(coolPres),
+                  fuelPressure: orUndefined(fuelPres),
+                  discreteStatus1,
+                  discreteStatus2,
+                  engineLoad: orUndefined(engLoad),
+                  engineTorque: orUndefined(engTorque)
+                })
               ]
             },
             tests: [
@@ -373,15 +371,13 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               trimState: Value
             ): PGN_127488[] => {
               return [
-                withPriority(
-                  new PGN_127488({
-                    instance: mappedInstance(engine.instanceId),
-                    // canboatjs 4 takes Hz, Pa and a ratio, as Signal K gives them.
-                    speed: orUndefined(revolutions),
-                    boostPressure: orUndefined(boostPressure),
-                    tiltTrim: orUndefined(trimState)
-                  })
-                )
+                new PGN_127488({
+                  instance: mappedInstance(engine.instanceId),
+                  // canboatjs 4 takes Hz, Pa and a ratio, as Signal K gives them.
+                  speed: orUndefined(revolutions),
+                  boostPressure: orUndefined(boostPressure),
+                  tiltTrim: orUndefined(trimState)
+                })
               ]
             },
             tests: [
@@ -453,14 +449,12 @@ function exhaustTemperature(
               source: TemperatureSource.ExhaustGasTemperature
             }
             return [
-              withPriority(
-                pgn == 130316
-                  ? new PGN_130316({ ...common, temperature })
-                  : new PGN_130312({
-                      ...common,
-                      actualTemperature: temperature
-                    })
-              )
+              pgn == 130316
+                ? new PGN_130316({ ...common, temperature })
+                : new PGN_130312({
+                    ...common,
+                    actualTemperature: temperature
+                  })
             ]
           },
           tests: [
@@ -468,7 +462,8 @@ function exhaustTemperature(
               input: [testTemperature],
               expected: [
                 {
-                  prio: 2,
+                  // canboat's default for both 130312 and 130316
+                  prio: 5,
                   pgn: pgn,
                   dst: 255,
                   fields: {

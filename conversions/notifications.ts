@@ -7,7 +7,6 @@ import {
   AlertState
 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 type AlertPgn = PGN_126983 | PGN_126985
 
@@ -92,62 +91,56 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         // The NAME as a 16-digit string, which the encoder writes as is.
         const idName = alertId.toString().padStart(16, '0')
         pgns.push(
-          withPriority(
-            new PGN_126985({
-              alertId: alertId,
-              alertType: type,
-              alertCategory: alertCategory,
-              alertSystem: alertSystem,
-              alertSubSystem: 0,
-              dataSourceNetworkIdName: idName,
-              dataSourceInstance: 0,
-              dataSourceIndexSource: 0,
-              alertOccurrenceNumber: 0,
-              languageId: 0,
-              alertTextDescription: value.message
-            })
-          )
+          new PGN_126985({
+            alertId: alertId,
+            alertType: type,
+            alertCategory: alertCategory,
+            alertSystem: alertSystem,
+            alertSubSystem: 0,
+            dataSourceNetworkIdName: idName,
+            dataSourceInstance: 0,
+            dataSourceIndexSource: 0,
+            alertOccurrenceNumber: 0,
+            languageId: 0,
+            alertTextDescription: value.message
+          })
         )
         pgns.push(
-          withPriority(
-            new PGN_126983({
-              alertId: alertId,
-              alertType: type,
-              alertCategory: alertCategory,
-              alertSystem: alertSystem,
-              alertSubSystem: 0,
-              dataSourceNetworkIdName: idName,
-              dataSourceInstance: 0,
-              dataSourceIndexSource: 0,
-              alertOccurrenceNumber: 0,
-              temporarySilenceStatus:
-                value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
-              acknowledgeStatus:
-                !value.method || value.method.length == 0 ? 1 : 0,
-              escalationStatus: 0,
-              temporarySilenceSupport: 1,
-              acknowledgeSupport: 1,
-              escalationSupport: 0,
-              triggerCondition: 1,
-              thresholdStatus: 1,
-              alertPriority: 0,
-              alertState: state
-            })
-          )
+          new PGN_126983({
+            alertId: alertId,
+            alertType: type,
+            alertCategory: alertCategory,
+            alertSystem: alertSystem,
+            alertSubSystem: 0,
+            dataSourceNetworkIdName: idName,
+            dataSourceInstance: 0,
+            dataSourceIndexSource: 0,
+            alertOccurrenceNumber: 0,
+            temporarySilenceStatus:
+              value.method && value.method.indexOf('sound') === -1 ? 1 : 0,
+            acknowledgeStatus:
+              !value.method || value.method.length == 0 ? 1 : 0,
+            escalationStatus: 0,
+            temporarySilenceSupport: 1,
+            acknowledgeSupport: 1,
+            escalationSupport: 0,
+            triggerCondition: 1,
+            thresholdStatus: 1,
+            alertPriority: 0,
+            alertState: state
+          })
         )
       } else {
         const active = before.find((obj) => obj.pgn === 126983) as
           PGN_126983 | undefined
         if (active) {
           cleared[alertId] = {
-            pgn: withPriority(
-              new PGN_126983({
-                ...active.fields,
-                alertState: AlertState.Normal,
-                temporarySilenceStatus: 0,
-                acknowledgeStatus: 0
-              })
-            ),
+            pgn: new PGN_126983({
+              ...active.fields,
+              alertState: AlertState.Normal,
+              temporarySilenceStatus: 0,
+              acknowledgeStatus: 0
+            }),
             until: Date.now() + REPEAT_CLEARED_MS
           }
         }
@@ -192,7 +185,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 3,
             pgn: 126985,
             dst: 255,
             fields: {
@@ -210,7 +203,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           },
           {
-            prio: 2,
+            prio: 3,
             pgn: 126983,
             dst: 255,
             fields: {

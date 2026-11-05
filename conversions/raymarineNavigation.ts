@@ -7,7 +7,6 @@ import {
 } from '@canboat/ts-pgns'
 import type { PluginOptions } from '../schema'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { courseOrigin } = require('../nmea2000Source')
 
@@ -78,24 +77,22 @@ async function raymarineRouteWP(
 
   // The class sets Raymarine and Marine Industry itself.
   return [
-    withPriority(
-      new PGN_130848_SeatalkWaypointInformation(
-        {
-          sid: sid130848,
-          waypointName: waypointName,
-          waypointSequence: waypointId.toString().padStart(4, '0'),
-          bearingToWaypointTrue: freshValue(
-            calcValues.bearingTrue,
-            raymarineCalcValueTimeout
-          ),
-          bearingToWaypointMagnetic: freshValue(
-            calcValues.bearingMagnetic,
-            raymarineCalcValueTimeout
-          ),
-          distanceToWaypoint: distance
-        },
-        255
-      )
+    new PGN_130848_SeatalkWaypointInformation(
+      {
+        sid: sid130848,
+        waypointName: waypointName,
+        waypointSequence: waypointId.toString().padStart(4, '0'),
+        bearingToWaypointTrue: freshValue(
+          calcValues.bearingTrue,
+          raymarineCalcValueTimeout
+        ),
+        bearingToWaypointMagnetic: freshValue(
+          calcValues.bearingMagnetic,
+          raymarineCalcValueTimeout
+        ),
+        distanceToWaypoint: distance
+      },
+      255
     )
   ]
 }
@@ -186,20 +183,18 @@ async function raymarineRouteInfo(
 
   // The class sets Raymarine and Marine Industry itself.
   return [
-    withPriority(
-      new PGN_130918_SeatalkRouteInformation(
-        {
-          currentWaypointName: currentWaypointName,
-          currentWaypointSequence: currentWaypointId,
-          nextWaypointSequence: nextWaypointId,
-          nextWaypointName: nextWaypointName,
-          unknown: unknownFlags,
-          bearingCurrentWaypointToNextWaypointTrue: bearingCurrentToNext,
-          bearingPositionToNextWaypointTrue: bearingPositionToNext,
-          distancePositionToNextWaypoint: distancePositionToNext
-        },
-        255
-      )
+    new PGN_130918_SeatalkRouteInformation(
+      {
+        currentWaypointName: currentWaypointName,
+        currentWaypointSequence: currentWaypointId,
+        nextWaypointSequence: nextWaypointId,
+        nextWaypointName: nextWaypointName,
+        unknown: unknownFlags,
+        bearingCurrentWaypointToNextWaypointTrue: bearingCurrentToNext,
+        bearingPositionToNextWaypointTrue: bearingPositionToNext,
+        distancePositionToNextWaypoint: distancePositionToNext
+      },
+      255
     )
   ]
 }
@@ -297,7 +292,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       // the SID increments on every message
                       delete testResult.fields.SID
                     },
-                    prio: 2,
+                    prio: 7,
                     pgn: 130848,
                     dst: 255,
                     fields: {
@@ -345,7 +340,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 input: [mockApp],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 7,
                     pgn: 130918,
                     dst: 255,
                     fields: {
@@ -369,7 +364,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 input: [mockNoPositionApp],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 7,
                     pgn: 130918,
                     dst: 255,
                     fields: {
@@ -391,7 +386,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 input: [mockNoRouteIndexApp],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 7,
                     pgn: 130918,
                     dst: 255,
                     fields: {

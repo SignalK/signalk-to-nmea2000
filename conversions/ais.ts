@@ -1,7 +1,6 @@
 import _ from 'lodash'
 import { PGN_129794, PGN_129038, PGN_129041 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
 
 // A Signal K delta and a vessel's tree, as loose as Signal K has them
 type Delta = any
@@ -138,7 +137,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 4,
             pgn: 129038,
             dst: 255,
             fields: {
@@ -160,7 +159,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           },
           {
-            prio: 2,
+            prio: 6,
             pgn: 129794,
             dst: 255,
             fields: {
@@ -221,7 +220,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 4,
             pgn: 129038,
             dst: 255,
             fields: {
@@ -243,7 +242,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           },
           {
-            prio: 2,
+            prio: 6,
             pgn: 129794,
             dst: 255,
             fields: {
@@ -304,7 +303,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 4,
             pgn: 129041,
             dst: 255,
             fields: {
@@ -354,7 +353,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 4,
             pgn: 129041,
             dst: 255,
             fields: {
@@ -406,7 +405,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 4,
             pgn: 129041,
             dst: 255,
             fields: {
@@ -457,7 +456,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ],
         expected: [
           {
-            prio: 2,
+            prio: 4,
             pgn: 129041,
             dst: 255,
             fields: {
@@ -509,26 +508,24 @@ function generateStatic(vessel: Vessel, mmsi: any, delta: Delta): PGN_129794 {
 
   mmsi = parseInt(mmsi, 10)
 
-  return withPriority(
-    new PGN_129794({
-      messageId: 5,
-      //repeatIndicator: 0,
-      // A number, as parsed above; ts-pgns types an MMSI as its string
-      userId: mmsi as unknown as string,
-      callsign: callsign,
-      name: name,
-      typeOfShip: type,
-      length: length,
-      beam: beam,
-      positionReferenceFromStarboard: fromStarboard,
-      positionReferenceFromBow: fromBow,
-      draft: draft,
-      destination: dest,
-      aisVersionIndicator: 0,
-      dte: 0,
-      aisTransceiverInformation: 0
-    })
-  )
+  return new PGN_129794({
+    messageId: 5,
+    //repeatIndicator: 0,
+    // A number, as parsed above; ts-pgns types an MMSI as its string
+    userId: mmsi as unknown as string,
+    callsign: callsign,
+    name: name,
+    typeOfShip: type,
+    length: length,
+    beam: beam,
+    positionReferenceFromStarboard: fromStarboard,
+    positionReferenceFromBow: fromBow,
+    draft: draft,
+    destination: dest,
+    aisVersionIndicator: 0,
+    dte: 0,
+    aisTransceiverInformation: 0
+  })
 }
 
 // fromCenter is positive to starboard, as n2k-signalk and nmea0183-signalk
@@ -586,24 +583,22 @@ function generatePosition(
       heading = undefined
     }
 
-    return withPriority(
-      new PGN_129038({
-        messageId: 1,
-        //repeatIndicator: 0,
-        userId: mmsi,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        positionAccuracy: 0,
-        raim: 0,
-        timeStamp: 0,
-        cog: cog,
-        sog: sog,
-        aisTransceiverInformation: 0,
-        heading: heading,
-        rateOfTurn: rot,
-        navStatus: status
-      })
-    )
+    return new PGN_129038({
+      messageId: 1,
+      //repeatIndicator: 0,
+      userId: mmsi,
+      longitude: position.longitude,
+      latitude: position.latitude,
+      positionAccuracy: 0,
+      raim: 0,
+      timeStamp: 0,
+      cog: cog,
+      sog: sog,
+      aisTransceiverInformation: 0,
+      heading: heading,
+      rateOfTurn: rot,
+      navStatus: status
+    })
   } else {
     return null
   }
@@ -630,28 +625,26 @@ function generateAtoN(
 
     mmsi = parseInt(mmsi, 10)
 
-    return withPriority(
-      new PGN_129041({
-        messageId: 0,
-        repeatIndicator: 0,
-        // A number, as parsed above; ts-pgns types an MMSI as its string
-        userId: mmsi as unknown as string,
-        longitude: position.longitude,
-        latitude: position.latitude,
-        positionAccuracy: 0,
-        raim: 0,
-        timeStamp: 0,
-        lengthDiameter: length,
-        beamDiameter: beam,
-        positionReferenceFromStarboardEdge: fromStarboard,
-        atonType: type,
-        atonName: name,
-        // Not available: Signal K has no value for it
-        offPositionIndicator: undefined as unknown as number,
-        virtualAtonFlag: undefined as unknown as number,
-        assignedModeFlag: undefined as unknown as number
-      })
-    )
+    return new PGN_129041({
+      messageId: 0,
+      repeatIndicator: 0,
+      // A number, as parsed above; ts-pgns types an MMSI as its string
+      userId: mmsi as unknown as string,
+      longitude: position.longitude,
+      latitude: position.latitude,
+      positionAccuracy: 0,
+      raim: 0,
+      timeStamp: 0,
+      lengthDiameter: length,
+      beamDiameter: beam,
+      positionReferenceFromStarboardEdge: fromStarboard,
+      atonType: type,
+      atonName: name,
+      // Not available: Signal K has no value for it
+      offPositionIndicator: undefined as unknown as number,
+      virtualAtonFlag: undefined as unknown as number,
+      assignedModeFlag: undefined as unknown as number
+    })
   } else {
     return null
   }

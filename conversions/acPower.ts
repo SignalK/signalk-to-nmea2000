@@ -3,7 +3,7 @@ import { PGN_127503, PGN_127504, PGN_127744 } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { mappedInstance, withPriority } from '../pgn'
+import { mappedInstance } from '../pgn'
 
 // The AC values per phase, as the Signal K specification defines them for
 // electrical.ac.<id>.phase.<phase> and electrical.inverters.<id>.ac
@@ -173,15 +173,13 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               }
 
               const res: (PGN_127503 | PGN_127744)[] = [
-                withPriority(
-                  new PGN_127503({
-                    instance: mappedInstance(bus.instanceId),
-                    numberOfLines: lines.length,
-                    // Signal K has no acceptability; this two-bit field reads as
-                    // "Good" when it is not set
-                    list: lines as PGN_127503['fields']['list']
-                  })
-                )
+                new PGN_127503({
+                  instance: mappedInstance(bus.instanceId),
+                  numberOfLines: lines.length,
+                  // Signal K has no acceptability; this two-bit field reads as
+                  // "Good" when it is not set
+                  list: lines as PGN_127503['fields']['list']
+                })
               ]
 
               // Power is signed in 127744, so it is sent as Signal K has it
@@ -190,13 +188,11 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 : byPhase[0]
               if (settings.phaseA && lines[0].line == 'Line 1') {
                 res.push(
-                  withPriority(
-                    new PGN_127744({
-                      connectionNumber: bus.instanceId,
-                      acRmsCurrent: current ?? undefined,
-                      power: realPower ?? undefined
-                    })
-                  )
+                  new PGN_127744({
+                    connectionNumber: bus.instanceId,
+                    acRmsCurrent: current ?? undefined,
+                    power: realPower ?? undefined
+                  })
                 )
               }
               return res
@@ -215,7 +211,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 ],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 6,
                     pgn: 127503,
                     dst: 255,
                     fields: {
@@ -236,7 +232,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     }
                   },
                   {
-                    prio: 2,
+                    prio: 3,
                     pgn: 127744,
                     dst: 255,
                     fields: {
@@ -260,7 +256,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 ],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 6,
                     pgn: 127503,
                     dst: 255,
                     fields: {
@@ -279,7 +275,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     }
                   },
                   {
-                    prio: 2,
+                    prio: 3,
                     pgn: 127744,
                     dst: 255,
                     fields: {
@@ -315,7 +311,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 ],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 6,
                     pgn: 127503,
                     dst: 255,
                     fields: {
@@ -344,7 +340,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     }
                   },
                   {
-                    prio: 2,
+                    prio: 3,
                     pgn: 127744,
                     dst: 255,
                     fields: {
@@ -395,13 +391,11 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 return []
               }
               return [
-                withPriority(
-                  new PGN_127504({
-                    instance: mappedInstance(inverter.instanceId),
-                    numberOfLines: 1,
-                    list: [line] as PGN_127504['fields']['list']
-                  })
-                )
+                new PGN_127504({
+                  instance: mappedInstance(inverter.instanceId),
+                  numberOfLines: 1,
+                  list: [line] as PGN_127504['fields']['list']
+                })
               ]
             },
             tests: [
@@ -409,7 +403,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 input: [229.8, 4.2, 50.01, 950, null, 0.95],
                 expected: [
                   {
-                    prio: 2,
+                    prio: 6,
                     pgn: 127504,
                     dst: 255,
                     fields: {

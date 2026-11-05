@@ -1,11 +1,10 @@
 import { PGN } from '@canboat/ts-pgns'
 
 /**
- * A ts-pgns PGN sent at `prio`. The classes take the PGN's default priority
- * from canboat; the plugin sends 2 unless a conversion gives another
- * (#198).
+ * A ts-pgns PGN sent at `prio` rather than the default priority canboat gives
+ * that PGN, which the classes use (#198).
  */
-export function withPriority<T extends PGN>(pgn: T, prio = 2): T {
+export function withPriority<T extends PGN>(pgn: T, prio: number): T {
   pgn.prio = prio
   return pgn
 }

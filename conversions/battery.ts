@@ -2,7 +2,7 @@ import { PGN_127506, PGN_127508, DcSource } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { mappedInstance, withPriority } from '../pgn'
+import { mappedInstance } from '../pgn'
 
 const batteryProperties = (ids: string[]) => ({
   batteries: Type.Optional(
@@ -84,14 +84,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             var res: (PGN_127506 | PGN_127508)[] = []
             if (voltage != null || current != null || temperature != null) {
               res.push(
-                withPriority(
-                  new PGN_127508({
-                    instance: mappedInstance(battery.instanceId),
-                    voltage: voltage as number | undefined,
-                    current: current as number | undefined,
-                    temperature: temperature as number | undefined
-                  })
-                )
+                new PGN_127508({
+                  instance: mappedInstance(battery.instanceId),
+                  voltage: voltage as number | undefined,
+                  current: current as number | undefined,
+                  temperature: temperature as number | undefined
+                })
               )
             }
 
@@ -106,16 +104,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               stateOfHealth = stateOfHealth == null ? undefined : stateOfHealth
 
               res.push(
-                withPriority(
-                  new PGN_127506({
-                    instance: mappedInstance(battery.instanceId),
-                    dcType: DcSource.Battery,
-                    stateOfCharge: stateOfCharge as number | undefined,
-                    stateOfHealth: stateOfHealth as number | undefined,
-                    timeRemaining: timeRemaining as number | undefined,
-                    rippleVoltage: ripple as number | undefined
-                  })
-                )
+                new PGN_127506({
+                  instance: mappedInstance(battery.instanceId),
+                  dcType: DcSource.Battery,
+                  stateOfCharge: stateOfCharge as number | undefined,
+                  stateOfHealth: stateOfHealth as number | undefined,
+                  timeRemaining: timeRemaining as number | undefined,
+                  rippleVoltage: ripple as number | undefined
+                })
               )
             }
             return res
@@ -125,7 +121,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               input: [12.5, 23.1, 290.15, 0.93, 12340, 0.6, 12.0],
               expected: [
                 {
-                  prio: 2,
+                  prio: 6,
                   pgn: 127508,
                   dst: 255,
                   fields: {
@@ -136,7 +132,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                   }
                 },
                 {
-                  prio: 2,
+                  prio: 6,
                   pgn: 127506,
                   dst: 255,
                   fields: {

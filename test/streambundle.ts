@@ -156,7 +156,7 @@ describe('onValueChange conversions over the streambundle', () => {
       app.debugMessages.some(
         (message: string) =>
           message.startsWith('emit nmea2000out ') &&
-          message.includes(',2,128267,')
+          message.includes(',3,128267,')
       )
     )
   })

@@ -5,7 +5,6 @@ import {
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
-import { withPriority } from '../pgn'
 
 const brightnessProperties = {
   groups: Type.Optional(
@@ -53,16 +52,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           ): PGN_126720_Seatalk1DisplayBrightness[] => {
             // The class sets Raymarine, Marine Industry, Display, Settings
             // and Brightness itself.
-            const pgn = withPriority(
-              new PGN_126720_Seatalk1DisplayBrightness(
-                {
-                  // The group name as configured, e.g. "Helm 2"
-                  group: group.instanceId as SeatalkNetworkGroup,
-                  // canboatjs 4 takes the brightness as a ratio.
-                  brightness: brightness
-                },
-                255
-              )
+            const pgn = new PGN_126720_Seatalk1DisplayBrightness(
+              {
+                // The group name as configured, e.g. "Helm 2"
+                group: group.instanceId as SeatalkNetworkGroup,
+                // canboatjs 4 takes the brightness as a ratio.
+                brightness: brightness
+              },
+              255
             )
             // Not a constructor argument, nor filled in by the class: sent as 0.
             pgn.fields.unknown2 = 0
@@ -73,7 +70,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               input: [0.85],
               expected: [
                 {
-                  prio: 2,
+                  prio: 3,
                   pgn: 126720,
                   dst: 255,
                   fields: {
