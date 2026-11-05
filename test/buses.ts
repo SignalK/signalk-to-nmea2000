@@ -1,4 +1,5 @@
 const Bacon = require('baconjs')
+const _ = require('lodash')
 import chai from 'chai'
 const assert: Chai.AssertStatic = chai.assert
 
@@ -257,6 +258,69 @@ describe('NMEA 2000 buses', function () {
       plugin.stop()
       // From bus3: to bus1 only; from elsewhere: to every bus
       assert.deepEqual(app.events, ['nmea2000out:bus1', 'nmea2000out'])
+    })
+
+    const aisDelta = (updates: Record<string, unknown>[]) => ({
+      context: 'vessels.urn:mrn:imo:mmsi:235000001',
+      updates
+    })
+    const aisPosition = [
+      {
+        path: 'navigation.position',
+        value: { longitude: 4.1, latitude: 52.2 }
+      },
+      { path: '', value: { mmsi: '235000001' } }
+    ]
+
+    it('withholds NMEA 2000 data whose bus is not known', async function () {
+      const app = makeApp(SERVER_BUSES)
+      const plugin = require('../dist/index.js')(app)
+      plugin.start({ ...BRIDGE, AISv2: { enabled: true } })
+      app.deltaHandlers.forEach((handler: any) =>
+        handler(
+          aisDelta([{ source: { type: 'NMEA2000' }, values: aisPosition }])
+        )
+      )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plugin.stop()
+      assert.isEmpty(app.events)
+    })
+
+    it('keeps resending when another bus in the delta gives nothing', async function () {
+      const app = makeApp(SERVER_BUSES)
+      const plugin = require('../dist/index.js')(app)
+      plugin.start({ ...BRIDGE, AISv2: { enabled: true, resend: 0.02 } })
+      app.deltaHandlers.forEach((handler: any) =>
+        handler(
+          aisDelta([
+            { $source: 'ais.1', values: aisPosition },
+            {
+              ...fromBus('bus3'),
+              values: [{ path: 'design.draft', value: { maximum: 2 } }]
+            }
+          ])
+        )
+      )
+      await new Promise((resolve) => setTimeout(resolve, 70))
+      plugin.stop()
+      assert.isAbove(app.events.length, 1)
+      assert.deepEqual(_.uniq(app.events), ['nmea2000out'])
+    })
+
+    it('does not bridge a PGN that follows the course', async function () {
+      // Cross track error is withheld while the course is from NMEA 2000
+      const app = makeApp(SERVER_BUSES)
+      app.subscriptionmanager = { subscribe: () => {} }
+      const plugin = require('../dist/index.js')(app)
+      plugin.start({ ...BRIDGE, xte: { enabled: true } })
+      app.selfBuses['navigation.course.calcValues.crossTrackError'].push({
+        path: 'navigation.course.calcValues.crossTrackError',
+        value: 0.1,
+        ...fromBus('bus1')
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plugin.stop()
+      assert.isEmpty(app.events)
     })
   })
 })

@@ -94,7 +94,8 @@ module.exports = function (app: App) {
     buses, NMEA 2000 data that would withhold a PGN sends it to the other
     buses instead: never to the bus the data came from.
     A conversion whose output depends on more than its inputs gives a
-    withheld function; resending stops once it returns true.
+    withheld function; resending stops once it returns true. It is not
+    bridged: the buses the rest of its output came from are not known.
    */
 
   var sourceTypes: Record<
@@ -414,7 +415,8 @@ module.exports = function (app: App) {
         conversion.withholdingKeys,
         conversion.initialValueKeys,
         conversion.sourceSelectors,
-        conversion.withholdingSourceKeys
+        conversion.withholdingSourceKeys,
+        bridged(conversion)
       ).onValue((values) => {
         if (values === WITHHELD) {
           // The last PGN no longer reflects the inputs; stop resending it
@@ -439,20 +441,30 @@ module.exports = function (app: App) {
     options: ConversionSettings
   ) {
     app.signalk.on('delta', (delta: Delta) => {
-      deltaInputs(conversion, options, delta).forEach(({ input, exclude }) => {
-        try {
-          processOutput(
-            conversion,
-            options,
-            conversion.callback!(input),
-            exclude
-          )
-        } catch (err: any) {
-          app.error(err)
-          console.error(err.stack)
-        }
-      })
+      try {
+        processDelta(conversion, options, delta)
+      } catch (err: any) {
+        app.error(err)
+        console.error(err.stack)
+      }
     })
+  }
+
+  // When bridging, one delta can give a PGN for each bus its data came from.
+  // A group that gives nothing does not stop another group's resends.
+  function processDelta(
+    conversion: RunningConversion,
+    options: ConversionSettings,
+    delta: Delta
+  ) {
+    const outputs = deltaInputs(conversion, options, delta).map(
+      ({ input, exclude }) => ({ output: conversion.callback!(input), exclude })
+    )
+    const sending = outputs.filter(({ output }) => output != null)
+    ;(sending.length > 0 ? sending : outputs.slice(0, 1)).forEach(
+      ({ output, exclude }) =>
+        processOutput(conversion, options, output, exclude)
+    )
   }
 
   // What a conversion that takes whole deltas is given. NMEA 2000 updates are
@@ -468,17 +480,27 @@ module.exports = function (app: App) {
     }
     const input = withoutNmea2000Updates(app, delta)
     const inputs = input ? [{ input, exclude: [] as string[] }] : []
-    if (!bridging() || !delta.updates) {
+    if (!bridged(conversion) || !delta.updates) {
       return inputs
     }
+    // An update whose bus is not known is withheld
     const byBus = _.groupBy(
-      delta.updates.filter((update) => isNmea2000Update(app, update)),
+      delta.updates.filter(
+        (update) =>
+          isNmea2000Update(app, update) &&
+          sourceConnection(update) !== undefined
+      ),
       (update) => sourceConnection(update)
     )
     Object.entries(byBus).forEach(([bus, updates]) => {
       inputs.push({ input: { ...delta, updates }, exclude: [bus] })
     })
     return inputs
+  }
+
+  // Whether NMEA 2000 data goes to the other buses
+  function bridged(conversion: RunningConversion) {
+    return bridging() && !conversion.withheld
   }
 
   function mapTimer(
@@ -525,13 +547,11 @@ module.exports = function (app: App) {
       unsubscribes,
       subscription_error,
       (delta: Delta) => {
-        deltaInputs(mapping, options, delta).forEach(({ input, exclude }) => {
-          try {
-            processOutput(mapping, options, mapping.callback!(input), exclude)
-          } catch (err) {
-            app.error(err)
-          }
-        })
+        try {
+          processDelta(mapping, options, delta)
+        } catch (err) {
+          app.error(err)
+        }
       }
     )
   }
@@ -546,7 +566,8 @@ module.exports = function (app: App) {
     withholdingKeys: string[] = keys,
     initialValueKeys: string[] = [],
     sourceSelectors: Record<string, string | undefined> = {},
-    withholdingSourceKeys: string[] = []
+    withholdingSourceKeys: string[] = [],
+    bridged = false
   ): Bacon.EventStream<Inputs | typeof WITHHELD> {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
@@ -655,7 +676,7 @@ module.exports = function (app: App) {
       )
       if (
         fromBuses.length > 0 &&
-        (!bridging() || fromBuses.some((entry) => entry.bus === undefined))
+        (!bridged || fromBuses.some((entry) => entry.bus === undefined))
       ) {
         return WITHHELD
       }

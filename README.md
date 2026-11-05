@@ -49,8 +49,9 @@ A bus is chosen by the connection's ID in the server's admin UI. A chosen connec
 
 **Output to NMEA 2000 → Bridge NMEA 2000 data between buses** sends data that came from one NMEA 2000 bus to the others, and never back to the bus it came from. It is off by default, and has no effect on a server that does not list its buses.
 
-- The bus a value came from is the connection at the start of its `$source`. A PGN built from values from several buses goes to none of them.
+- The bus a value came from is the connection at the start of its `$source`. A PGN built from values from several buses goes to none of them. NMEA 2000 data whose bus is not known is not sent.
+- AIS goes to every bus but the one the update came from. Fields missing from the update are filled in from what the server last had for that vessel or AtoN, which may have come from another bus.
 - The PGN goes to the chosen buses, or to every bus that takes broadcasts, minus the buses its data came from. A bus whose **Send broadcast N2K output** is off gets bridged data only when it is chosen.
 - Leave it off when two connections are gateways on the same physical bus: data from one would go back onto that bus through the other.
 - The course PGNs (129283, 129284, 129285, 130848 and 130918) are not bridged: a course set on an NMEA 2000 chartplotter still withholds them everywhere.
-- A source chosen under **Source for …**, and a conversion with **Also send data that came from NMEA 2000**, are sent to every chosen bus as before, including the one the data came from.
+- A source chosen under **Source for …**, and a conversion with **Also send data that came from NMEA 2000**, are sent to every chosen bus as before, including the one the data came from. The exception is an NMEA 2000 source chosen for an engine's notifications: it withholds 127489 as before, and with bridging the PGN goes to the other buses only.
