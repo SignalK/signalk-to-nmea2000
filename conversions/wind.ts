@@ -1,11 +1,13 @@
 import { PGN_130306 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
+import { NAVIGATION_TIMEOUT } from '../timeouts'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Wind (130306)',
     optionKey: 'WINDv2',
     keys: ['environment.wind.angleApparent', 'environment.wind.speedApparent'],
+    timeouts: [NAVIGATION_TIMEOUT, NAVIGATION_TIMEOUT],
     callback: (angle: number, speed: number): PGN_130306[] | undefined => {
       try {
         return [

@@ -133,6 +133,41 @@ describe('onValueChange conversions over the streambundle', () => {
     )
   })
 
+  it('sends an input that stopped updating as not available (#7)', async () => {
+    const app = makeApp()
+    const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ WINDv2: { enabled: true }, HEADINGv2: { enabled: true } })
+    try {
+      publish(app, 'environment.wind.angleApparent', 0.5)
+      publish(app, 'environment.wind.speedApparent', 6.1)
+      publish(app, 'navigation.magneticVariation', 0.03)
+      publish(app, 'navigation.headingMagnetic', 1.2)
+      await settle()
+      let wind = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
+      assert.equal(wind.fields['Wind Speed'], 6.1)
+
+      // The wind speed stops; the angle goes on
+      clock.tick(11000)
+      publish(app, 'environment.wind.angleApparent', 0.6)
+      publish(app, 'navigation.headingMagnetic', 1.3)
+      await settle()
+      wind = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
+      assert.closeTo(wind.fields['Wind Angle'], 0.6, 0.0001)
+      assert.notProperty(wind.fields, 'Wind Speed')
+
+      // The variation seldom changes, so it does not time out
+      const heading = app.emitted
+        .filter((pgn: TestPgn) => pgn.pgn === 127250)
+        .pop()
+      assert.closeTo(heading.fields.Heading, 1.3, 0.0001)
+      assert.closeTo(heading.fields.Variation, 0.03, 0.0001)
+    } finally {
+      clock.restore()
+      plugin.stop()
+    }
+  })
+
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
     app.debug.enabled = true
