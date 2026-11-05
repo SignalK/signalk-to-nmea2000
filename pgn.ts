@@ -11,8 +11,8 @@ export function withPriority<T extends PGN>(pgn: T, prio = 2): T {
 }
 
 /**
- * The instance of a mapping in the plugin's settings. The schema has never
- * required it; a mapping saved without one is sent with the instance not
+ * The instance of a mapping in the plugin's settings. The schema does not
+ * require it; a mapping saved without one is sent with the instance not
  * available (0xff), as canboatjs encodes a missing field.
  */
 export const mappedInstance = (instance: number | undefined): number =>

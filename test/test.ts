@@ -58,7 +58,7 @@ function load_conversions(): (Conversion | Conversion[])[] {
 
 const conversions = load_conversions()
 
-// The conversions a conversion runs with the given test options
+// Test options are untyped: each conversion's are written for its own schema
 function subConversionsOf(conversion: Conversion, options: unknown) {
   const sub = conversion.conversions
   if (typeof sub === 'undefined') {
