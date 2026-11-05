@@ -444,7 +444,6 @@ function exhaustTemperature(
           keys: [`propulsion.${engine.signalkId}.exhaustTemperature`],
           callback: (temperature: number): (PGN_130312 | PGN_130316)[] => {
             const common = {
-              sid: 0xff,
               instance: mappedInstance(engine.tempInstanceId),
               source: TemperatureSource.ExhaustGasTemperature
             }

@@ -22,7 +22,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       try {
         return [
           new PGN_128267({
-            sid: 0xff,
             depth: belowTransducer,
             offset: offset
           })

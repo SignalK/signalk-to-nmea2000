@@ -259,7 +259,6 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
 
         return [
           new PGN_127258({
-            sid: 0xff,
             // "WMM 2025" and the like, as MAGNETIC_VARIATION names them
             source: formattedSource as MagneticVariation,
             // Days since 1970, which the encoder takes for a date
