@@ -5,6 +5,7 @@ import {
   PGN_130848_SeatalkWaypointInformation,
   PGN_130918_SeatalkRouteInformation
 } from '@canboat/ts-pgns'
+import type { PluginOptions } from '../schema'
 import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -208,7 +209,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
     {
       title: 'Raymarine Route and Waypoint Information (130848, 130918)',
       optionKey: 'RAYMARINENAV',
-      conversions: (options: any): Conversion[] => {
+      conversions: (options: PluginOptions): Conversion[] => {
         const origin = courseOrigin(
           app,
           options?.RAYMARINENAV?.allowNmea2000Sources

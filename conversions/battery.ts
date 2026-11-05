@@ -1,12 +1,30 @@
-import _ from 'lodash'
 import { PGN_127506, PGN_127508, DcSource } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
+import { type PluginOptions, settingsOf } from '../schema'
+import { mappedInstance, withPriority } from '../pgn'
 
-interface BatteryMapping {
-  signalkId: string | number
-  instanceId: number
-}
+const batteryProperties = (ids: string[]) => ({
+  batteries: Type.Optional(
+    Type.Array(
+      Type.Object({
+        signalkId: Type.Optional(
+          Type.String({
+            title: 'Signal K battery id',
+            description:
+              'Pick a battery id currently present under electrical.batteries or enter one manually',
+            examples: ids
+          })
+        ),
+        instanceId: Type.Optional(
+          Type.Number({ title: 'NMEA2000 Battery Instance Id' })
+        )
+      }),
+      { title: 'Battery Mapping' }
+    )
+  )
+})
+const BatterySettings = Type.Object(batteryProperties([]))
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   const batteryKeys = [
@@ -23,36 +41,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     title: 'Battery (127506 & 127508)',
     optionKey: 'BATTERYv2',
     context: 'vessels.self',
-    properties: () => {
-      const batteryIds =
+    properties: () =>
+      batteryProperties(
         typeof app.getSelfPath === 'function'
           ? Object.keys(app.getSelfPath('electrical.batteries') || {}).filter(
               (id) => id !== 'meta'
             )
           : []
-      return {
-        batteries: {
-          title: 'Battery Mapping',
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              signalkId: {
-                title: 'Signal K battery id',
-                description:
-                  'Pick a battery id currently present under electrical.batteries or enter one manually',
-                type: 'string',
-                examples: batteryIds
-              },
-              instanceId: {
-                title: 'NMEA2000 Battery Instance Id',
-                type: 'number'
-              }
-            }
-          }
-        }
-      }
-    },
+      ),
 
     testOptions: {
       BATTERYv2: {
@@ -65,11 +61,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       }
     },
 
-    conversions: (options: any) => {
-      if (!_.get(options, 'BATTERYv2.batteries')) {
+    conversions: (options: PluginOptions) => {
+      const settings = settingsOf(options, 'BATTERYv2', BatterySettings)
+      if (!settings?.batteries) {
         return undefined
       }
-      return options.BATTERYv2.batteries.map((battery: BatteryMapping) => {
+      return settings.batteries.map((battery) => {
         return {
           keys: batteryKeys.map(
             (key) => `electrical.batteries.${battery.signalkId}.${key}`
@@ -89,7 +86,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               res.push(
                 withPriority(
                   new PGN_127508({
-                    instance: battery.instanceId,
+                    instance: mappedInstance(battery.instanceId),
                     voltage: voltage as number | undefined,
                     current: current as number | undefined,
                     temperature: temperature as number | undefined
@@ -111,7 +108,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               res.push(
                 withPriority(
                   new PGN_127506({
-                    instance: battery.instanceId,
+                    instance: mappedInstance(battery.instanceId),
                     dcType: DcSource.Battery,
                     stateOfCharge: stateOfCharge as number | undefined,
                     stateOfHealth: stateOfHealth as number | undefined,

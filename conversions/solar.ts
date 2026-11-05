@@ -1,13 +1,33 @@
-import _ from 'lodash'
 import { PGN_127508 } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
+import { type PluginOptions, settingsOf } from '../schema'
 import { withPriority } from '../pgn'
 
-interface Charger {
-  signalkId: string
-  instanceId: number
-  panelInstanceId: number
-}
+const solarProperties = (ids: string[]) => ({
+  chargers: Type.Optional(
+    Type.Array(
+      Type.Object({
+        signalkId: Type.String({
+          title: 'Signal K Solar id',
+          description:
+            'Pick a solar charger id currently present under electrical.solar or enter one manually',
+          examples: ids
+        }),
+        instanceId: Type.Number({
+          title: 'NMEA2000 Battery Instance Id',
+          description: 'Used for current/voltage'
+        }),
+        panelInstanceId: Type.Number({
+          title: 'NMEA2000 Battery Panel Instance Id',
+          description: 'Used for panel current/voltage'
+        })
+      }),
+      { title: 'Solar Mapping' }
+    )
+  )
+})
+const SolarSettings = Type.Object(solarProperties([]))
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   const solarKeys = ['voltage', 'current', 'panelCurrent', 'panelVoltage']
@@ -16,43 +36,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     title: 'Solar as Battery (127506 & 127508)',
     optionKey: 'SOLAR',
     context: 'vessels.self',
-    properties: () => {
-      const chargerIds =
+    properties: () =>
+      solarProperties(
         typeof app.getSelfPath === 'function'
           ? Object.keys(app.getSelfPath('electrical.solar') || {}).filter(
               (id) => id !== 'meta'
             )
           : []
-      return {
-        chargers: {
-          title: 'Solar Mapping',
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['signalkId', 'instanceId', 'panelInstanceId'],
-            properties: {
-              signalkId: {
-                title: 'Signal K Solar id',
-                description:
-                  'Pick a solar charger id currently present under electrical.solar or enter one manually',
-                type: 'string',
-                examples: chargerIds
-              },
-              instanceId: {
-                title: 'NMEA2000 Battery Instance Id',
-                description: 'Used for current/voltage',
-                type: 'number'
-              },
-              panelInstanceId: {
-                title: 'NMEA2000 Battery Panel Instance Id',
-                description: 'Used for panel current/voltage',
-                type: 'number'
-              }
-            }
-          }
-        }
-      }
-    },
+      ),
 
     testOptions: {
       SOLAR: {
@@ -66,11 +57,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       }
     },
 
-    conversions: (options: any) => {
-      if (!_.get(options, 'SOLAR.chargers')) {
-        return null as unknown as Conversion[]
+    conversions: (options: PluginOptions) => {
+      const settings = settingsOf(options, 'SOLAR', SolarSettings)
+      if (!settings?.chargers) {
+        return null
       }
-      return options.SOLAR.chargers.map((charger: Charger) => {
+      return settings.chargers.map((charger) => {
         return {
           keys: solarKeys.map(
             (key) => `electrical.solar.${charger.signalkId}.${key}`

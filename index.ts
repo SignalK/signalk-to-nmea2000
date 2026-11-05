@@ -5,10 +5,16 @@ import fs from 'fs'
 import { pgnToActisenseSerialFormat } from '@canboat/canboatjs'
 import { PGN } from '@canboat/ts-pgns'
 import { isNmea2000Update } from './nmea2000Source'
+import { Type, type TProperties } from 'typebox'
+import { Value } from 'typebox/value'
 import { App, Conversion, Plugin } from './types'
-
-// A conversion's settings, under its optionKey in the plugin's options.
-type ConversionOptions = Record<string, any>
+import {
+  allowNmea2000SourcesProperty,
+  conversionProperties,
+  type ConversionSettings,
+  type PluginOptions,
+  sourceProperty
+} from './schema'
 
 // What a conversion's callback gives: PGNs, possibly promised.
 type Output = unknown
@@ -76,7 +82,7 @@ module.exports = function (app: App) {
 
   var sourceTypes: Record<
     string,
-    (conversion: RunningConversion, options: ConversionOptions) => void
+    (conversion: RunningConversion, options: ConversionSettings) => void
   > = {
     onDelta: mapOnDelta,
     onValueChange: mapBaconjs,
@@ -92,86 +98,77 @@ module.exports = function (app: App) {
   plugin.name = 'Signal K to NMEA 2000'
   plugin.description = 'Plugin to convert Signal K to NMEA2000'
 
-  var schema: { [key: string]: any; properties: Record<string, any> } = {
-    type: 'object',
-    title: 'Conversions to NMEA2000',
-    description:
-      'If there is SignalK data for the conversion generate the following NMEA2000 pgns from Signal K data:',
-    properties: {}
-  }
-
-  updateSchema()
-
-  function updateSchema() {
+  // The plugin's schema; liveData offers the ids in the Signal K data as
+  // choices, for the admin UI's form
+  function pluginSchema(liveData: boolean) {
+    const properties: TProperties = {}
     conversions.forEach((conversion) => {
-      var obj: { [key: string]: any; properties: Record<string, any> } = {
-        type: 'object',
-        title: conversion.title,
-        properties: {
-          enabled: {
-            title: 'Enabled',
-            type: 'boolean',
-            default: false
-          },
-          resend: {
-            type: 'number',
-            title: 'Resend (seconds)',
-            description: 'If non-zero, the msg will be periodically resent',
-            default: 0
-          },
-          resendTime: {
-            type: 'number',
-            title: 'Resend Duration (seconds)',
-            description:
-              'The value will be resent for the given #number of seconds',
-            default: 30
-          }
-        }
-      }
-      if (!conversion.preventsNmea2000Echo) {
-        obj.properties.allowNmea2000Sources = {
-          type: 'boolean',
-          title: 'Also send data that came from NMEA 2000',
-          description:
-            'Leave off unless bridging separate NMEA 2000 networks: the output goes to every NMEA 2000 connection, including the one the data came from',
-          default: false
-        }
-      }
-      const safeKeys = conversion.keys || []
-      safeKeys.forEach((key) => {
-        obj.properties[pathToPropName(key)] = {
-          title: `Source for ${key}`,
-          description: `Use data only from this source (leave blank to ignore source)`,
-          type: 'string'
-        }
-      })
-
-      schema.properties[conversion.optionKey!] = obj
-
-      if (conversion.properties) {
-        var props =
-          typeof conversion.properties === 'function'
-            ? conversion.properties()
-            : conversion.properties
-        _.extend(obj.properties, props)
-      }
+      properties[conversion.optionKey!] = Type.Optional(
+        conversionSchema(conversion, liveData)
+      )
+    })
+    return Type.Object(properties, {
+      title: 'Conversions to NMEA2000',
+      description:
+        'If there is SignalK data for the conversion generate the following NMEA2000 pgns from Signal K data:'
     })
   }
 
-  plugin.schema = function () {
-    updateSchema()
-    return schema
+  function conversionSchema(conversion: RunningConversion, liveData: boolean) {
+    const sources: TProperties = {}
+    ;(conversion.keys || []).forEach((key) => {
+      sources[pathToPropName(key)] = sourceProperty(key)
+    })
+    const own =
+      typeof conversion.properties === 'function'
+        ? conversion.properties({ liveData })
+        : conversion.properties
+    return Type.Object(
+      {
+        ...conversionProperties,
+        ...(conversion.preventsNmea2000Echo
+          ? {}
+          : allowNmea2000SourcesProperty),
+        ...sources,
+        ...own
+      },
+      { title: conversion.title }
+    )
   }
 
-  plugin.start = function (options: Record<string, ConversionOptions>) {
+  plugin.schema = function () {
+    return pluginSchema(true)
+  }
+
+  // Fill in the defaults of an enabled conversion's settings, and report the
+  // ones that do not match the schema. The conversion still starts: the
+  // settings were saved by an earlier version, or edited by hand.
+  function checkedSettings(
+    conversion: RunningConversion,
+    settings: ConversionSettings
+  ): ConversionSettings {
+    const schema = conversionSchema(conversion, false)
+    const filled = Value.Default(schema, settings) as ConversionSettings
+    for (const error of Value.Errors(schema, filled)) {
+      app.error(
+        `${conversion.title}: setting ${error.instancePath || '/'} ${error.message}`
+      )
+    }
+    return filled
+  }
+
+  plugin.start = function (options: PluginOptions) {
     conversions.forEach((entry: RunningConversion | RunningConversion[]) => {
       const list = _.isArray(entry) ? entry : [entry]
       list.forEach((conversion) => {
         const optionKey = conversion.optionKey!
-        if (options[optionKey] && options[optionKey].enabled) {
+        const settings = options[optionKey]
+        if (settings && settings.enabled) {
           app.debug(`${conversion.title} is enabled`)
+          options[optionKey] = checkedSettings(conversion, settings)
 
-          var subConversions: RunningConversion[] | undefined
+          var subConversions:
+            (RunningConversion | undefined)[] | undefined | null
           if (_.isUndefined(conversion.conversions)) {
             subConversions = [conversion]
           } else if (_.isFunction(conversion.conversions)) {
@@ -192,7 +189,7 @@ module.exports = function (app: App) {
                   if (_.isUndefined(subConversion.outputType)) {
                     subConversion.outputType = 'to-n2k'
                   }
-                  mapper(subConversion, options[optionKey])
+                  mapper(subConversion, options[optionKey]!)
                 }
               }
             })
@@ -289,7 +286,7 @@ module.exports = function (app: App) {
 
   function processOutput(
     conversion: RunningConversion,
-    options: ConversionOptions | null,
+    options: ConversionSettings | null,
     output: Output
   ) {
     if (options && options.resend && options.resend > 0) {
@@ -322,7 +319,7 @@ module.exports = function (app: App) {
 
   function mapBaconjs(
     conversion: RunningConversion,
-    options: ConversionOptions
+    options: ConversionSettings
   ) {
     unsubscribes.push(
       timeoutingArrayStream(
@@ -356,7 +353,7 @@ module.exports = function (app: App) {
 
   function mapOnDelta(
     conversion: RunningConversion,
-    options: ConversionOptions
+    options: ConversionSettings
   ) {
     app.signalk.on('delta', (delta: Delta) => {
       let input: Delta | undefined = delta
@@ -375,7 +372,10 @@ module.exports = function (app: App) {
     })
   }
 
-  function mapTimer(conversion: RunningConversion, options: ConversionOptions) {
+  function mapTimer(
+    conversion: RunningConversion,
+    options: ConversionSettings
+  ) {
     timers.push(
       setInterval(() => {
         let values =
@@ -395,7 +395,7 @@ module.exports = function (app: App) {
 
   function mapSubscription(
     mapping: RunningConversion,
-    options: ConversionOptions
+    options: ConversionSettings
   ) {
     var subscription: { context?: string; subscribe: { path: string }[] } = {
       context: mapping.context,
@@ -403,7 +403,7 @@ module.exports = function (app: App) {
     }
 
     var keys: string[] = _.isFunction(mapping.keys)
-      ? (mapping.keys as (options: ConversionOptions) => string[])(options)
+      ? (mapping.keys as (options: ConversionSettings) => string[])(options)
       : mapping.keys!
     keys.forEach((key) => {
       subscription.subscribe.push({ path: key })
@@ -437,7 +437,7 @@ module.exports = function (app: App) {
     timeouts: (number | undefined)[] = [],
     streambundle: any,
     unsubscribes: Unsubscribe[],
-    options: ConversionOptions,
+    options: ConversionSettings,
     allowNmea2000: boolean,
     withholdingKeys: string[] = keys,
     initialValueKeys: string[] = [],
@@ -574,7 +574,7 @@ function pathToPropName(path: string) {
 
 const sendsNmea2000Data = (
   conversion: { preventsNmea2000Echo?: boolean },
-  options: ConversionOptions
+  options: ConversionSettings
 ) => Boolean(options.allowNmea2000Sources || conversion.preventsNmea2000Echo)
 
 // Pushed instead of values when an NMEA 2000 input withholds the PGN

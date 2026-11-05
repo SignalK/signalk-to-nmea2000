@@ -3,6 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import chai from 'chai'
 import type { Conversion, ConversionTest } from '../types'
+import type { PluginOptions } from '../schema'
 const assert: Chai.AssertStatic = chai.assert
 chai.should()
 //chai.use(require('chai-things'))
@@ -57,6 +58,15 @@ function load_conversions(): (Conversion | Conversion[])[] {
 
 const conversions = load_conversions()
 
+// Test options are untyped: each conversion's are written for its own schema
+function subConversionsOf(conversion: Conversion, options: unknown) {
+  const sub = conversion.conversions
+  if (typeof sub === 'undefined') {
+    return [conversion]
+  }
+  return typeof sub === 'function' ? sub(options as PluginOptions) : sub
+}
+
 describe('every conversion has a test', () => {
   conversions.forEach((conversion) => {
     if (!Array.isArray(conversion)) {
@@ -65,19 +75,15 @@ describe('every conversion has a test', () => {
 
     conversion.forEach((conversion) => {
       it(`${conversion.title} has a test`, function (done) {
-        var subConversions = conversion.conversions
-        if (typeof subConversions === 'undefined') {
-          subConversions = [conversion]
-        } else if (typeof subConversions === 'function') {
-          subConversions = subConversions(
-            Array.isArray(conversion.testOptions)
-              ? conversion.testOptions[0]
-              : conversion.testOptions
-          )
-        }
+        const subConversions = subConversionsOf(
+          conversion,
+          Array.isArray(conversion.testOptions)
+            ? conversion.testOptions[0]
+            : conversion.testOptions
+        )
         assert(subConversions != undefined)
         subConversions!.forEach((subConv) => {
-          subConv.should.have.property('tests')
+          subConv!.should.have.property('tests')
         })
         done()
       })
@@ -97,15 +103,9 @@ describe('conversions work', () => {
         : [conversion.testOptions]
 
       optionsList.forEach((options, oidx) => {
-        var subConversions = conversion.conversions
-        if (typeof subConversions === 'undefined') {
-          subConversions = [conversion]
-        } else if (typeof subConversions === 'function') {
-          subConversions = subConversions(options || {})
-        }
+        const subConversions = subConversionsOf(conversion, options || {})
         subConversions!.forEach((subConv) => {
-          //subConv.should.have.property('tests')
-          if (subConv.tests) {
+          if (subConv?.tests) {
             subConv.tests.forEach((test: ConversionTest, idx: number) => {
               it(`${conversion.title} test # ${oidx}/${idx} works`, function (done) {
                 skData = test.skData || {}

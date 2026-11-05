@@ -1,12 +1,31 @@
 import _ from 'lodash'
 import { PGN_127505, TankType } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
+import { type PluginOptions, settingsOf } from '../schema'
+import { mappedInstance, withPriority } from '../pgn'
 
-interface Tank {
-  signalkPath: string
-  instanceId: number
-}
+// The tank paths offered are those in the Signal K data; the saved settings
+// are checked without them, as a tank need not have reported yet
+const tankProperties = (tankPaths?: string[]) => ({
+  tanks: Type.Optional(
+    Type.Array(
+      Type.Object({
+        signalkPath: Type.Optional(
+          Type.String({
+            title: 'Tank Path',
+            ...(tankPaths && { enum: tankPaths })
+          })
+        ),
+        instanceId: Type.Optional(
+          Type.Number({ title: 'NMEA2000 Tanks Instance Id' })
+        )
+      }),
+      { title: 'Tank Mapping' }
+    )
+  )
+})
+const TankSettings = Type.Object(tankProperties())
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   const typeMapping: Record<string, TankType> = {
@@ -25,7 +44,10 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     title: 'Tank Levels (127505)',
     optionKey: 'TANKS',
     context: 'vessels.self',
-    properties: () => {
+    properties: ({ liveData }) => {
+      if (!liveData) {
+        return tankProperties()
+      }
       var tanks = _.get(app.signalk.self, 'tanks')
       var tankPaths: string[] = []
       if (!_.isUndefined(tanks)) {
@@ -36,28 +58,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         })
       }
 
-      return tankPaths.length == 0
-        ? undefined
-        : {
-            tanks: {
-              title: 'Tank Mapping',
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  signalkPath: {
-                    title: 'Tank Path',
-                    type: 'string',
-                    enum: tankPaths
-                  },
-                  instanceId: {
-                    title: 'NMEA2000 Tanks Instance Id',
-                    type: 'number'
-                  }
-                }
-              }
-            }
-          }
+      return tankPaths.length == 0 ? undefined : tankProperties(tankPaths)
     },
 
     testOptions: {
@@ -71,11 +72,15 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       }
     },
 
-    conversions: (options: any) => {
-      if (!_.get(options, 'TANKS.tanks')) {
-        return null as unknown as Conversion[]
+    conversions: (options: PluginOptions) => {
+      const settings = settingsOf(options, 'TANKS', TankSettings)
+      if (!settings?.tanks) {
+        return null
       }
-      return options.TANKS.tanks.map((tank: Tank) => {
+      return settings.tanks.map((tank) => {
+        if (!tank.signalkPath) {
+          return undefined
+        }
         var split = tank.signalkPath.split('.')
         var type = typeMapping[split[1]]
         if (!_.isUndefined(type)) {
@@ -94,7 +99,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                 res.push(
                   withPriority(
                     new PGN_127505({
-                      instance: tank.instanceId,
+                      instance: mappedInstance(tank.instanceId),
                       type: type,
                       // canboatjs 4 takes the level as a ratio and the capacity
                       // in m3, as Signal K gives them.

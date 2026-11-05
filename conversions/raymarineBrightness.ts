@@ -1,40 +1,33 @@
-import _ from 'lodash'
 import {
   PGN_126720_Seatalk1DisplayBrightness,
   SeatalkNetworkGroup
 } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
+import { type PluginOptions, settingsOf } from '../schema'
 import { withPriority } from '../pgn'
 
-interface Group {
-  signalkId: string
-  instanceId: string
+const brightnessProperties = {
+  groups: Type.Optional(
+    Type.Array(
+      Type.Object({
+        signalkId: Type.Optional(Type.String({ title: 'Signal K Group id' })),
+        instanceId: Type.Optional(
+          Type.String({ title: 'NMEA2000 Group Instance Id' })
+        )
+      }),
+      { title: 'Group Mapping' }
+    )
+  )
 }
+const BrightnessSettings = Type.Object(brightnessProperties)
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Raymarine (Seatalk) Display Brightness (126720)',
     optionKey: 'RAYMARINE',
     context: 'vessels.self',
-    properties: {
-      groups: {
-        title: 'Group Mapping',
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            signalkId: {
-              title: 'Signal K Group id',
-              type: 'string'
-            },
-            instanceId: {
-              title: 'NMEA2000 Group Instance Id',
-              type: 'string'
-            }
-          }
-        }
-      }
-    },
+    properties: brightnessProperties,
 
     testOptions: {
       RAYMARINE: {
@@ -47,11 +40,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       }
     },
 
-    conversions: (options: any) => {
-      if (!_.get(options, 'RAYMARINE.groups')) {
+    conversions: (options: PluginOptions) => {
+      const settings = settingsOf(options, 'RAYMARINE', BrightnessSettings)
+      if (!settings?.groups) {
         return null
       }
-      return options.RAYMARINE.groups.map((group: Group) => {
+      return settings.groups.map((group) => {
         return {
           keys: [`electrical.displays.raymarine.${group.signalkId}.brightness`],
           callback: (

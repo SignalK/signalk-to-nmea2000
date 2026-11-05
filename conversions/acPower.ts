@@ -1,7 +1,9 @@
 import _ from 'lodash'
 import { PGN_127503, PGN_127504, PGN_127744 } from '@canboat/ts-pgns'
+import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
-import { withPriority } from '../pgn'
+import { type PluginOptions, settingsOf } from '../schema'
+import { mappedInstance, withPriority } from '../pgn'
 
 // The AC values per phase, as the Signal K specification defines them for
 // electrical.ac.<id>.phase.<phase> and electrical.inverters.<id>.ac
@@ -30,25 +32,52 @@ const mappingProperty = (
   idTitle: string,
   idDescription: string,
   ids: string[]
-) => ({
-  title,
-  type: 'array',
-  items: {
-    type: 'object',
-    properties: {
-      signalkId: {
-        title: idTitle,
-        description: idDescription,
-        type: 'string',
-        examples: ids
-      },
-      instanceId: {
-        title: 'NMEA2000 AC Instance Id',
-        type: 'number'
-      }
-    }
-  }
+) =>
+  Type.Optional(
+    Type.Array(
+      Type.Object({
+        signalkId: Type.Optional(
+          Type.String({
+            title: idTitle,
+            description: idDescription,
+            examples: ids
+          })
+        ),
+        instanceId: Type.Optional(
+          Type.Number({ title: 'NMEA2000 AC Instance Id' })
+        )
+      }),
+      { title }
+    )
+  )
+
+const acInputProperties = (ids: string[]) => ({
+  buses: mappingProperty(
+    'AC Bus Mapping',
+    'Signal K AC bus id',
+    'Pick an AC bus id currently present under electrical.ac or enter one manually',
+    ids
+  ),
+  phaseA: Type.Optional(
+    Type.Boolean({
+      title: 'Also send 127744 (AC Power / Current - Phase A)',
+      description:
+        'For displays that read the current and power of phase A (or a single phase) from 127744',
+      default: false
+    })
+  )
 })
+const AcInputSettings = Type.Object(acInputProperties([]))
+
+const acOutputProperties = (ids: string[]) => ({
+  inverters: mappingProperty(
+    'Inverter Mapping',
+    'Signal K inverter id',
+    'Pick an inverter id currently present under electrical.inverters or enter one manually',
+    ids
+  )
+})
+const AcOutputSettings = Type.Object(acOutputProperties([]))
 
 // The power fields of 127503/127504 are unsigned, so power flowing back (or
 // the negative reactive power of a capacitive load) cannot be sent there
@@ -98,32 +127,13 @@ const acLine = (
   }
 }
 
-interface Mapping {
-  signalkId: string
-  instanceId: number
-}
-
 module.exports = (app: App, plugin: Plugin): Conversion[] => {
   return [
     {
       title: 'AC Input (127503 & 127744)',
       optionKey: 'AC_INPUT',
       context: 'vessels.self',
-      properties: () => ({
-        buses: mappingProperty(
-          'AC Bus Mapping',
-          'Signal K AC bus id',
-          'Pick an AC bus id currently present under electrical.ac or enter one manually',
-          idsUnder(app, 'electrical.ac')
-        ),
-        phaseA: {
-          title: 'Also send 127744 (AC Power / Current - Phase A)',
-          description:
-            'For displays that read the current and power of phase A (or a single phase) from 127744',
-          type: 'boolean',
-          default: false
-        }
-      }),
+      properties: () => acInputProperties(idsUnder(app, 'electrical.ac')),
 
       testOptions: {
         AC_INPUT: {
@@ -132,11 +142,12 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
         }
       },
 
-      conversions: (options: any) => {
-        if (!_.get(options, 'AC_INPUT.buses')) {
+      conversions: (options: PluginOptions) => {
+        const settings = settingsOf(options, 'AC_INPUT', AcInputSettings)
+        if (!settings?.buses) {
           return undefined
         }
-        return options.AC_INPUT.buses.map((bus: Mapping) => {
+        return settings.buses.map((bus) => {
           const keys = phases.flatMap((phase) =>
             acKeys.map(
               (key) => `electrical.ac.${bus.signalkId}.phase.${phase}.${key}`
@@ -164,7 +175,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               const res: (PGN_127503 | PGN_127744)[] = [
                 withPriority(
                   new PGN_127503({
-                    instance: bus.instanceId,
+                    instance: mappedInstance(bus.instanceId),
                     numberOfLines: lines.length,
                     // Signal K has no acceptability; this two-bit field reads as
                     // "Good" when it is not set
@@ -177,7 +188,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               const [, current, , realPower] = threePhase[0]
                 ? byPhase[1]
                 : byPhase[0]
-              if (options.AC_INPUT.phaseA && lines[0].line == 'Line 1') {
+              if (settings.phaseA && lines[0].line == 'Line 1') {
                 res.push(
                   withPriority(
                     new PGN_127744({
@@ -357,14 +368,8 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
       title: 'AC Output (127504)',
       optionKey: 'AC_OUTPUT',
       context: 'vessels.self',
-      properties: () => ({
-        inverters: mappingProperty(
-          'Inverter Mapping',
-          'Signal K inverter id',
-          'Pick an inverter id currently present under electrical.inverters or enter one manually',
-          idsUnder(app, 'electrical.inverters')
-        )
-      }),
+      properties: () =>
+        acOutputProperties(idsUnder(app, 'electrical.inverters')),
 
       testOptions: {
         AC_OUTPUT: {
@@ -372,11 +377,12 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
         }
       },
 
-      conversions: (options: any) => {
-        if (!_.get(options, 'AC_OUTPUT.inverters')) {
+      conversions: (options: PluginOptions) => {
+        const settings = settingsOf(options, 'AC_OUTPUT', AcOutputSettings)
+        if (!settings?.inverters) {
           return undefined
         }
-        return options.AC_OUTPUT.inverters.map((inverter: Mapping) => {
+        return settings.inverters.map((inverter) => {
           const keys = acKeys.map(
             (key) => `electrical.inverters.${inverter.signalkId}.ac.${key}`
           )
@@ -391,7 +397,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               return [
                 withPriority(
                   new PGN_127504({
-                    instance: inverter.instanceId,
+                    instance: mappedInstance(inverter.instanceId),
                     numberOfLines: 1,
                     list: [line] as PGN_127504['fields']['list']
                   })
