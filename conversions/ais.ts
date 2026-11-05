@@ -518,6 +518,96 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           }
         ]
+      },
+      {
+        // On the equator: a latitude of 0 is still a position
+        input: [
+          {
+            context: 'vessels.urn:mrn:imo:mmsi:235000002',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'navigation.position',
+                    value: { longitude: -29.3456, latitude: 0 }
+                  },
+                  { path: '', value: { mmsi: '235000002' } }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 4,
+            pgn: 129038,
+            dst: 255,
+            fields: {
+              'Message ID': 'Scheduled Class A position report',
+              'User ID': 235000002,
+              Longitude: -29.3456,
+              Latitude: 0,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use',
+              'Time Stamp': 0,
+              'AIS Transceiver information': 'Channel A VDL reception',
+              'Nav Status': 'Under way using engine',
+              'Repeat Indicator': 'Final retransmission',
+              'Special Maneuver Indicator': 'Reserved'
+            }
+          }
+        ]
+      },
+      {
+        // On the prime meridian: an AtoN at longitude 0 is still sent
+        input: [
+          {
+            context: 'atons.urn:mrn:imo:mmsi:993672085',
+            updates: [
+              {
+                values: [
+                  { path: '', value: { name: '78A' } },
+                  {
+                    path: 'navigation.position',
+                    value: { longitude: 0, latitude: 38.5783333 }
+                  },
+                  {
+                    path: 'atonType',
+                    value: { id: 14, name: 'Beacon, Starboard Hand' }
+                  },
+                  { path: '', value: { mmsi: '993672085' } },
+                  { path: 'design.length', value: { overall: NaN } },
+                  { path: 'design.beam', value: 2 },
+                  // canboatjs would send NaN as 0: left out
+                  { path: 'sensors.ais.fromCenter', value: NaN }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 4,
+            pgn: 129041,
+            dst: 255,
+            fields: {
+              'Message ID': 0,
+              'Repeat Indicator': 'Initial',
+              'User ID': 993672085,
+              Longitude: 0,
+              Latitude: 38.5783333,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use',
+              'Time Stamp': 0,
+              'Beam/Diameter': 2,
+              'AtoN Type': 'Fixed beacon: starboard hand',
+              'Off Position Indicator': 'Yes',
+              'Virtual AtoN Flag': 'Yes',
+              'Assigned Mode Flag': 'Assigned mode',
+              'AtoN Name': '78A'
+            }
+          }
+        ]
       }
     ]
   }
