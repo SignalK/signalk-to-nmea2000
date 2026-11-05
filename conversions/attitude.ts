@@ -1,9 +1,11 @@
 import { PGN_127257 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
 
+// No SID: a fixed one would tie every message to the same moment, so it
+// goes out as not available
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
-    pgn: 127250,
+    pgn: 127257,
     title: 'Attitude (127257)',
     optionKey: 'ATTITUDE',
     keys: ['navigation.attitude'],
@@ -14,7 +16,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     }): PGN_127257[] => {
       return [
         new PGN_127257({
-          sid: 87,
           pitch: attitude.pitch,
           yaw: attitude.yaw,
           roll: attitude.roll
@@ -36,7 +37,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             fields: {
               Pitch: 0.042,
               Roll: 0.042,
-              SID: 87,
               Yaw: 1.8843
             },
             pgn: 127257,
