@@ -118,10 +118,7 @@ describe('NMEA 2000 buses', function () {
     const uiSchema = require('../dist/index.js')(
       makeApp(SERVER_BUSES)
     ).uiSchema()
-    const checkboxes = {
-      'ui:widget': 'checkboxes',
-      'ui:options': { inline: true }
-    }
+    const checkboxes = { 'ui:widget': 'checkboxes' }
     assert.deepEqual(uiSchema.OUTPUT.nmea2000Buses, checkboxes)
     assert.deepEqual(uiSchema.RUDDER.nmea2000Buses, checkboxes)
   })

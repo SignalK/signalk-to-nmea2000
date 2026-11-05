@@ -189,13 +189,11 @@ module.exports = function (app: App) {
   }
 
   // The bus choices as checkboxes, easier than a multiple select, above all
-  // on a touch screen
+  // on a touch screen. One per line: the admin UI has no style for inline
+  // checkboxes, which run into each other.
   plugin.uiSchema = function () {
     const checkboxes = {
-      nmea2000Buses: {
-        'ui:widget': 'checkboxes',
-        'ui:options': { inline: true }
-      }
+      nmea2000Buses: { 'ui:widget': 'checkboxes' }
     }
     const uiSchema: Record<string, unknown> = { [OUTPUT_KEY]: checkboxes }
     conversions.forEach((conversion) => {
