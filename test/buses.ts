@@ -119,12 +119,30 @@ describe('NMEA 2000 buses', function () {
   })
 
   it('sends to a chosen bus that is not listed yet', async function () {
-    // The connection may start after the plugin
-    const app = makeApp([undefined])
+    // The connection may start after the others
+    const app = makeApp(SERVER_BUSES)
     const events = await rudderEvents(app, {
-      RUDDER: { enabled: true, nmea2000Buses: ['bus3'] }
+      RUDDER: { enabled: true, nmea2000Buses: ['bus9'] }
     })
-    assert.deepEqual(events, ['nmea2000out:bus3'])
+    assert.deepEqual(events, ['nmea2000out:bus9'])
     assert.isEmpty(app.errors)
+  })
+
+  it('sends to every bus when the server lists none', async function () {
+    // Bus choices saved on a server that could send to one bus
+    for (const propertyValues of [undefined, [undefined]]) {
+      const events = await rudderEvents(makeApp(propertyValues), {
+        OUTPUT: { nmea2000Buses: ['bus1'] },
+        RUDDER: { enabled: true, nmea2000Buses: ['bus2'] }
+      })
+      assert.deepEqual(events, ['nmea2000out'])
+    }
+  })
+
+  it('sends to a bus chosen twice once', async function () {
+    const events = await rudderEvents(makeApp(SERVER_BUSES), {
+      OUTPUT: { nmea2000Buses: ['bus1', 'bus1'] }
+    })
+    assert.deepEqual(events, ['nmea2000out:bus1'])
   })
 })

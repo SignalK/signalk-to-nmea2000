@@ -1,3 +1,4 @@
+import _ from 'lodash'
 import { Type } from 'typebox'
 import { App } from './types'
 import type { PluginOptions } from './schema'
@@ -53,20 +54,21 @@ export const outputDescription =
 export const conversionBusesDescription =
   'None chosen: the buses chosen under Output to NMEA 2000, or every bus.'
 
-// The buses a conversion sends to: its own choice, else the plugin-wide
-// one; empty for every bus
+// The buses a conversion sends to, each once: its own choice, else the
+// plugin-wide one; empty for every bus
 export function chosenBuses(options: PluginOptions, optionKey: string) {
   const own = options[optionKey]?.nmea2000Buses
-  if (Array.isArray(own) && own.length > 0) {
-    return own as string[]
-  }
   const all = options[OUTPUT_KEY]?.nmea2000Buses
-  return Array.isArray(all) ? (all as string[]) : []
+  const chosen = Array.isArray(own) && own.length > 0 ? own : all
+  return Array.isArray(chosen) ? _.uniq(chosen as string[]) : []
 }
 
-// The events a PGN for these buses is emitted on
+// The events a PGN for these buses is emitted on. With no bus listed, the
+// server cannot send to one bus (or, while it starts, has no NMEA 2000
+// connection yet), so the PGN goes to every bus. A chosen bus that is not
+// listed when others are may still be starting, and gets its own event.
 export const busEvents = (buses: Map<string, Bus>, chosen: string[]) =>
-  chosen.length === 0
+  chosen.length === 0 || buses.size === 0
     ? ['nmea2000out']
     : chosen.map(
         (id) => buses.get(id)?.eventNames.nmea2000out ?? `nmea2000out:${id}`
