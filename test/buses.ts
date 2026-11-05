@@ -32,14 +32,17 @@ const SERVER_BUSES = [
   bus('bus1'),
   pipedprovider({ id: 'gps', type: 'NMEA0183' }),
   bus('bus2', false),
-  pipedprovider({ id: 'reader', type: 'NMEA2000' })
+  pipedprovider({ id: 'reader', type: 'NMEA2000' }),
+  bus('bus3')
 ]
 
 function makeApp(propertyValues?: unknown[]): any {
   const errors: string[] = []
   const events: string[] = []
   const selfBuses: Record<string, any> = {}
+  const deltaHandlers: ((delta: any) => void)[] = []
   return {
+    deltaHandlers,
     errors,
     events,
     selfBuses,
@@ -48,7 +51,13 @@ function makeApp(propertyValues?: unknown[]): any {
     emit: (event: string) => events.push(event),
     getSelfPath: () => undefined,
     getPath: () => undefined,
-    signalk: { self: {}, on: () => {} },
+    selfId: 'urn:mrn:signalk:uuid:self',
+    signalk: {
+      self: {},
+      on: (event: string, handler: (delta: any) => void) => {
+        if (event === 'delta') deltaHandlers.push(handler)
+      }
+    },
     ...(propertyValues
       ? {
           onPropertyValues: (name: string, cb: (values: unknown[]) => void) => {
@@ -64,18 +73,25 @@ function makeApp(propertyValues?: unknown[]): any {
   }
 }
 
+// Where a value came from: a $source starts with the connection's id
+const fromBus = (id: string) => ({
+  $source: `${id}.35`,
+  source: { type: 'NMEA2000', label: id }
+})
+
 // Starts the rudder conversion with these options, sends one angle and gives
 // the events its PGN went out on
 async function rudderEvents(
   app: any,
-  options: Record<string, unknown>
+  options: Record<string, unknown>,
+  from: Record<string, unknown> = { $source: 'test.1' }
 ): Promise<string[]> {
   const plugin = require('../dist/index.js')(app)
   plugin.start({ RUDDER: { enabled: true }, ...options })
   app.selfBuses['steering.rudderAngle'].push({
     path: 'steering.rudderAngle',
     value: 0.1,
-    $source: 'test.1'
+    ...from
   })
   await new Promise((resolve) => setTimeout(resolve, 50))
   plugin.stop()
@@ -92,10 +108,11 @@ describe('NMEA 2000 buses', function () {
   it('offers the NMEA 2000 connections that write', function () {
     const schema = require('../dist/index.js')(makeApp(SERVER_BUSES)).schema()
     const output = schema.properties.OUTPUT.properties.nmea2000Buses
-    assert.deepEqual(output.items.enum, ['bus1', 'bus2'])
+    assert.deepEqual(output.items.enum, ['bus1', 'bus2', 'bus3'])
+    assert.isFalse(schema.properties.OUTPUT.properties.bridgeNmea2000.default)
     assert.isTrue(output.uniqueItems)
     const rudder = schema.properties.RUDDER.properties.nmea2000Buses
-    assert.deepEqual(rudder.items.enum, ['bus1', 'bus2'])
+    assert.deepEqual(rudder.items.enum, ['bus1', 'bus2', 'bus3'])
   })
 
   it('keeps a saved bus that is not listed now a choice', function () {
@@ -110,7 +127,7 @@ describe('NMEA 2000 buses', function () {
     const schema = require('../dist/index.js')(app).schema()
     assert.deepEqual(
       schema.properties.OUTPUT.properties.nmea2000Buses.items.enum,
-      ['bus1', 'bus2', 'old', 'gone']
+      ['bus1', 'bus2', 'bus3', 'old', 'gone']
     )
   })
 
@@ -169,5 +186,77 @@ describe('NMEA 2000 buses', function () {
       OUTPUT: { nmea2000Buses: ['bus1', 'bus1'] }
     })
     assert.deepEqual(events, ['nmea2000out:bus1'])
+  })
+
+  describe('bridging', function () {
+    const BRIDGE = { OUTPUT: { bridgeNmea2000: true } }
+
+    it('withholds NMEA 2000 data unless bridging is on', async function () {
+      const events = await rudderEvents(
+        makeApp(SERVER_BUSES),
+        {},
+        fromBus('bus1')
+      )
+      assert.isEmpty(events)
+    })
+
+    it('sends NMEA 2000 data to every other bus that takes broadcasts', async function () {
+      // bus2 takes only what is sent to it by name
+      const events = await rudderEvents(
+        makeApp(SERVER_BUSES),
+        BRIDGE,
+        fromBus('bus1')
+      )
+      assert.deepEqual(events, ['nmea2000out:bus3'])
+    })
+
+    it('sends NMEA 2000 data to the other chosen buses', async function () {
+      const events = await rudderEvents(
+        makeApp(SERVER_BUSES),
+        { OUTPUT: { bridgeNmea2000: true, nmea2000Buses: ['bus1', 'bus2'] } },
+        fromBus('bus1')
+      )
+      assert.deepEqual(events, ['nmea2000out:bus2'])
+    })
+
+    it('sends other data to every bus as before', async function () {
+      const events = await rudderEvents(makeApp(SERVER_BUSES), BRIDGE)
+      assert.deepEqual(events, ['nmea2000out'])
+    })
+
+    it('withholds NMEA 2000 data on a server that lists no buses', async function () {
+      const events = await rudderEvents(makeApp(), BRIDGE, fromBus('bus1'))
+      assert.isEmpty(events)
+    })
+
+    it('sends AIS from one bus to the others', async function () {
+      const app = makeApp(SERVER_BUSES)
+      app.getPath = () => undefined
+      const plugin = require('../dist/index.js')(app)
+      plugin.start({ ...BRIDGE, AISv2: { enabled: true } })
+      const ais = (from: Record<string, unknown>) => ({
+        context: 'vessels.urn:mrn:imo:mmsi:235000001',
+        updates: [
+          {
+            ...from,
+            values: [
+              {
+                path: 'navigation.position',
+                value: { longitude: 4.1, latitude: 52.2 }
+              },
+              { path: '', value: { mmsi: '235000001' } }
+            ]
+          }
+        ]
+      })
+      app.deltaHandlers.forEach((handler: any) => {
+        handler(ais(fromBus('bus3')))
+        handler(ais({ $source: 'ais.1' }))
+      })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plugin.stop()
+      // From bus3: to bus1 only; from elsewhere: to every bus
+      assert.deepEqual(app.events, ['nmea2000out:bus1', 'nmea2000out'])
+    })
   })
 })
