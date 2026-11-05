@@ -629,11 +629,14 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ]
       },
       {
-        // A base station (AIS message 4)
+        // A base station (AIS message 4), its delta with a meta update
         input: [
           {
             context: 'shore.basestations.urn:mrn:imo:mmsi:002442000',
             updates: [
+              {
+                meta: [{ path: 'navigation.position', value: { units: 'deg' } }]
+              },
               {
                 values: [
                   {
@@ -902,6 +905,10 @@ function hasAnyKeys(delta: Delta, keys: string[]) {
 function findDeltaValue(vessel: Vessel, delta: Delta, path: string): any {
   if (delta.updates) {
     for (var i = 0; i < delta.updates.length; i++) {
+      // A meta update has no values
+      if (!Array.isArray(delta.updates[i].values)) {
+        continue
+      }
       for (var j = 0; j < delta.updates[i].values.length; j++) {
         var valuePath = delta.updates[i].values[j].path
         var value = delta.updates[i].values[j].value
