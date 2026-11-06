@@ -31,6 +31,22 @@ function normalizeTimeStamp(pgn: any) {
   }
 }
 
+// canboatjs gives a binary field that is all ones from canboat/canboatjs#581
+// on, as canboat does, and left it out before; the AIS tests send these two
+// so, and compare them left out either way.
+const ALL_ONES: Record<string, number> = {
+  'Communication State': 0x7ffff,
+  'AtoN Status': 0xff
+}
+function dropAllOnes(pgn: any) {
+  const fields = pgn && pgn.fields
+  if (fields) {
+    Object.entries(ALL_ONES)
+      .filter(([key, value]) => fields[key] === value)
+      .forEach(([key]) => delete fields[key])
+  }
+}
+
 // Reserved and spare fields are filled in by the encoder, not by the
 // conversions, so compare without them.
 function dropReservedAndSpare(pgn: any) {
@@ -161,6 +177,7 @@ describe('conversions work', () => {
                         normalizeMmsi(expected)
                         normalizeTimeStamp(pgn)
                         dropReservedAndSpare(pgn)
+                        dropAllOnes(pgn)
                         pgn.should.jsonEqual(expected)
                       } catch (e) {
                         error = e
