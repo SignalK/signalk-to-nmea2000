@@ -179,6 +179,38 @@ describe('onValueChange conversions over the streambundle', () => {
     }
   })
 
+  it('stops resending a PGN once an input it holds times out', async () => {
+    const app = makeApp()
+    // The streams' debounce keeps real time; the resend timer is faked
+    const clock = sinon.useFakeTimers({
+      now: Date.now(),
+      toFake: ['Date', 'setInterval', 'clearInterval']
+    })
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ WINDv2: { enabled: true, resend: 1, resendTime: 30 } })
+    const wind = () =>
+      app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).length
+    try {
+      // The anemometer stops altogether, so no update replaces the PGN
+      publish(app, 'environment.wind.angleApparent', 0.5)
+      publish(app, 'environment.wind.speedApparent', 6.1)
+      await settle()
+      assert.equal(wind(), 1)
+
+      await clock.tickAsync(9500)
+      await settle()
+      assert.equal(wind(), 10, 'resent each second while the inputs hold')
+
+      // Past the 10 s timeout the old wind is not resent for the 30 s
+      await clock.tickAsync(20000)
+      await settle()
+      assert.equal(wind(), 10)
+    } finally {
+      clock.restore()
+      plugin.stop()
+    }
+  })
+
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
     app.debug.enabled = true

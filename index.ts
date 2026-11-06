@@ -352,7 +352,8 @@ module.exports = function (app: App) {
   function processOutput(
     conversion: RunningConversion,
     options: ConversionSettings | null,
-    output: Output
+    output: Output,
+    expiresAt = Infinity
   ) {
     if (options && options.resend && options.resend > 0) {
       if (conversion.resendTimer) {
@@ -362,8 +363,13 @@ module.exports = function (app: App) {
       conversion.resendTimer = setInterval(() => {
         // The inputs can stop the PGN while it is being resent: the active
         // course can turn out to come from NMEA 2000 without a new value
-        // replacing the one being resent
-        if (conversion.withheld && conversion.withheld()) {
+        // replacing the one being resent. An input it was built from can
+        // also time out; the PGN is not rebuilt, as some callbacks keep
+        // state, so the next update sends that field as not available.
+        if (
+          (conversion.withheld && conversion.withheld()) ||
+          Date.now() >= expiresAt
+        ) {
           clearResendInterval(conversion.resendTimer)
           conversion.resendTimer = undefined
           return
@@ -398,8 +404,8 @@ module.exports = function (app: App) {
         conversion.initialValueKeys,
         conversion.sourceSelectors,
         conversion.withholdingSourceKeys
-      ).onValue((values) => {
-        if (values === WITHHELD) {
+      ).onValue((inputs) => {
+        if (inputs === WITHHELD) {
           // The last PGN no longer reflects the inputs; stop resending it
           if (conversion.resendTimer) {
             clearResendInterval(conversion.resendTimer)
@@ -410,7 +416,8 @@ module.exports = function (app: App) {
         processOutput(
           conversion,
           options,
-          conversion.callback!(...(values as unknown[]))
+          conversion.callback!(...inputs.values),
+          inputs.expiresAt
         )
       })
     )
@@ -508,7 +515,7 @@ module.exports = function (app: App) {
     initialValueKeys: string[] = [],
     sourceSelectors: Record<string, string | undefined> = {},
     withholdingSourceKeys: string[] = []
-  ): Bacon.EventStream<unknown[] | typeof WITHHELD> {
+  ): Bacon.EventStream<Inputs | typeof WITHHELD> {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
     type LastValue = {
@@ -524,7 +531,16 @@ module.exports = function (app: App) {
       }
       return acc
     }, {})
-    const combinedBus = new Bacon.Bus<unknown[] | typeof WITHHELD>()
+    // When the first of these values times out
+    const expiryOf = (current: (LastValue | null)[]) =>
+      Math.min(
+        ...current.map((entry, i) =>
+          entry && entry.value != null && !notDefined(timeouts[i])
+            ? entry.timestamp + timeouts[i]!
+            : Infinity
+        )
+      )
+    const combinedBus = new Bacon.Bus<Inputs | typeof WITHHELD>()
     let hasInitialValue = false
     keys.map((skKey) => {
       const sourceRef = sourceSelectors[skKey] ?? options[pathToPropName(skKey)]
@@ -605,9 +621,10 @@ module.exports = function (app: App) {
               combinedBus.push(WITHHELD)
               return
             }
-            combinedBus.push(
-              current.map((entry) => (entry ? entry.value : null))
-            )
+            combinedBus.push({
+              values: current.map((entry) => (entry ? entry.value : null)),
+              expiresAt: expiryOf(current)
+            })
           }
         )
       )
@@ -619,14 +636,19 @@ module.exports = function (app: App) {
       ? Bacon.once(
           initialValuesWithheld
             ? WITHHELD
-            : keys.map((key) => lastValues[key].value)
+            : {
+                values: keys.map((key) => lastValues[key].value),
+                expiresAt: expiryOf(keys.map((key) => lastValues[key]))
+              }
         )
           .concat(combinedBus)
           .debounce(10)
       : combinedBus.debounce(10)
     if (app.debug.enabled) {
       unsubscribes.push(
-        result.onValue((x) => app.debug(`${keys}:${String(x)}`))
+        result.onValue((x) =>
+          app.debug(`${keys}:${x === WITHHELD ? 'withheld' : String(x.values)}`)
+        )
       )
     }
     return result
@@ -644,6 +666,9 @@ const sendsNmea2000Data = (
 
 // Pushed instead of values when an NMEA 2000 input withholds the PGN
 const WITHHELD = Symbol('withheld')
+
+// The values a PGN is built from, and when the first of them times out
+type Inputs = { values: unknown[]; expiresAt: number }
 
 // The delta with its NMEA 2000 updates removed, or undefined if none remain
 function withoutNmea2000Updates(app: App, delta: Delta): Delta | undefined {
