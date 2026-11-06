@@ -69,7 +69,25 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         return null
       }
 
+      // A base station: under shore.basestations, or, from older parsers,
+      // under vessels with AIS class BASE
+      const baseStation = (station: Vessel) => {
+        if (!hasAnyKeys(delta, position_keys)) {
+          return null
+        }
+        var mmsi = findDeltaValue(station, delta, 'mmsi')
+        if (!mmsi) {
+          return null
+        }
+        const report = generateBaseStation(station, mmsi, delta)
+        return report ? [report] : null
+      }
+
       if (delta.context.startsWith('vessels.')) {
+        var vessel = app.getPath(delta.context)
+        if (findDeltaValue(vessel, delta, 'sensors.ais.class') === 'BASE') {
+          return baseStation(vessel)
+        }
         var hasStatic = hasAnyKeys(delta, static_keys)
         var hasPosition = hasAnyKeys(delta, position_keys)
 
@@ -77,7 +95,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           return null
         }
 
-        var vessel = app.getPath(delta.context)
         var mmsi = findDeltaValue(vessel, delta, 'mmsi')
 
         if (!mmsi) {
@@ -103,18 +120,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
 
         return [generateAtoN(vessel, mmsi, delta)]
       } else if (delta.context.startsWith('shore.basestations.')) {
-        if (!hasAnyKeys(delta, position_keys)) {
-          return null
-        }
-        var station = app.getPath(delta.context)
-        var mmsi = findDeltaValue(station, delta, 'mmsi')
-
-        if (!mmsi) {
-          return null
-        }
-
-        const report = generateBaseStation(station, mmsi, delta)
-        return report ? [report] : null
+        return baseStation(app.getPath(delta.context))
       }
     },
     tests: [
@@ -661,6 +667,45 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
               'User ID': 2442000,
               Longitude: 4.7731667,
               Latitude: 52.9578333,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use'
+            }
+          }
+        ]
+      },
+      {
+        // A base station under vessels, as older parsers gave it (#57)
+        input: [
+          {
+            context: 'vessels.urn:mrn:imo:mmsi:005030230',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'navigation.position',
+                    value: {
+                      longitude: 144.6052167,
+                      latitude: -38.1634333
+                    }
+                  },
+                  { path: '', value: { mmsi: '005030230' } },
+                  { path: 'sensors.ais.class', value: 'BASE' }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 7,
+            pgn: 129793,
+            dst: 255,
+            fields: {
+              'Message ID': 'Base station report',
+              'Repeat Indicator': 'Initial',
+              'User ID': 5030230,
+              Longitude: 144.6052167,
+              Latitude: -38.1634333,
               'Position Accuracy': 'Low',
               RAIM: 'not in use'
             }
