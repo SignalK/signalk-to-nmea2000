@@ -4,12 +4,14 @@ import path from 'path'
 import fs from 'fs'
 import { pgnToActisenseSerialFormat } from '@canboat/canboatjs'
 import { PGN } from '@canboat/ts-pgns'
-import { isNmea2000Update } from './nmea2000Source'
+import { isNmea2000Update, sourceConnection } from './nmea2000Source'
 import { Type, type TProperties } from 'typebox'
 import { Value } from 'typebox/value'
 import { App, Conversion, Plugin } from './types'
 import {
   savedBuses,
+  bridgeProperty,
+  bridges,
   busEvents,
   busesProperty,
   busList,
@@ -88,8 +90,12 @@ module.exports = function (app: App) {
     in withholdingSourceKeys, where a value from it withholds the PGN instead
     (engine notifications: an NMEA 2000 engine already sends 127489). With
     allowNmea2000Sources set, none of this applies and everything is sent.
+    With bridging on (OUTPUT.bridgeNmea2000), on a server that lists its
+    buses, NMEA 2000 data that would withhold a PGN sends it to the other
+    buses instead: never to the bus the data came from.
     A conversion whose output depends on more than its inputs gives a
-    withheld function; resending stops once it returns true.
+    withheld function; resending stops once it returns true. It is not
+    bridged: the buses the rest of its output came from are not known.
    */
 
   var sourceTypes: Record<
@@ -104,7 +110,7 @@ module.exports = function (app: App) {
 
   var outputTypes: Record<
     string,
-    (values: Output, conversion: RunningConversion) => void
+    (values: Output, conversion: RunningConversion, exclude: string[]) => void
   > = {
     'to-n2k': processToN2K
   }
@@ -114,6 +120,10 @@ module.exports = function (app: App) {
   plugin.description = 'Plugin to convert Signal K to NMEA2000'
 
   const buses = busList(app)
+  // Set on start from the plugin-wide settings
+  let pluginOptions: PluginOptions = {}
+  // Read when data arrives: the buses may be listed after the plugin starts
+  const bridging = () => bridges(pluginOptions, buses)
 
   // The buses offered in the admin UI's form, none on a server that cannot
   // send to one bus; any, when the saved settings are checked. A saved bus
@@ -136,7 +146,8 @@ module.exports = function (app: App) {
             nmea2000Buses: busesProperty(
               busChoices(liveData),
               outputDescription
-            )
+            ),
+            bridgeNmea2000: bridgeProperty
           },
           { title: 'Output to NMEA 2000' }
         )
@@ -220,6 +231,7 @@ module.exports = function (app: App) {
   }
 
   plugin.start = function (options: PluginOptions) {
+    pluginOptions = options
     conversions.forEach((entry: RunningConversion | RunningConversion[]) => {
       const list = _.isArray(entry) ? entry : [entry]
       list.forEach((conversion) => {
@@ -296,7 +308,7 @@ module.exports = function (app: App) {
   // A PGN that cannot be encoded here is dropped, not handed to the server
   // as JSON: a server on canboatjs 3 would read its SI values in the old
   // units and put wrong values on the bus.
-  function emitPgn(pgn: PGN, chosen: string[] = []) {
+  function emitPgn(pgn: PGN, chosen: string[] = [], exclude: string[] = []) {
     let line
     try {
       line = pgnToActisenseSerialFormat(pgn)
@@ -308,13 +320,17 @@ module.exports = function (app: App) {
       app.error(`cannot encode PGN ${pgn.pgn}`)
       return
     }
-    busEvents(buses, chosen).forEach((event) => {
+    busEvents(buses, chosen, exclude).forEach((event) => {
       app.debug(`emit ${event} ${line}`)
       app.emit(event, line)
     })
   }
 
-  function processToN2K(values: Output, conversion: RunningConversion) {
+  function processToN2K(
+    values: Output,
+    conversion: RunningConversion,
+    exclude: string[]
+  ) {
     if (values) {
       Promise.all(values as (PGN | null | Promise<PGN | null>)[]).then(
         (pgns) => {
@@ -322,7 +338,7 @@ module.exports = function (app: App) {
             .filter((pgn) => pgn != null)
             .forEach((pgn) => {
               try {
-                emitPgn(pgn, conversion.buses)
+                emitPgn(pgn, conversion.buses, exclude)
               } catch (err: any) {
                 console.error(`error writing pgn ${JSON.stringify(pgn)}`)
                 console.error(err.stack)
@@ -352,7 +368,9 @@ module.exports = function (app: App) {
   function processOutput(
     conversion: RunningConversion,
     options: ConversionSettings | null,
-    output: Output
+    output: Output,
+    // The NMEA 2000 buses the inputs came from, which the PGN is not sent to
+    exclude: string[] = []
   ) {
     if (options && options.resend && options.resend > 0) {
       if (conversion.resendTimer) {
@@ -369,7 +387,7 @@ module.exports = function (app: App) {
           return
         }
         Promise.resolve(output).then((values) => {
-          outputTypes[conversion.outputType!](values, conversion)
+          outputTypes[conversion.outputType!](values, conversion, exclude)
         })
         if (Date.now() - startedAt > (options.resendTime || 30) * 1000) {
           clearResendInterval(conversion.resendTimer)
@@ -378,7 +396,7 @@ module.exports = function (app: App) {
       timers.push(conversion.resendTimer)
     }
     Promise.resolve(output).then((values) => {
-      outputTypes[conversion.outputType!](values, conversion)
+      outputTypes[conversion.outputType!](values, conversion, exclude)
     })
   }
 
@@ -397,7 +415,8 @@ module.exports = function (app: App) {
         conversion.withholdingKeys,
         conversion.initialValueKeys,
         conversion.sourceSelectors,
-        conversion.withholdingSourceKeys
+        conversion.withholdingSourceKeys,
+        bridged(conversion)
       ).onValue((values) => {
         if (values === WITHHELD) {
           // The last PGN no longer reflects the inputs; stop resending it
@@ -410,7 +429,8 @@ module.exports = function (app: App) {
         processOutput(
           conversion,
           options,
-          conversion.callback!(...(values as unknown[]))
+          conversion.callback!(...values.values),
+          values.exclude
         )
       })
     )
@@ -421,20 +441,69 @@ module.exports = function (app: App) {
     options: ConversionSettings
   ) {
     app.signalk.on('delta', (delta: Delta) => {
-      let input: Delta | undefined = delta
-      if (!sendsNmea2000Data(conversion, options)) {
-        input = withoutNmea2000Updates(app, delta)
-        if (!input) {
-          return
-        }
-      }
       try {
-        processOutput(conversion, options, conversion.callback!(input))
+        processDelta(conversion, options, delta)
       } catch (err: any) {
         app.error(err)
         console.error(err.stack)
       }
     })
+  }
+
+  // When bridging, one delta can give a PGN for each bus its data came from.
+  // A group that gives nothing does not stop another group's resends.
+  function processDelta(
+    conversion: RunningConversion,
+    options: ConversionSettings,
+    delta: Delta
+  ) {
+    const outputs = deltaInputs(conversion, options, delta).map(
+      ({ input, exclude }) => ({ output: conversion.callback!(input), exclude })
+    )
+    const sending = outputs.filter(({ output }) => output != null)
+    ;(sending.length > 0 ? sending : outputs.slice(0, 1)).forEach(
+      ({ output, exclude }) =>
+        processOutput(conversion, options, output, exclude)
+    )
+  }
+
+  // What a conversion that takes whole deltas is given. NMEA 2000 updates are
+  // left out, unless the conversion takes them; when bridging, each bus's go
+  // on their own, to be sent to the other buses.
+  function deltaInputs(
+    conversion: RunningConversion,
+    options: ConversionSettings,
+    delta: Delta
+  ): { input: Delta; exclude: string[] }[] {
+    if (sendsNmea2000Data(conversion, options)) {
+      return [{ input: delta, exclude: [] }]
+    }
+    const input = withoutNmea2000Updates(app, delta)
+    const inputs = input ? [{ input, exclude: [] as string[] }] : []
+    if (!bridged(conversion) || !delta.updates) {
+      return inputs
+    }
+    // An update from a connection that is not a listed bus is withheld: one
+    // that only reads may be a second gateway on a bus that is listed
+    const byBus = _.groupBy(
+      delta.updates.filter((update) => {
+        const bus = sourceConnection(update)
+        return (
+          isNmea2000Update(app, update) && bus !== undefined && buses.has(bus)
+        )
+      }),
+      (update) => sourceConnection(update)
+    )
+    Object.entries(byBus).forEach(([bus, updates]) => {
+      inputs.push({ input: { ...delta, updates }, exclude: [bus] })
+    })
+    return inputs
+  }
+
+  // A conversion with a withheld function is not bridged: the buses the rest
+  // of its output came from are not known
+  function bridged(conversion: RunningConversion) {
+    return bridging() && !conversion.withheld
   }
 
   function mapTimer(
@@ -481,15 +550,8 @@ module.exports = function (app: App) {
       unsubscribes,
       subscription_error,
       (delta: Delta) => {
-        let input: Delta | undefined = delta
-        if (!sendsNmea2000Data(mapping, options)) {
-          input = withoutNmea2000Updates(app, delta)
-          if (!input) {
-            return
-          }
-        }
         try {
-          processOutput(mapping, options, mapping.callback!(input))
+          processDelta(mapping, options, delta)
         } catch (err) {
           app.error(err)
         }
@@ -507,14 +569,17 @@ module.exports = function (app: App) {
     withholdingKeys: string[] = keys,
     initialValueKeys: string[] = [],
     sourceSelectors: Record<string, string | undefined> = {},
-    withholdingSourceKeys: string[] = []
-  ): Bacon.EventStream<unknown[] | typeof WITHHELD> {
+    withholdingSourceKeys: string[] = [],
+    bridged = false
+  ): Bacon.EventStream<Inputs | typeof WITHHELD> {
     app.debug(`keys:${keys}`)
     app.debug(`timeouts:${timeouts}`)
     type LastValue = {
       timestamp: number
       value: unknown
       fromNmea2000: boolean
+      // The connection the value came from
+      bus?: string
     }
     const lastValues = keys.reduce((acc: Record<string, LastValue>, key) => {
       acc[key] = {
@@ -524,7 +589,7 @@ module.exports = function (app: App) {
       }
       return acc
     }, {})
-    const combinedBus = new Bacon.Bus<unknown[] | typeof WITHHELD>()
+    const combinedBus = new Bacon.Bus<Inputs | typeof WITHHELD>()
     let hasInitialValue = false
     keys.map((skKey) => {
       const sourceRef = sourceSelectors[skKey] ?? options[pathToPropName(skKey)]
@@ -548,7 +613,8 @@ module.exports = function (app: App) {
             lastValues[skKey] = {
               timestamp: new Date().getTime(),
               value: current.value,
-              fromNmea2000
+              fromNmea2000,
+              bus: sourceConnection({ $source: currentSourceId })
             }
             hasInitialValue = true
           }
@@ -585,7 +651,8 @@ module.exports = function (app: App) {
             lastValues[skKey] = {
               timestamp: new Date().getTime(),
               value,
-              fromNmea2000
+              fromNmea2000,
+              bus: sourceConnection({ source, $source })
             }
             const now = new Date().getTime()
 
@@ -595,38 +662,49 @@ module.exports = function (app: App) {
                 ? lastValues[key]
                 : null
             )
-            // One NMEA 2000 input withholds the whole PGN: sending the others with
-            // that field unavailable would compete with the device already on the bus
-            if (
-              current.some(
-                (entry) => entry && entry.value != null && entry.fromNmea2000
-              )
-            ) {
-              combinedBus.push(WITHHELD)
-              return
-            }
-            combinedBus.push(
-              current.map((entry) => (entry ? entry.value : null))
-            )
+            combinedBus.push(inputsOf(current))
           }
         )
       )
     })
-    const initialValuesWithheld = keys.some(
-      (key) => lastValues[key].value != null && lastValues[key].fromNmea2000
-    )
+    // One NMEA 2000 input withholds the whole PGN: sending the others with
+    // that field unavailable would compete with the device already on the
+    // bus. When bridging, the PGN goes to the other buses instead.
+    function inputsOf(entries: (LastValue | null)[]): Inputs | typeof WITHHELD {
+      const fromBuses = entries.filter(
+        (entry) => entry && entry.value != null && entry.fromNmea2000
+      ) as LastValue[]
+      const exclude = _.uniq(
+        fromBuses.map((entry) => entry.bus).filter((bus) => bus !== undefined)
+      )
+      if (
+        fromBuses.length > 0 &&
+        (!bridged ||
+          fromBuses.some(
+            (entry) => entry.bus === undefined || !buses.has(entry.bus)
+          ))
+      ) {
+        return WITHHELD
+      }
+      return {
+        values: entries.map((entry) => (entry ? entry.value : null)),
+        exclude
+      }
+    }
     const result = hasInitialValue
-      ? Bacon.once(
-          initialValuesWithheld
-            ? WITHHELD
-            : keys.map((key) => lastValues[key].value)
-        )
+      ? Bacon.once(inputsOf(keys.map((key) => lastValues[key])))
           .concat(combinedBus)
           .debounce(10)
       : combinedBus.debounce(10)
     if (app.debug.enabled) {
       unsubscribes.push(
-        result.onValue((x) => app.debug(`${keys}:${String(x)}`))
+        result.onValue((x) =>
+          app.debug(
+            x === WITHHELD
+              ? `${keys}: withheld`
+              : `${keys}:${String(x.values)}${x.exclude.length ? ` not to ${x.exclude}` : ''}`
+          )
+        )
       )
     }
     return result
@@ -644,6 +722,12 @@ const sendsNmea2000Data = (
 
 // Pushed instead of values when an NMEA 2000 input withholds the PGN
 const WITHHELD = Symbol('withheld')
+
+// A conversion's input values, and the NMEA 2000 buses they came from
+interface Inputs {
+  values: unknown[]
+  exclude: string[]
+}
 
 // The delta with its NMEA 2000 updates removed, or undefined if none remain
 function withoutNmea2000Updates(app: App, delta: Delta): Delta | undefined {
