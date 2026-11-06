@@ -729,7 +729,10 @@ describe('man overboard', function () {
   })
 
   it('sends a cleared MOB as not active for ten seconds', async function () {
-    const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    const clock = sinon.useFakeTimers({
+      now: Date.now(),
+      toFake: ['Date', 'setInterval', 'clearInterval']
+    })
     const app = makeApp()
     const plugin = require('../dist/index.js')(app)
     plugin.start({ MOB: { enabled: true } })
@@ -737,14 +740,21 @@ describe('man overboard', function () {
       const [subscriber] = app.subscribers
       subscriber.callback(mob({ state: 'emergency', createdAt: new Date() }))
       subscriber.callback(mob(null))
-      await settle()
-      const notActive = sentMobs(app).at(-1)
-      assert.equal(notActive.fields['Man Overboard Status'], 'MOB Not Active')
-      clock.tick(11000)
-      const before = sentMobs(app).length
-      // The timer's next repeat finds it over
-      await new Promise((resolve) => setTimeout(resolve, 1100))
-      assert.equal(sentMobs(app).length, before)
+      await clock.tickAsync(0)
+      const status = () => sentMobs(app).at(-1).fields['Man Overboard Status']
+      assert.equal(status(), 'MOB Not Active')
+
+      // The timer repeats it
+      const cleared = sentMobs(app).length
+      await clock.tickAsync(1000)
+      assert.equal(sentMobs(app).length, cleared + 1)
+      assert.equal(status(), 'MOB Not Active')
+
+      // Until it is over
+      await clock.tickAsync(10000)
+      const over = sentMobs(app).length
+      await clock.tickAsync(3000)
+      assert.equal(sentMobs(app).length, over)
     } finally {
       plugin.stop()
       clock.restore()
