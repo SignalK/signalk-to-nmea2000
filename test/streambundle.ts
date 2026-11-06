@@ -744,14 +744,14 @@ describe('man overboard', function () {
       const status = () => sentMobs(app).at(-1).fields['Man Overboard Status']
       assert.equal(status(), 'MOB Not Active')
 
-      // The timer repeats it
-      const cleared = sentMobs(app).length
-      await clock.tickAsync(1000)
-      assert.equal(sentMobs(app).length, cleared + 1)
-      assert.equal(status(), 'MOB Not Active')
-
-      // Until it is over
-      await clock.tickAsync(10000)
+      // A device that misses one message must still learn it is over, so
+      // the timer repeats it every second for ten seconds, and then stops
+      for (let second = 1; second <= 10; second++) {
+        const before = sentMobs(app).length
+        await clock.tickAsync(1000)
+        assert.equal(sentMobs(app).length, before + 1, `at ${second} s`)
+        assert.equal(status(), 'MOB Not Active')
+      }
       const over = sentMobs(app).length
       await clock.tickAsync(3000)
       assert.equal(sentMobs(app).length, over)
