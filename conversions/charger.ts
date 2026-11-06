@@ -131,7 +131,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           charger.chargerInstanceId === undefined
             ? [
                 {
-                  // No charger instance: no 127507
+                  // The charger instance is optional: without it there is nowhere to
+                  // put the state
                   input: [14.1, 3.2, null, 'bulk'],
                   expected: [
                     {
@@ -171,7 +172,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                   ]
                 },
                 {
-                  // A state 127507 has no value for: only the output is sent
+                  // Signal K allows any mode; one 127507 cannot express must not
+                  // stop the output
                   input: [13.2, 1.1, null, 'inverting'],
                   expected: [
                     {
@@ -187,7 +189,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                   ]
                 },
                 {
-                  // Only the state known
+                  // A charger that reports its mode before its readings
                   input: [null, null, null, 'Float'],
                   expected: [
                     {
@@ -203,7 +205,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                   ]
                 },
                 {
-                  // A mode named like an Object property is no state
+                  // A mode is looked up by name, so a name the lookup itself has
+                  // must not be taken for a state
                   input: [null, null, null, 'constructor'],
                   expected: []
                 },
