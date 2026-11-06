@@ -17,14 +17,18 @@ const chargerProperties = (ids: string[]) => ({
             'Pick a charger id currently present under electrical.chargers or enter one manually',
           examples: ids
         }),
-        instanceId: Type.Number({
+        instanceId: Type.Integer({
           title: 'NMEA2000 Battery Instance Id',
+          minimum: 0,
+          maximum: 252,
           description:
             "Used for the charger's output voltage, current and temperature (127508), and as the battery it charges in 127507"
         }),
         chargerInstanceId: Type.Optional(
-          Type.Number({
+          Type.Integer({
             title: 'NMEA2000 Charger Instance Id',
+            minimum: 0,
+            maximum: 252,
             description: 'Used for the charging state (127507)'
           })
         )
@@ -37,25 +41,27 @@ const ChargerSettings = Type.Object(chargerProperties([]))
 
 // Signal K's chargingMode, and the states chargers report in it, as the
 // operating state of 127507
-const chargerStates: Record<string, ChargerState> = {
-  'not charging': ChargerState.NotCharging,
-  off: ChargerState.NotCharging,
-  bulk: ChargerState.Bulk,
-  absorption: ChargerState.Absorption,
-  acceptance: ChargerState.Absorption,
-  overcharge: ChargerState.Overcharge,
-  equalize: ChargerState.Equalise,
-  equalise: ChargerState.Equalise,
-  float: ChargerState.Float,
-  storage: ChargerState.Float,
-  'no float': ChargerState.NoFloat,
-  'constant vi': ChargerState.ConstantVi,
-  disabled: ChargerState.Disabled,
-  fault: ChargerState.Fault
-}
+const chargerStates = new Map<string, ChargerState>(
+  Object.entries({
+    'not charging': ChargerState.NotCharging,
+    off: ChargerState.NotCharging,
+    bulk: ChargerState.Bulk,
+    absorption: ChargerState.Absorption,
+    acceptance: ChargerState.Absorption,
+    overcharge: ChargerState.Overcharge,
+    equalize: ChargerState.Equalise,
+    equalise: ChargerState.Equalise,
+    float: ChargerState.Float,
+    storage: ChargerState.Float,
+    'no float': ChargerState.NoFloat,
+    'constant vi': ChargerState.ConstantVi,
+    disabled: ChargerState.Disabled,
+    fault: ChargerState.Fault
+  })
+)
 
 const chargerState = (mode: unknown): ChargerState | undefined =>
-  typeof mode === 'string' ? chargerStates[mode.toLowerCase()] : undefined
+  typeof mode === 'string' ? chargerStates.get(mode.toLowerCase()) : undefined
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   const chargerKeys = ['voltage', 'current', 'temperature', 'chargingMode']
@@ -75,7 +81,10 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
 
     testOptions: {
       CHARGERS: {
-        chargers: [{ signalkId: 'shore', instanceId: 12, chargerInstanceId: 1 }]
+        chargers: [
+          { signalkId: 'shore', instanceId: 12, chargerInstanceId: 1 },
+          { signalkId: 'solar', instanceId: 13 }
+        ]
       }
     },
 
@@ -118,66 +127,91 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           }
           return res
         },
-        tests: [
-          {
-            input: [13.8, 25.2, 301.15, 'absorption'],
-            expected: [
-              {
-                prio: 6,
-                pgn: 127508,
-                dst: 255,
-                fields: {
-                  Instance: 12,
-                  Voltage: 13.8,
-                  Current: 25.2,
-                  Temperature: 301.15
+        tests:
+          charger.chargerInstanceId === undefined
+            ? [
+                {
+                  // No charger instance: no 127507
+                  input: [14.1, 3.2, null, 'bulk'],
+                  expected: [
+                    {
+                      prio: 6,
+                      pgn: 127508,
+                      dst: 255,
+                      fields: { Instance: 13, Voltage: 14.1, Current: 3.2 }
+                    }
+                  ]
                 }
-              },
-              {
-                prio: 6,
-                pgn: 127507,
-                dst: 255,
-                fields: {
-                  Instance: 1,
-                  'Battery Instance': 12,
-                  'Operating State': 'Absorption'
+              ]
+            : [
+                {
+                  input: [13.8, 25.2, 301.15, 'absorption'],
+                  expected: [
+                    {
+                      prio: 6,
+                      pgn: 127508,
+                      dst: 255,
+                      fields: {
+                        Instance: 12,
+                        Voltage: 13.8,
+                        Current: 25.2,
+                        Temperature: 301.15
+                      }
+                    },
+                    {
+                      prio: 6,
+                      pgn: 127507,
+                      dst: 255,
+                      fields: {
+                        Instance: 1,
+                        'Battery Instance': 12,
+                        'Operating State': 'Absorption'
+                      }
+                    }
+                  ]
+                },
+                {
+                  // A state 127507 has no value for: only the output is sent
+                  input: [13.2, 1.1, null, 'inverting'],
+                  expected: [
+                    {
+                      prio: 6,
+                      pgn: 127508,
+                      dst: 255,
+                      fields: {
+                        Instance: 12,
+                        Voltage: 13.2,
+                        Current: 1.1
+                      }
+                    }
+                  ]
+                },
+                {
+                  // Only the state known
+                  input: [null, null, null, 'Float'],
+                  expected: [
+                    {
+                      prio: 6,
+                      pgn: 127507,
+                      dst: 255,
+                      fields: {
+                        Instance: 1,
+                        'Battery Instance': 12,
+                        'Operating State': 'Float'
+                      }
+                    }
+                  ]
+                },
+                {
+                  // A mode named like an Object property is no state
+                  input: [null, null, null, 'constructor'],
+                  expected: []
+                },
+                {
+                  input: [null, null, null, '__proto__'],
+                  expected: []
                 }
-              }
-            ]
-          },
-          {
-            // A state 127507 has no value for: only the output is sent
-            input: [13.2, 1.1, null, 'inverting'],
-            expected: [
-              {
-                prio: 6,
-                pgn: 127508,
-                dst: 255,
-                fields: {
-                  Instance: 12,
-                  Voltage: 13.2,
-                  Current: 1.1
-                }
-              }
-            ]
-          },
-          {
-            // Only the state known
-            input: [null, null, null, 'Float'],
-            expected: [
-              {
-                prio: 6,
-                pgn: 127507,
-                dst: 255,
-                fields: {
-                  Instance: 1,
-                  'Battery Instance': 12,
-                  'Operating State': 'Float'
-                }
-              }
-            ]
-          }
-        ]
+              ]
       }))
     }
   }
