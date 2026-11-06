@@ -1,5 +1,10 @@
 import _ from 'lodash'
-import { PGN_127503, PGN_127504, PGN_127744 } from '@canboat/ts-pgns'
+import {
+  PGN_127503,
+  PGN_127504,
+  PGN_127744,
+  PGN_127747
+} from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
@@ -60,9 +65,9 @@ const acInputProperties = (ids: string[]) => ({
   ),
   phaseA: Type.Optional(
     Type.Boolean({
-      title: 'Also send 127744 (AC Power / Current - Phase A)',
+      title: 'Also send 127744 and 127747 (Phase A)',
       description:
-        'For displays that read the current and power of phase A (or a single phase) from 127744',
+        'For displays that read phase A (or a single phase) from 127744 (AC Power / Current) and 127747 (AC Voltage / Frequency)',
       default: false
     })
   )
@@ -130,7 +135,7 @@ const acLine = (
 module.exports = (app: App, plugin: Plugin): Conversion[] => {
   return [
     {
-      title: 'AC Input (127503 & 127744)',
+      title: 'AC Input (127503, 127744 & 127747)',
       optionKey: 'AC_INPUT',
       context: 'vessels.self',
       properties: () => acInputProperties(idsUnder(app, 'electrical.ac')),
@@ -156,7 +161,9 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
           return {
             keys,
             timeouts: keys.map(() => AC_TIMEOUT),
-            callback: (...values: AcValue[]): (PGN_127503 | PGN_127744)[] => {
+            callback: (
+              ...values: AcValue[]
+            ): (PGN_127503 | PGN_127744 | PGN_127747)[] => {
               const byPhase = _.chunk(values, acKeys.length)
               const single = acLine('Line 1', byPhase[0])
               const threePhase = [
@@ -172,7 +179,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 return []
               }
 
-              const res: (PGN_127503 | PGN_127744)[] = [
+              const res: (PGN_127503 | PGN_127744 | PGN_127747)[] = [
                 new PGN_127503({
                   instance: mappedInstance(bus.instanceId),
                   numberOfLines: lines.length,
@@ -183,7 +190,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
               ]
 
               // Power is signed in 127744, so it is sent as Signal K has it
-              const [, current, , realPower] = threePhase[0]
+              const [voltage, current, frequency, realPower] = threePhase[0]
                 ? byPhase[1]
                 : byPhase[0]
               if (settings.phaseA && lines[0].line == 'Line 1') {
@@ -194,6 +201,15 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     power: realPower ?? undefined
                   })
                 )
+                if (voltage != null || frequency != null) {
+                  res.push(
+                    new PGN_127747({
+                      connectionNumber: bus.instanceId,
+                      acVoltageLineToNeutral: voltage ?? undefined,
+                      frequency: frequency ?? undefined
+                    })
+                  )
+                }
               }
               return res
             },
@@ -240,6 +256,16 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       'AC RMS Current': 12.3,
                       Power: 2800
                     }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127747,
+                    dst: 255,
+                    fields: {
+                      'Connection Number': 2,
+                      'AC Voltage Line to Neutral': 230.1,
+                      Frequency: 50
+                    }
                   }
                 ]
               },
@@ -282,6 +308,16 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       'Connection Number': 2,
                       'AC RMS Current': 12.3,
                       Power: -2800
+                    }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127747,
+                    dst: 255,
+                    fields: {
+                      'Connection Number': 2,
+                      'AC Voltage Line to Neutral': 230.1,
+                      Frequency: 50
                     }
                   }
                 ]
@@ -347,6 +383,77 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       'Connection Number': 2,
                       'AC RMS Current': 5.1
                     }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127747,
+                    dst: 255,
+                    fields: {
+                      'Connection Number': 2,
+                      'AC Voltage Line to Neutral': 400.1
+                    }
+                  }
+                ]
+              },
+              {
+                // only the frequency: 127747 without a voltage
+                input: [null, null, 50, ..._.times(21, () => null)],
+                expected: [
+                  {
+                    prio: 6,
+                    pgn: 127503,
+                    dst: 255,
+                    fields: {
+                      Instance: 2,
+                      'Number of Lines': 1,
+                      list: [
+                        {
+                          Line: 'Line 1',
+                          Acceptability: 'Good',
+                          Frequency: 50
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127744,
+                    dst: 255,
+                    fields: { 'Connection Number': 2 }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127747,
+                    dst: 255,
+                    fields: { 'Connection Number': 2, Frequency: 50 }
+                  }
+                ]
+              },
+              {
+                // only the current: no 127747
+                input: [null, 12.3, ..._.times(22, () => null)],
+                expected: [
+                  {
+                    prio: 6,
+                    pgn: 127503,
+                    dst: 255,
+                    fields: {
+                      Instance: 2,
+                      'Number of Lines': 1,
+                      list: [
+                        {
+                          Line: 'Line 1',
+                          Acceptability: 'Good',
+                          Current: 12.3
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    prio: 3,
+                    pgn: 127744,
+                    dst: 255,
+                    fields: { 'Connection Number': 2, 'AC RMS Current': 12.3 }
                   }
                 ]
               },
