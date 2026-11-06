@@ -23,6 +23,15 @@ export function isNmea2000Update(
   return sources?.[label]?.type === 'NMEA2000'
 }
 
+// The connection an update came from: its $source starts with the id of the
+// connection (the provider id), up to the first dot
+export function sourceConnection({ source, $source }: Update) {
+  const ref = $source ?? (source as { label?: string } | undefined)?.label
+  if (typeof ref !== 'string') return undefined
+  const dot = ref.indexOf('.')
+  return dot === -1 ? ref : ref.slice(0, dot)
+}
+
 const NEXT_POINT = 'navigation.course.nextPoint'
 
 // Follows whether the active course came from NMEA 2000. The Course API takes

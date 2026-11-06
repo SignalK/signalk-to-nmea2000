@@ -136,6 +136,13 @@ describe('conversions work', () => {
                     )
                     pgns.forEach((res, idx) => {
                       try {
+                        // A SID that is not known is left out: 0xff is
+                        // out of its range, and canboatjs warns about it
+                        assert.notStrictEqual(
+                          (res as any).fields?.sid,
+                          0xff,
+                          'SID 0xff'
+                        )
                         let encoded = pgnToActisenseSerialFormat(res as any)
                         let pgn: any = parser.parseString(encoded!)
                         delete pgn.description

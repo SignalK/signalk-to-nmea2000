@@ -20,7 +20,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       try {
         return [
           new PGN_130310({
-            sid: 0xff,
             waterTemperature: water,
             outsideAmbientAirTemperature: air,
             atmosphericPressure: pressure

@@ -61,6 +61,27 @@ describe('plugin settings', function () {
     assert.deepEqual(charger.properties.signalkId.examples, ['roof'])
   })
 
+  it('offers the temperature paths in the Signal K data', function () {
+    const plugin = require('../dist/index.js')(
+      makeApp({
+        environment: {
+          inside: {
+            fridge: {
+              temperature: { value: 277, meta: { units: 'K' } }
+            }
+          }
+        },
+        propulsion: { port: { temperature: { value: 350 } } }
+      })
+    )
+    const temperature =
+      plugin.schema().properties.TEMPERATURE_PATHS.properties.temperatures.items
+    assert.deepEqual(temperature.properties.path.examples, [
+      'environment.inside.fridge.temperature',
+      'propulsion.port.temperature'
+    ])
+  })
+
   it('offers the tank paths in the Signal K data', function () {
     const plugin = require('../dist/index.js')(
       makeApp({ tanks: { fuel: { port: {} }, freshWater: { 0: {} } } })
