@@ -162,6 +162,16 @@ describe('onValueChange conversions over the streambundle', () => {
         .pop()
       assert.closeTo(heading.fields.Heading, 1.3, 0.0001)
       assert.closeTo(heading.fields.Variation, 0.03, 0.0001)
+
+      // The heading stops too: the variation goes on without it
+      clock.tick(11000)
+      publish(app, 'navigation.magneticVariation', 0.04)
+      await settle()
+      const variationOnly = app.emitted
+        .filter((pgn: TestPgn) => pgn.pgn === 127250)
+        .pop()
+      assert.closeTo(variationOnly.fields.Variation, 0.04, 0.0001)
+      assert.notProperty(variationOnly.fields, 'Heading')
     } finally {
       clock.restore()
       plugin.stop()
