@@ -732,7 +732,7 @@ describe('man overboard', function () {
     const app = makeApp()
     const plugin = require('../dist/index.js')(app)
     plugin.start({ MOB: { enabled: true } })
-    const raise = (timestamp: string) => ({
+    const raise = (timestamp: string, createdAt?: string) => ({
       context: 'vessels.self',
       updates: [
         {
@@ -742,7 +742,8 @@ describe('man overboard', function () {
               path: 'notifications.mob',
               value: {
                 state: 'emergency',
-                position: { latitude: 52.37, longitude: 4.89 }
+                position: { latitude: 52.37, longitude: 4.89 },
+                createdAt
               }
             }
           ]
@@ -752,11 +753,15 @@ describe('man overboard', function () {
     try {
       const [subscriber] = app.subscribers
       subscriber.callback(raise('2026-11-05T18:30:15.000Z'))
-      // A later update of the same MOB keeps the time it was raised
+      // A later update of the same MOB keeps the time it was raised, even
+      // one with a createdAt
       subscriber.callback(raise('2026-11-05T18:30:45.000Z'))
+      subscriber.callback(
+        raise('2026-11-05T18:31:15.000Z', '2026-11-05T18:31:15.000Z')
+      )
       await settle()
       const sent = sentMobs(app)
-      assert.equal(sent.length, 2)
+      assert.equal(sent.length, 3)
       sent.forEach((pgn: TestPgn) => {
         assert.equal(pgn.fields['Activation Time'], 66615)
         assert.equal(pgn.fields['Position Date'], '2026.11.05')

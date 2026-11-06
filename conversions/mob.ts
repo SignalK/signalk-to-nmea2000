@@ -154,9 +154,9 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                     mobs[path] = {
                       emitterId: mob?.emitterId ?? ++lastEmitterId,
                       value,
-                      activatedAt:
-                        value.createdAt ??
-                        (stillActive ? mob.activatedAt : update.timestamp)
+                      activatedAt: stillActive
+                        ? mob.activatedAt
+                        : (value.createdAt ?? update.timestamp)
                     }
                     changed = true
                   } else if (mob && mob.clearedAt === undefined) {
