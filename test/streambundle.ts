@@ -728,6 +728,45 @@ describe('man overboard', function () {
     }
   })
 
+  it('takes the activation time from the update without a createdAt', async function () {
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ MOB: { enabled: true } })
+    const raise = (timestamp: string) => ({
+      context: 'vessels.self',
+      updates: [
+        {
+          timestamp,
+          values: [
+            {
+              path: 'notifications.mob',
+              value: {
+                state: 'emergency',
+                position: { latitude: 52.37, longitude: 4.89 }
+              }
+            }
+          ]
+        }
+      ]
+    })
+    try {
+      const [subscriber] = app.subscribers
+      subscriber.callback(raise('2026-11-05T18:30:15.000Z'))
+      // A later update of the same MOB keeps the time it was raised
+      subscriber.callback(raise('2026-11-05T18:30:45.000Z'))
+      await settle()
+      const sent = sentMobs(app)
+      assert.equal(sent.length, 2)
+      sent.forEach((pgn: TestPgn) => {
+        assert.equal(pgn.fields['Activation Time'], 66615)
+        assert.equal(pgn.fields['Position Date'], '2026.11.05')
+        assert.equal(pgn.fields['Position Time'], 66615)
+      })
+    } finally {
+      plugin.stop()
+    }
+  })
+
   it('sends a cleared MOB as not active for ten seconds', async function () {
     const clock = sinon.useFakeTimers({
       now: Date.now(),

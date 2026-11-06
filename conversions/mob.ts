@@ -22,6 +22,8 @@ const REPEAT_CLEARED_MS = 10000
 interface Mob {
   emitterId: number
   value: any
+  // Its createdAt, or else the time of the update that raised it
+  activatedAt: unknown
   // Set while a cleared MOB is still sent as not active
   clearedAt?: number
 }
@@ -93,33 +95,35 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     const mmsi = selfValue(app, 'mmsi')
     const cog = finite(selfValue(app, 'navigation.courseOverGroundTrue'))
     const sog = finite(selfValue(app, 'navigation.speedOverGround'))
-    return Object.values(mobs).map(({ emitterId, value, clearedAt }) => {
-      const position = value?.position
-      const hasPosition =
-        finite(position?.latitude) !== undefined &&
-        finite(position?.longitude) !== undefined
-      return new PGN_127233({
-        mobEmitterId: emitterId,
-        manOverboardStatus:
-          clearedAt === undefined
-            ? MobStatus.ManualOnBoardMobButtonActivation
-            : MobStatus.MobNotActive,
-        activationTime: timeOfDay(value?.createdAt),
-        positionSource: MobPositionSource.PositionEstimatedByTheVessel,
-        ...(hasPosition
-          ? {
-              positionDate: daysSince1970(value.createdAt),
-              positionTime: timeOfDay(value.createdAt),
-              latitude: position.latitude,
-              longitude: position.longitude
-            }
-          : {}),
-        cogReference: cog !== undefined ? DirectionReference.True : undefined,
-        cog,
-        sog,
-        mmsiOfVesselOfOrigin: mmsi != null ? String(mmsi) : undefined!
-      })
-    })
+    return Object.values(mobs).map(
+      ({ emitterId, value, activatedAt, clearedAt }) => {
+        const position = value?.position
+        const hasPosition =
+          finite(position?.latitude) !== undefined &&
+          finite(position?.longitude) !== undefined
+        return new PGN_127233({
+          mobEmitterId: emitterId,
+          manOverboardStatus:
+            clearedAt === undefined
+              ? MobStatus.ManualOnBoardMobButtonActivation
+              : MobStatus.MobNotActive,
+          activationTime: timeOfDay(activatedAt),
+          positionSource: MobPositionSource.PositionEstimatedByTheVessel,
+          ...(hasPosition
+            ? {
+                positionDate: daysSince1970(activatedAt),
+                positionTime: timeOfDay(activatedAt),
+                latitude: position.latitude,
+                longitude: position.longitude
+              }
+            : {}),
+          cogReference: cog !== undefined ? DirectionReference.True : undefined,
+          cog,
+          sog,
+          mmsiOfVesselOfOrigin: mmsi != null ? String(mmsi) : undefined!
+        })
+      }
+    )
   }
 
   return {
@@ -144,9 +148,15 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                   if (!isMob(path)) return
                   const mob = mobs[path]
                   if (isActive(value)) {
+                    // A notification raised elsewhere may lack createdAt; a
+                    // later update of an active MOB keeps its first time
+                    const stillActive = mob && mob.clearedAt === undefined
                     mobs[path] = {
                       emitterId: mob?.emitterId ?? ++lastEmitterId,
-                      value
+                      value,
+                      activatedAt:
+                        value.createdAt ??
+                        (stillActive ? mob.activatedAt : update.timestamp)
                     }
                     changed = true
                   } else if (mob && mob.clearedAt === undefined) {
