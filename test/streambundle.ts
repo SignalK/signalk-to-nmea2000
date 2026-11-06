@@ -147,7 +147,8 @@ describe('onValueChange conversions over the streambundle', () => {
       let wind = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
       assert.equal(wind.fields['Wind Speed'], 6.1)
 
-      // The wind speed stops; the angle goes on
+      // A sensor that fails must not leave its last value on the bus while
+      // the other one keeps the PGN going
       clock.tick(11000)
       publish(app, 'environment.wind.angleApparent', 0.6)
       publish(app, 'navigation.headingMagnetic', 1.3)
@@ -163,7 +164,7 @@ describe('onValueChange conversions over the streambundle', () => {
       assert.closeTo(heading.fields.Heading, 1.3, 0.0001)
       assert.closeTo(heading.fields.Variation, 0.03, 0.0001)
 
-      // The heading stops too: the variation goes on without it
+      // A variation update must not bring back a heading that has expired
       clock.tick(11000)
       publish(app, 'navigation.magneticVariation', 0.04)
       await settle()
