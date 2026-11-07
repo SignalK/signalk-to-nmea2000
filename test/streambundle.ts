@@ -202,7 +202,17 @@ describe('onValueChange conversions over the streambundle', () => {
       await settle()
       assert.equal(lastWind().fields['Wind Speed'], 6.1)
 
-      await clock.tickAsync(11000)
+      // The angle restarted the resend, but the speed in it expires at 30 s
+      const resent = () =>
+        app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).length
+      await clock.tickAsync(9500)
+      await settle()
+      const atExpiry = resent()
+      await clock.tickAsync(1000)
+      await settle()
+      assert.equal(resent(), atExpiry, 'not resent once the speed expires')
+
+      await clock.tickAsync(500)
       publish(app, 'environment.wind.angleApparent', 0.7)
       await settle()
       assert.closeTo(lastWind().fields['Wind Angle'], 0.7, 0.0001)

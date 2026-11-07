@@ -370,7 +370,9 @@ module.exports = function (app: App) {
     options: ConversionSettings | null,
     output: Output,
     // The NMEA 2000 buses the inputs came from, which the PGN is not sent to
-    exclude: string[] = []
+    exclude: string[] = [],
+    // When the first input it was built from times out
+    expiresAt = Infinity
   ) {
     if (options && options.resend && options.resend > 0) {
       if (conversion.resendTimer) {
@@ -380,8 +382,13 @@ module.exports = function (app: App) {
       conversion.resendTimer = setInterval(() => {
         // The inputs can stop the PGN while it is being resent: the active
         // course can turn out to come from NMEA 2000 without a new value
-        // replacing the one being resent
-        if (conversion.withheld && conversion.withheld()) {
+        // replacing the one being resent. An input it was built from can
+        // also time out, when a newer update of another input restarted the
+        // resend; the PGN is not rebuilt, as some callbacks keep state.
+        if (
+          (conversion.withheld && conversion.withheld()) ||
+          Date.now() >= expiresAt
+        ) {
           clearResendInterval(conversion.resendTimer)
           conversion.resendTimer = undefined
           return
@@ -439,7 +446,8 @@ module.exports = function (app: App) {
           conversion,
           options,
           conversion.callback!(...values.values),
-          values.exclude
+          values.exclude,
+          values.expiresAt
         )
       })
     )
@@ -697,7 +705,14 @@ module.exports = function (app: App) {
       }
       return {
         values: entries.map((entry) => (entry ? entry.value : null)),
-        exclude
+        exclude,
+        expiresAt: Math.min(
+          ...entries.map((entry, i) =>
+            entry && entry.value != null && !notDefined(timeouts[i])
+              ? entry.timestamp + timeouts[i]!
+              : Infinity
+          )
+        )
       }
     }
     const result = hasInitialValue
@@ -732,10 +747,12 @@ const sendsNmea2000Data = (
 // Pushed instead of values when an NMEA 2000 input withholds the PGN
 const WITHHELD = Symbol('withheld')
 
-// A conversion's input values, and the NMEA 2000 buses they came from
+// A conversion's input values, the NMEA 2000 buses they came from, and when
+// the first of them times out
 interface Inputs {
   values: unknown[]
   exclude: string[]
+  expiresAt: number
 }
 
 // The delta with its NMEA 2000 updates removed, or undefined if none remain
