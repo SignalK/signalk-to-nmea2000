@@ -179,7 +179,7 @@ describe('onValueChange conversions over the streambundle', () => {
     }
   })
 
-  it('stops resending a PGN once an input it holds times out', async () => {
+  it('keeps an input for the resend duration while resending', async () => {
     const app = makeApp()
     // The streams' debounce keeps real time; the resend timer is faked
     const clock = sinon.useFakeTimers({
@@ -188,23 +188,25 @@ describe('onValueChange conversions over the streambundle', () => {
     })
     const plugin = require('../dist/index.js')(app)
     plugin.start({ WINDv2: { enabled: true, resend: 1, resendTime: 30 } })
-    const wind = () =>
-      app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).length
+    const lastWind = () =>
+      app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
     try {
-      // The anemometer stops altogether, so no update replaces the PGN
       publish(app, 'environment.wind.angleApparent', 0.5)
       publish(app, 'environment.wind.speedApparent', 6.1)
       await settle()
-      assert.equal(wind(), 1)
 
-      await clock.tickAsync(9500)
-      await settle()
-      assert.equal(wind(), 10, 'resent each second while the inputs hold')
-
-      // Past the 10 s timeout the old wind is not resent for the 30 s
+      // Resending for 30 s says the speed holds that long, past the 10 s
+      // timeout of the wind inputs
       await clock.tickAsync(20000)
+      publish(app, 'environment.wind.angleApparent', 0.6)
       await settle()
-      assert.equal(wind(), 10)
+      assert.equal(lastWind().fields['Wind Speed'], 6.1)
+
+      await clock.tickAsync(11000)
+      publish(app, 'environment.wind.angleApparent', 0.7)
+      await settle()
+      assert.closeTo(lastWind().fields['Wind Angle'], 0.7, 0.0001)
+      assert.notProperty(lastWind().fields, 'Wind Speed')
     } finally {
       clock.restore()
       plugin.stop()
