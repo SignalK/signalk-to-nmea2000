@@ -793,3 +793,105 @@ function goto(destination: { latitude: number; longitude: number }) {
     nextPoint: { type: 'Location', name: 'DP', position: destination }
   }
 }
+
+describe('man overboard', function () {
+  const mob = (value: unknown) => ({
+    context: 'vessels.self',
+    updates: [{ values: [{ path: 'notifications.mob.1', value }] }]
+  })
+  const sentMobs = (app: any) =>
+    app.emitted.filter((pgn: TestPgn) => pgn.pgn === 127233)
+
+  it('leaves repeating to its timer, not the resend option', async function () {
+    // A resent snapshot would outlast the MOB it shows
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ MOB: { enabled: true, resend: 0.02 } })
+    try {
+      app.subscribers.forEach((subscriber: Subscriber) =>
+        subscriber.callback(mob({ state: 'emergency', createdAt: new Date() }))
+      )
+      await settle()
+      assert.equal(sentMobs(app).length, 1)
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('takes the activation time from the update without a createdAt', async function () {
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ MOB: { enabled: true } })
+    const raise = (timestamp: string, createdAt?: string) => ({
+      context: 'vessels.self',
+      updates: [
+        {
+          timestamp,
+          values: [
+            {
+              path: 'notifications.mob',
+              value: {
+                state: 'emergency',
+                position: { latitude: 52.37, longitude: 4.89 },
+                createdAt
+              }
+            }
+          ]
+        }
+      ]
+    })
+    try {
+      const [subscriber] = app.subscribers
+      subscriber.callback(raise('2026-11-05T18:30:15.000Z'))
+      // A later update of the same MOB keeps the time it was raised, even
+      // one with a createdAt
+      subscriber.callback(raise('2026-11-05T18:30:45.000Z'))
+      subscriber.callback(
+        raise('2026-11-05T18:31:15.000Z', '2026-11-05T18:31:15.000Z')
+      )
+      await settle()
+      const sent = sentMobs(app)
+      assert.equal(sent.length, 3)
+      sent.forEach((pgn: TestPgn) => {
+        assert.equal(pgn.fields['Activation Time'], 66615)
+        assert.equal(pgn.fields['Position Date'], '2026.11.05')
+        assert.equal(pgn.fields['Position Time'], 66615)
+      })
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('sends a cleared MOB as not active for ten seconds', async function () {
+    const clock = sinon.useFakeTimers({
+      now: Date.now(),
+      toFake: ['Date', 'setInterval', 'clearInterval']
+    })
+    const app = makeApp()
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ MOB: { enabled: true } })
+    try {
+      const [subscriber] = app.subscribers
+      subscriber.callback(mob({ state: 'emergency', createdAt: new Date() }))
+      subscriber.callback(mob(null))
+      await clock.tickAsync(0)
+      const status = () => sentMobs(app).at(-1).fields['Man Overboard Status']
+      assert.equal(status(), 'MOB Not Active')
+
+      // A device that misses one message must still learn it is over, so
+      // the timer repeats it every second for ten seconds, and then stops
+      for (let second = 1; second <= 10; second++) {
+        const before = sentMobs(app).length
+        await clock.tickAsync(1000)
+        assert.equal(sentMobs(app).length, before + 1, `at ${second} s`)
+        assert.equal(status(), 'MOB Not Active')
+      }
+      const over = sentMobs(app).length
+      await clock.tickAsync(3000)
+      assert.equal(sentMobs(app).length, over)
+    } finally {
+      plugin.stop()
+      clock.restore()
+    }
+  })
+})
