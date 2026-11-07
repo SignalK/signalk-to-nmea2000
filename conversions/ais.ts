@@ -1,5 +1,10 @@
 import _ from 'lodash'
-import { PGN_129794, PGN_129038, PGN_129041 } from '@canboat/ts-pgns'
+import {
+  PGN_129794,
+  PGN_129038,
+  PGN_129041,
+  PGN_129793
+} from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
 
 // A Signal K delta and a vessel's tree, as loose as Signal K has them
@@ -23,6 +28,7 @@ const position_keys = ['navigation.position']
 const static_pgn = 129794
 const position_pgn = 129038
 const aton_pgn = 129041
+const base_station_pgn = 129793
 
 const navStatusMapping: Record<string, number> = {
   'not under command': 2,
@@ -52,7 +58,7 @@ const navStatusMapping: Record<string, number> = {
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
-    title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn})`,
+    title: `AIS (${static_pgn}, ${position_pgn}, ${aton_pgn}, ${base_station_pgn})`,
     sourceType: 'onDelta',
     //outputType: 'buffer',
     optionKey: 'AISv2',
@@ -63,7 +69,25 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         return null
       }
 
+      // A base station: under shore.basestations, or, from older parsers,
+      // under vessels with AIS class BASE
+      const baseStation = (station: Vessel) => {
+        if (!hasAnyKeys(delta, position_keys)) {
+          return null
+        }
+        var mmsi = findDeltaValue(station, delta, 'mmsi')
+        if (!mmsi) {
+          return null
+        }
+        const report = generateBaseStation(station, mmsi, delta)
+        return report ? [report] : null
+      }
+
       if (delta.context.startsWith('vessels.')) {
+        var vessel = app.getPath(delta.context)
+        if (findDeltaValue(vessel, delta, 'sensors.ais.class') === 'BASE') {
+          return baseStation(vessel)
+        }
         var hasStatic = hasAnyKeys(delta, static_keys)
         var hasPosition = hasAnyKeys(delta, position_keys)
 
@@ -71,7 +95,6 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           return null
         }
 
-        var vessel = app.getPath(delta.context)
         var mmsi = findDeltaValue(vessel, delta, 'mmsi')
 
         if (!mmsi) {
@@ -96,6 +119,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         }
 
         return [generateAtoN(vessel, mmsi, delta)]
+      } else if (delta.context.startsWith('shore.basestations.')) {
+        return baseStation(app.getPath(delta.context))
       }
     },
     tests: [
@@ -608,6 +633,101 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           }
         ]
+      },
+      {
+        // A base station (AIS message 4), its delta with a meta update
+        input: [
+          {
+            context: 'shore.basestations.urn:mrn:imo:mmsi:002442000',
+            updates: [
+              {
+                meta: [{ path: 'navigation.position', value: { units: 'deg' } }]
+              },
+              {
+                values: [
+                  {
+                    path: 'navigation.position',
+                    value: { longitude: 4.7731667, latitude: 52.9578333 }
+                  },
+                  { path: '', value: { mmsi: '002442000' } },
+                  { path: 'sensors.ais.class', value: 'BASE' }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 7,
+            pgn: 129793,
+            dst: 255,
+            fields: {
+              'Message ID': 'Base station report',
+              'Repeat Indicator': 'Initial',
+              'User ID': 2442000,
+              Longitude: 4.7731667,
+              Latitude: 52.9578333,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use'
+            }
+          }
+        ]
+      },
+      {
+        // A base station under vessels, as older parsers gave it (#57)
+        input: [
+          {
+            context: 'vessels.urn:mrn:imo:mmsi:005030230',
+            updates: [
+              {
+                values: [
+                  {
+                    path: 'navigation.position',
+                    value: {
+                      longitude: 144.6052167,
+                      latitude: -38.1634333
+                    }
+                  },
+                  { path: '', value: { mmsi: '005030230' } },
+                  { path: 'sensors.ais.class', value: 'BASE' }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: [
+          {
+            prio: 7,
+            pgn: 129793,
+            dst: 255,
+            fields: {
+              'Message ID': 'Base station report',
+              'Repeat Indicator': 'Initial',
+              'User ID': 5030230,
+              Longitude: 144.6052167,
+              Latitude: -38.1634333,
+              'Position Accuracy': 'Low',
+              RAIM: 'not in use'
+            }
+          }
+        ]
+      },
+      {
+        // A base station without a position sends nothing
+        input: [
+          {
+            context: 'shore.basestations.urn:mrn:imo:mmsi:002442000',
+            updates: [
+              {
+                values: [
+                  { path: 'navigation.position', value: null },
+                  { path: '', value: { mmsi: '002442000' } }
+                ]
+              }
+            ]
+          }
+        ],
+        expected: []
       }
     ]
   }
@@ -783,6 +903,28 @@ function generateAtoN(
   }
 }
 
+// AIS message 4. The UTC time a base station reports is not in Signal K, so
+// it is left out.
+function generateBaseStation(
+  station: Vessel,
+  mmsi: any,
+  delta: Delta
+): PGN_129793 | null {
+  var position = findDeltaValue(station, delta, 'navigation.position')
+  if (!hasPosition(position)) {
+    return null
+  }
+  return new PGN_129793({
+    messageId: 4,
+    repeatIndicator: 0,
+    userId: String(mmsi),
+    longitude: position.longitude,
+    latitude: position.latitude,
+    positionAccuracy: 0,
+    raim: 0
+  })
+}
+
 function hasAnyKeys(delta: Delta, keys: string[]) {
   if (delta.updates) {
     for (var i = 0; i < delta.updates.length; i++) {
@@ -808,6 +950,10 @@ function hasAnyKeys(delta: Delta, keys: string[]) {
 function findDeltaValue(vessel: Vessel, delta: Delta, path: string): any {
   if (delta.updates) {
     for (var i = 0; i < delta.updates.length; i++) {
+      // A meta update has no values
+      if (!Array.isArray(delta.updates[i].values)) {
+        continue
+      }
       for (var j = 0; j < delta.updates[i].values.length; j++) {
         var valuePath = delta.updates[i].values[j].path
         var value = delta.updates[i].values[j].value
