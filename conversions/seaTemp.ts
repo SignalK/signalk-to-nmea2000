@@ -1,5 +1,6 @@
 import { PGN_130310 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
+import { ENVIRONMENT_TIMEOUT } from '../timeouts'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -10,6 +11,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       'environment.outside.temperature',
       'environment.outside.pressure'
     ],
+    timeouts: [ENVIRONMENT_TIMEOUT, ENVIRONMENT_TIMEOUT, ENVIRONMENT_TIMEOUT],
     callback: (
       water: number,
       air: number,

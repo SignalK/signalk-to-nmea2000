@@ -1,5 +1,6 @@
 import { PGN_127250, DirectionReference } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
+import { NAVIGATION_TIMEOUT } from '../timeouts'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
@@ -7,6 +8,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     title: 'Heading (127250)',
     optionKey: 'HEADINGv2',
     keys: ['navigation.headingMagnetic', 'navigation.magneticVariation'],
+    timeouts: [NAVIGATION_TIMEOUT, undefined],
     callback: (heading: number, variation: number): PGN_127250[] => {
       return [
         new PGN_127250({

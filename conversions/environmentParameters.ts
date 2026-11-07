@@ -1,6 +1,7 @@
 import { PGN_130311, TemperatureSource, HumiditySource } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
+import { ENVIRONMENT_TIMEOUT } from '../timeouts'
 import { type PluginOptions, settingsOf } from '../schema'
 
 const pressureKey = 'environment.outside.pressure'
@@ -76,6 +77,9 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       return [
         {
           keys: [pressureKey, ...temperatureHumidityKeys],
+          timeouts: [pressureKey, ...temperatureHumidityKeys].map(
+            () => ENVIRONMENT_TIMEOUT
+          ),
           callback: (
             pressure?: number | null,
             temperature?: number | null,

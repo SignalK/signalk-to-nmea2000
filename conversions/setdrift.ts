@@ -1,11 +1,13 @@
 import { PGN_129291 } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
+import { NAVIGATION_TIMEOUT } from '../timeouts'
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Set/Drift (129291)',
     optionKey: 'SetDrift',
     keys: ['environment.current.setTrue', 'environment.current.drift'],
+    timeouts: [NAVIGATION_TIMEOUT, NAVIGATION_TIMEOUT],
     callback: (set: number, drift: number): PGN_129291[] | undefined => {
       try {
         return [

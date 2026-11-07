@@ -133,6 +133,96 @@ describe('onValueChange conversions over the streambundle', () => {
     )
   })
 
+  it('sends an input that stopped updating as not available (#7)', async () => {
+    const app = makeApp()
+    const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ WINDv2: { enabled: true }, HEADINGv2: { enabled: true } })
+    try {
+      publish(app, 'environment.wind.angleApparent', 0.5)
+      publish(app, 'environment.wind.speedApparent', 6.1)
+      publish(app, 'navigation.magneticVariation', 0.03)
+      publish(app, 'navigation.headingMagnetic', 1.2)
+      await settle()
+      let wind = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
+      assert.equal(wind.fields['Wind Speed'], 6.1)
+
+      // A sensor that fails must not leave its last value on the bus while
+      // the other one keeps the PGN going
+      clock.tick(11000)
+      publish(app, 'environment.wind.angleApparent', 0.6)
+      publish(app, 'navigation.headingMagnetic', 1.3)
+      await settle()
+      wind = app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
+      assert.closeTo(wind.fields['Wind Angle'], 0.6, 0.0001)
+      assert.notProperty(wind.fields, 'Wind Speed')
+
+      // The variation seldom changes, so it does not time out
+      const heading = app.emitted
+        .filter((pgn: TestPgn) => pgn.pgn === 127250)
+        .pop()
+      assert.closeTo(heading.fields.Heading, 1.3, 0.0001)
+      assert.closeTo(heading.fields.Variation, 0.03, 0.0001)
+
+      // A variation update must not bring back a heading that has expired
+      clock.tick(11000)
+      publish(app, 'navigation.magneticVariation', 0.04)
+      await settle()
+      const variationOnly = app.emitted
+        .filter((pgn: TestPgn) => pgn.pgn === 127250)
+        .pop()
+      assert.closeTo(variationOnly.fields.Variation, 0.04, 0.0001)
+      assert.notProperty(variationOnly.fields, 'Heading')
+    } finally {
+      clock.restore()
+      plugin.stop()
+    }
+  })
+
+  it('keeps an input for the resend duration while resending', async () => {
+    const app = makeApp()
+    // The streams' debounce keeps real time; the resend timer is faked
+    const clock = sinon.useFakeTimers({
+      now: Date.now(),
+      toFake: ['Date', 'setInterval', 'clearInterval']
+    })
+    const plugin = require('../dist/index.js')(app)
+    plugin.start({ WINDv2: { enabled: true, resend: 1, resendTime: 30 } })
+    const lastWind = () =>
+      app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
+    try {
+      publish(app, 'environment.wind.angleApparent', 0.5)
+      publish(app, 'environment.wind.speedApparent', 6.1)
+      await settle()
+
+      // Resending for 30 s says the speed holds that long, past the 10 s
+      // timeout of the wind inputs
+      await clock.tickAsync(20000)
+      publish(app, 'environment.wind.angleApparent', 0.6)
+      await settle()
+      assert.equal(lastWind().fields['Wind Speed'], 6.1)
+
+      // The angle restarted the resend, but the speed in it expires at 30 s
+      const resent = () =>
+        app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).length
+      await clock.tickAsync(9500)
+      await settle()
+      const atExpiry = resent()
+      await clock.tickAsync(1000)
+      await settle()
+      assert.equal(resent(), atExpiry, 'not resent once the speed expires')
+
+      await clock.tickAsync(500)
+      publish(app, 'environment.wind.angleApparent', 0.7)
+      await settle()
+      assert.closeTo(lastWind().fields['Wind Angle'], 0.7, 0.0001)
+      assert.notProperty(lastWind().fields, 'Wind Speed')
+    } finally {
+      clock.restore()
+      plugin.stop()
+    }
+  })
+
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
     app.debug.enabled = true
