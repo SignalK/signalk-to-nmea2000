@@ -34,6 +34,29 @@ Two settings change this per conversion:
 - **Source for …**: a source chosen here is always used, including an NMEA 2000 one.
 - **Also send data that came from NMEA 2000**: turns the check off. Only useful for bridging between separate NMEA 2000 networks, with each connection's output event configured so data does not go back to the network it came from.
 
+## Battery mapping by source
+
+Each entry in **Battery Mapping** can set an optional **Signal K source**, so that the same Signal K battery id published by different sources goes out as different NMEA 2000 battery instances:
+
+```json
+{
+  "BATTERYv2": {
+    "enabled": true,
+    "batteries": [
+      { "signalkId": "house", "source": "venus.com.ttyO1", "instanceId": 1 },
+      { "signalkId": "house", "source": "bmv.ttyUSB0", "instanceId": 2 }
+    ]
+  }
+}
+```
+
+Instance 1 then carries only the data from `venus.com.ttyO1`, and instance 2 only the data from `bmv.ttyUSB0`.
+
+- The field suggests the sources currently sending battery data, leaving out NMEA 2000 ones. A source that is not sending right now can be typed in.
+- An empty source means no filtering: that entry takes the battery's data from every source. Give each entry its own source when several entries share a battery id, or the entry without one also sends the other entries' data.
+- The source applies to all of the battery's values (voltage, current, temperature, state of charge, time remaining, state of health and ripple). If one source sends the voltage and another the state of charge, the other source's values are left out and sent as not available.
+- A source that is an NMEA 2000 device is not sent back to the bus, unlike one chosen under **Source for …**: it would only put a second copy of the battery on the bus under another instance. Change the battery instance on the device itself instead. **Also send data that came from NMEA 2000** overrides this.
+
 ## More than one NMEA 2000 bus
 
 By default the plugin sends every PGN to every NMEA 2000 connection, on `nmea2000out`. On a server that can send to one connection at a time (SignalK/signalk-server#3283), the plugin's settings list the NMEA 2000 connections that write, and a PGN can go to some of them only:
@@ -54,4 +77,4 @@ A bus is chosen by the connection's ID in the server's admin UI. A chosen connec
 - The PGN goes to the chosen buses, or to every bus that takes broadcasts, minus the buses its data came from. A bus whose **Send broadcast N2K output** is off gets bridged data only when it is chosen.
 - Leave it off when two connections are gateways on the same physical bus: data from one would go back onto that bus through the other.
 - The course PGNs (129283, 129284, 129285, 130848 and 130918) are not bridged: a course set on an NMEA 2000 chartplotter still withholds them everywhere.
-- A source chosen under **Source for …**, and a conversion with **Also send data that came from NMEA 2000**, are sent to every chosen bus as before, including the one the data came from. The exception is an NMEA 2000 source chosen for an engine's notifications: it withholds 127489 as before, and with bridging the PGN goes to the other buses only.
+- A source chosen under **Source for …**, and a conversion with **Also send data that came from NMEA 2000**, are sent to every chosen bus as before, including the one the data came from. The exception is an NMEA 2000 source chosen for an engine's notifications or in a battery's mapping: it withholds the PGN as before, and with bridging the PGN goes to the other buses only.

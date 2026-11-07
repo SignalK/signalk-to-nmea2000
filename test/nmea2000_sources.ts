@@ -10,8 +10,9 @@ const Server = require('signalk-server/dist/')
 interface Source {
   label: string
   type: string
-  pgn: number
-  src: string
+  pgn?: number
+  src?: string
+  talker?: string
 }
 
 // A value to send, and the source it comes from, if any
@@ -207,6 +208,119 @@ describe('Data from NMEA 2000 sources', function () {
         aisDelta(),
         (n2kSpy) => {
           n2kSpy.callCount.should.be.above(0)
+        },
+        done
+      )
+    })
+  })
+
+  describe('battery mapping by source', function () {
+    const VOLTAGE = 'electrical.batteries.house.voltage'
+    const VENUS: Source = { label: 'venus', type: 'NMEA0183', talker: 'II' }
+    const BMV: Source = { label: 'bmv', type: 'NMEA0183', talker: 'II' }
+    const N2K_BATTERY: Source = { ...N2K_SOURCE, pgn: 127508 }
+    const batteries = (entries: unknown[], settings = {}) => ({
+      BATTERYv2: { enabled: true, batteries: entries, ...settings }
+    })
+    const voltagesByInstance = (n2kSpy: sinon.SinonSpy) => {
+      const voltages: Record<number, number[]> = {}
+      n2kSpy.getCalls().forEach((call) => {
+        const pgn: any = new FromPgn({ useCamel: false }).parseString(
+          call.args[0]
+        )
+        if (pgn && pgn.pgn === 127508) {
+          const instance = pgn.fields.Instance
+          voltages[instance] = [
+            ...(voltages[instance] || []),
+            pgn.fields.Voltage
+          ]
+        }
+      })
+      return voltages
+    }
+
+    it('sends each source as its own instance', function (done) {
+      run(
+        batteries([
+          { signalkId: 'house', source: 'venus.II', instanceId: 1 },
+          { signalkId: 'house', source: 'bmv.II', instanceId: 2 }
+        ]),
+        [
+          { path: VOLTAGE, value: 12.5, source: VENUS },
+          { path: VOLTAGE, value: 13.1, source: BMV }
+        ],
+        (n2kSpy) => {
+          voltagesByInstance(n2kSpy).should.deep.equal({
+            1: [12.5],
+            2: [13.1]
+          })
+        },
+        done
+      )
+    })
+
+    it('takes every source when the source is empty', function (done) {
+      run(
+        batteries([
+          { signalkId: 'house', source: 'venus.II', instanceId: 1 },
+          { signalkId: 'house', source: '', instanceId: 2 }
+        ]),
+        [
+          { path: VOLTAGE, value: 12.5, source: VENUS },
+          { path: VOLTAGE, value: 13.1, source: BMV }
+        ],
+        (n2kSpy) => {
+          voltagesByInstance(n2kSpy).should.deep.equal({
+            1: [12.5],
+            2: [12.5, 13.1]
+          })
+        },
+        done
+      )
+    })
+
+    it('does not send an NMEA 2000 source back as another instance', function (done) {
+      run(
+        batteries([{ signalkId: 'house', source: 'can0.35', instanceId: 7 }]),
+        [
+          { path: VOLTAGE, value: 12.5, source: N2K_BATTERY },
+          { path: VOLTAGE, value: 12.6, source: N2K_BATTERY }
+        ],
+        (n2kSpy) => {
+          n2kSpy.callCount.should.equal(0)
+        },
+        done
+      )
+    })
+
+    it('still sends the other instances when one source is withheld', function (done) {
+      run(
+        batteries([
+          { signalkId: 'house', source: 'can0.35', instanceId: 7 },
+          { signalkId: 'house', source: 'venus.II', instanceId: 1 }
+        ]),
+        [
+          { path: VOLTAGE, value: 12.5, source: N2K_BATTERY },
+          { path: VOLTAGE, value: 13.1, source: VENUS }
+        ],
+        (n2kSpy) => {
+          voltagesByInstance(n2kSpy).should.deep.equal({ 1: [13.1] })
+        },
+        done
+      )
+    })
+
+    it('sends an NMEA 2000 source when the conversion allows it', function (done) {
+      run(
+        batteries([{ signalkId: 'house', source: 'can0.35', instanceId: 7 }], {
+          allowNmea2000Sources: true
+        }),
+        [
+          { path: VOLTAGE, value: 12.5, source: N2K_BATTERY },
+          { path: VOLTAGE, value: 12.6, source: N2K_BATTERY }
+        ],
+        (n2kSpy) => {
+          voltagesByInstance(n2kSpy).should.deep.equal({ 7: [12.5, 12.6] })
         },
         done
       )

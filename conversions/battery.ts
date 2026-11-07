@@ -1,10 +1,12 @@
+import _ from 'lodash'
 import { PGN_127506, PGN_127508, DcSource } from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
 import { mappedInstance } from '../pgn'
+import { isNmea2000Update } from '../nmea2000Source'
 
-const batteryProperties = (ids: string[]) => ({
+const batteryProperties = (ids: string[], sources: string[]) => ({
   batteries: Type.Optional(
     Type.Array(
       Type.Object({
@@ -16,6 +18,14 @@ const batteryProperties = (ids: string[]) => ({
             examples: ids
           })
         ),
+        source: Type.Optional(
+          Type.String({
+            title: 'Signal K source',
+            description:
+              "Pick a source currently sending battery data or enter one manually. Uses data for this battery only from this source. Leave empty to use all sources. Applies to all of the battery's values. NMEA 2000 sources are not sent back to the bus.",
+            examples: sources
+          })
+        ),
         instanceId: Type.Optional(
           Type.Number({ title: 'NMEA2000 Battery Instance Id' })
         )
@@ -24,7 +34,17 @@ const batteryProperties = (ids: string[]) => ({
     )
   )
 })
-const BatterySettings = Type.Object(batteryProperties([]))
+const BatterySettings = Type.Object(batteryProperties([], []))
+
+function sourcesIn(tree: unknown): string[] {
+  if (!_.isPlainObject(tree)) return []
+  return Object.entries(tree as Record<string, any>).flatMap(([key, value]) => {
+    if (key === 'meta' || key === 'values') return []
+    return _.isPlainObject(value) && 'value' in value
+      ? [value.$source, ...Object.keys(value.values ?? {})]
+      : sourcesIn(value)
+  })
+}
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   const batteryKeys = [
@@ -41,14 +61,20 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     title: 'Battery (127506 & 127508)',
     optionKey: 'BATTERYv2',
     context: 'vessels.self',
-    properties: () =>
-      batteryProperties(
+    properties: () => {
+      const tree =
         typeof app.getSelfPath === 'function'
-          ? Object.keys(app.getSelfPath('electrical.batteries') || {}).filter(
-              (id) => id !== 'meta'
-            )
-          : []
-      ),
+          ? app.getSelfPath('electrical.batteries')
+          : undefined
+      return batteryProperties(
+        Object.keys(tree || {}).filter((id) => id !== 'meta'),
+        // An NMEA 2000 source would send nothing, so it is not offered
+        _.uniq(sourcesIn(tree))
+          .filter((source) => typeof source === 'string')
+          .filter((source) => !isNmea2000Update(app, { $source: source }))
+          .sort()
+      )
+    },
 
     testOptions: {
       BATTERYv2: {
@@ -67,10 +93,18 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         return undefined
       }
       return settings.batteries.map((battery) => {
+        const keys = batteryKeys.map(
+          (key) => `electrical.batteries.${battery.signalkId}.${key}`
+        )
         return {
-          keys: batteryKeys.map(
-            (key) => `electrical.batteries.${battery.signalkId}.${key}`
+          keys,
+          // The source only chooses which data goes out on this instance.
+          // From NMEA 2000 that would be a second copy of a battery already
+          // on the bus, so it withholds the PGNs, whether picked or not.
+          sourceSelectors: Object.fromEntries(
+            keys.map((key) => [key, battery.source || undefined])
           ),
+          withholdingSourceKeys: keys,
           timeouts: batteryKeys.map((key) => 60000),
           callback: (
             voltage?: number | null,
