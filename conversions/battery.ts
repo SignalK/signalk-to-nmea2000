@@ -36,7 +36,6 @@ const batteryProperties = (ids: string[], sources: string[]) => ({
 })
 const BatterySettings = Type.Object(batteryProperties([], []))
 
-// The $sources of the values in a part of the vessel's data
 function sourcesIn(tree: unknown): string[] {
   if (!_.isPlainObject(tree)) return []
   return Object.entries(tree as Record<string, any>).flatMap(([key, value]) => {
