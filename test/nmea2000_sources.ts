@@ -293,6 +293,23 @@ describe('Data from NMEA 2000 sources', function () {
       )
     })
 
+    it('still sends the other instances when one source is withheld', function (done) {
+      run(
+        batteries([
+          { signalkId: 'house', source: 'can0.35', instanceId: 7 },
+          { signalkId: 'house', source: 'venus.II', instanceId: 1 }
+        ]),
+        [
+          { path: VOLTAGE, value: 12.5, source: N2K_BATTERY },
+          { path: VOLTAGE, value: 13.1, source: VENUS }
+        ],
+        (n2kSpy) => {
+          voltagesByInstance(n2kSpy).should.deep.equal({ 1: [13.1] })
+        },
+        done
+      )
+    })
+
     it('sends an NMEA 2000 source when the conversion allows it', function (done) {
       run(
         batteries([{ signalkId: 'house', source: 'can0.35', instanceId: 7 }], {
