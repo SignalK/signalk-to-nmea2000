@@ -52,6 +52,7 @@ Each entry in **Battery Mapping** can set an optional **Signal K source**, so th
 
 Instance 1 then carries only the data from `venus.com.ttyO1`, and instance 2 only the data from `bmv.ttyUSB0`.
 
+- The field suggests the sources currently sending battery data, leaving out NMEA 2000 ones. A source that is not sending right now can be typed in.
 - An empty source means no filtering: that entry takes the battery's data from every source. Give each entry its own source when several entries share a battery id, or the entry without one also sends the other entries' data.
 - The source applies to all of the battery's values (voltage, current, temperature, state of charge, time remaining, state of health and ripple). If one source sends the voltage and another the state of charge, the other source's values are left out and sent as not available.
 - A source that is an NMEA 2000 device is not sent back to the bus, unlike one chosen under **Source for …**: it would only put a second copy of the battery on the bus under another instance. Change the battery instance on the device itself instead. **Also send data that came from NMEA 2000** overrides this.

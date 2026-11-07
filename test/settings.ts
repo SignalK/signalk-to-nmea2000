@@ -61,6 +61,49 @@ describe('plugin settings', function () {
     assert.deepEqual(charger.properties.signalkId.examples, ['roof'])
   })
 
+  it('offers the sources of the battery data, except NMEA 2000 ones', function () {
+    const app = makeApp({
+      electrical: {
+        batteries: {
+          meta: { description: 'not a battery' },
+          house: {
+            voltage: {
+              value: 12.5,
+              $source: 'venus.II',
+              values: {
+                'venus.II': { value: 12.5 },
+                'bmv.II': { value: 12.6 },
+                'can0.35': { value: 12.7 }
+              }
+            },
+            capacity: { stateOfCharge: { value: 0.9, $source: 'shunt.II' } }
+          },
+          start: { voltage: { value: 12.8, $source: 'venus.II' } }
+        }
+      }
+    })
+    app.getPath = (path: string) =>
+      path === 'sources'
+        ? { can0: { type: 'NMEA2000' }, venus: { type: 'NMEA0183' } }
+        : undefined
+    const plugin = require('../dist/index.js')(app)
+    const battery =
+      plugin.schema().properties.BATTERYv2.properties.batteries.items
+    assert.deepEqual(battery.properties.signalkId.examples, ['house', 'start'])
+    assert.deepEqual(battery.properties.source.examples, [
+      'bmv.II',
+      'shunt.II',
+      'venus.II'
+    ])
+  })
+
+  it('offers no battery sources without battery data', function () {
+    const plugin = require('../dist/index.js')(makeApp())
+    const battery =
+      plugin.schema().properties.BATTERYv2.properties.batteries.items
+    assert.deepEqual(battery.properties.source.examples, [])
+  })
+
   it('offers the temperature paths in the Signal K data', function () {
     const plugin = require('../dist/index.js')(
       makeApp({
