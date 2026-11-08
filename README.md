@@ -29,6 +29,11 @@ Each PGN is sent no more often than the transmission interval that [canboat](htt
 
 The limit holds for what a device on the bus can tell apart. Each battery, tank, engine or temperature has its own limit, because its PGN carries its instance and, for temperatures, its source, and a fuel tank and a water tank with the same instance are limited apart too, as are true and magnetic heading. Each NMEA 2000 bus also has its own limit. Two conversions or Signal K sources that send the same PGN for the same instance share one limit, as a device on the bus could not tell their values apart anyway. Resends count toward the limit too.
 
+Two settings under **Send rate** change this:
+
+- **Limit how often each PGN is sent**: turn it off to send every value as it comes.
+- **Interval per PGN**: replaces canboat's interval for a PGN, for example to send attitude (127257) from a fast heel sensor more often than once a second. 0 sends every value of that PGN; an interval for a PGN that has none, such as an AIS report, limits it per vessel.
+
 ## Data that came from NMEA 2000
 
 Values whose source is NMEA 2000 are not sent. The plugin's output goes to every NMEA 2000 connection, so sending them would echo data back onto the bus it came from, as a second copy competing with the device that sent it. A PGN built from several paths is not sent at all if any of its inputs came from NMEA 2000.

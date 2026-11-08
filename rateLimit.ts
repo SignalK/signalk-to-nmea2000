@@ -1,4 +1,5 @@
 import { findMatchingDefinition, type Definition } from '@canboat/ts-pgns'
+import { Type, type Static } from 'typebox'
 
 // Each PGN goes out no more often than canboat's transmission interval for
 // it, whichever conversion or Signal K source it comes from. Messages that a
@@ -45,30 +46,67 @@ function definitionOf(pgn: Pgn): Definition | undefined {
   }
 }
 
+export const SEND_RATE_KEY = 'SEND_RATE'
+
+export const sendRateProperty = Type.Optional(
+  Type.Object(
+    {
+      limit: Type.Optional(
+        Type.Boolean({
+          title: 'Limit how often each PGN is sent',
+          description:
+            "No more often than canboat's transmission interval for it; the latest value that comes sooner is sent when the interval ends. PGNs without a fixed interval, such as AIS, are not limited.",
+          default: true
+        })
+      ),
+      intervals: Type.Optional(
+        Type.Array(
+          Type.Object({
+            pgn: Type.Integer({ title: 'PGN', minimum: 0 }),
+            interval: Type.Number({
+              title: 'Interval (ms)',
+              description: '0 sends every value',
+              minimum: 0
+            })
+          }),
+          {
+            title: 'Interval per PGN',
+            description:
+              "Replaces canboat's interval for a PGN, or limits one that has none."
+          }
+        )
+      )
+    },
+    { title: 'Send rate' }
+  )
+)
+
+export type SendRateSettings = Static<typeof sendRateProperty>
+
 // The interval a PGN is limited to and the key of its stream, or undefined
-// for a PGN that is not limited
+// for a PGN that is not limited. intervals replace canboat's, by PGN.
 export function streamOf(
-  pgn: Pgn
+  pgn: Pgn,
+  intervals: Record<number, number> = {}
 ): { interval: number; key: string } | undefined {
   const definition = definitionOf(pgn)
-  const interval = definition?.TransmissionInterval
-  if (
-    definition === undefined ||
-    interval === undefined ||
-    interval <= 0 ||
-    definition.TransmissionIrregular
-  ) {
+  const interval =
+    intervals[pgn.pgn] ??
+    (definition?.TransmissionIrregular
+      ? undefined
+      : definition?.TransmissionInterval)
+  if (interval === undefined || !(interval > 0)) {
     return undefined
   }
-  const keyFields = definition.Fields.filter(
-    (field) => field.PartOfPrimaryKey
-  ).map((field) => field.Id)
+  const keyFields = (definition?.Fields ?? [])
+    .filter((field) => field.PartOfPrimaryKey)
+    .map((field) => field.Id)
   keyFields.push(...(MORE_KEY_FIELDS[pgn.pgn] ?? []))
   const fields = (pgn.fields ?? pgn) as Record<string, unknown>
   const values = keyFields.map((id) => fields[id] ?? null)
   return {
     interval,
-    key: `${definition.Id}${JSON.stringify(values)}`
+    key: `${definition?.Id ?? pgn.pgn}${JSON.stringify(values)}`
   }
 }
 
@@ -86,11 +124,15 @@ export interface RateLimiter {
   ): void
   // Drops the PGNs of an owner that are waiting
   cancel(owner: unknown): void
+  // Applies the plugin's send rate settings
+  configure(settings: SendRateSettings | undefined): void
   stop(): void
 }
 
 export function rateLimiter(now: () => number = () => Date.now()): RateLimiter {
   const streams = new Map<string, Stream>()
+  let enabled = true
+  let intervals: Record<number, number> = {}
 
   function flush(stream: Stream) {
     stream.timer = undefined
@@ -133,7 +175,7 @@ export function rateLimiter(now: () => number = () => Date.now()): RateLimiter {
 
   return {
     send(pgn, buses, send, owner, expiresAt = Infinity) {
-      const limit = streamOf(pgn)
+      const limit = enabled ? streamOf(pgn, intervals) : undefined
       if (limit === undefined) {
         buses.forEach((bus) => send(bus))
         return
@@ -157,6 +199,17 @@ export function rateLimiter(now: () => number = () => Date.now()): RateLimiter {
           stream.pending = undefined
         }
       })
+    },
+    configure(settings) {
+      enabled = settings?.limit !== false
+      intervals = Object.fromEntries(
+        (settings?.intervals ?? [])
+          .filter(
+            ({ pgn, interval }) =>
+              Number.isFinite(pgn) && Number.isFinite(interval)
+          )
+          .map(({ pgn, interval }) => [pgn, interval])
+      )
     },
     stop() {
       streams.forEach((stream) => {

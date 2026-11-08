@@ -8,7 +8,13 @@ import { isNmea2000Update, sourceConnection } from './nmea2000Source'
 import { Type, type TProperties } from 'typebox'
 import { Value } from 'typebox/value'
 import { App, Conversion, Plugin } from './types'
-import { rateLimiter, type RateLimiter } from './rateLimit'
+import {
+  rateLimiter,
+  type RateLimiter,
+  SEND_RATE_KEY,
+  type SendRateSettings,
+  sendRateProperty
+} from './rateLimit'
 import {
   savedBuses,
   bridgeProperty,
@@ -164,6 +170,7 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
         )
       )
     }
+    properties[SEND_RATE_KEY] = sendRateProperty
     conversions.forEach((conversion) => {
       properties[conversion.optionKey!] = Type.Optional(
         conversionSchema(conversion, liveData)
@@ -248,6 +255,10 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
   plugin.start = function (options: PluginOptions) {
     pluginOptions = options
     run++
+    limiter.configure(
+      (options as Record<string, unknown>)[SEND_RATE_KEY] as
+        SendRateSettings | undefined
+    )
     conversions.forEach((entry: RunningConversion | RunningConversion[]) => {
       const list = _.isArray(entry) ? entry : [entry]
       list.forEach((conversion) => {

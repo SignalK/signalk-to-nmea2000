@@ -258,6 +258,42 @@ describe('rate limit', () => {
       clock.tick(1500)
       assert.deepEqual(sent, ['a can0'])
     })
+
+    it('sends every PGN at once with the limit off', () => {
+      limiter.configure({ limit: false })
+      send(battery(1, 12))('a')
+      send(battery(1, 12.1))('b')
+      assert.deepEqual(sent, ['a', 'b'])
+    })
+
+    it('takes the interval set for a PGN', () => {
+      limiter.configure({ intervals: [{ pgn: 127508, interval: 500 }] })
+      send(battery(1, 12))('a')
+      clock.tick(100)
+      send(battery(1, 12.1))('b')
+      clock.tick(399)
+      assert.deepEqual(sent, ['a'])
+      clock.tick(1)
+      assert.deepEqual(sent, ['a', 'b'])
+    })
+
+    it('does not limit a PGN whose interval is set to 0', () => {
+      limiter.configure({ intervals: [{ pgn: 127508, interval: 0 }] })
+      send(battery(1, 12))('a')
+      send(battery(1, 12.1))('b')
+      assert.deepEqual(sent, ['a', 'b'])
+    })
+
+    it('limits a PGN without an interval once one is set, per instance', () => {
+      limiter.configure({ intervals: [{ pgn: 129038, interval: 1000 }] })
+      const ais = (userId: string) => new PGN_129038({ userId } as any)
+      send(ais('244000001'))('a')
+      send(ais('244000001'))('b')
+      send(ais('244000002'))('c')
+      assert.deepEqual(sent, ['a', 'c'])
+      clock.tick(1000)
+      assert.deepEqual(sent, ['a', 'c', 'b'])
+    })
   })
 
   describe('in the plugin', () => {
@@ -298,13 +334,14 @@ describe('rate limit', () => {
       })
     }
 
-    function startBatteries(app: any) {
+    function startBatteries(app: any, options: Record<string, unknown> = {}) {
       app.providerStatistics = []
       app.debug = () => {}
       const n2kSpy = sinon.spy()
       app.on('nmea2000out', n2kSpy)
       const plugin = new Sk2n2K(app)
       plugin.start({
+        ...options,
         BATTERYv2: {
           enabled: true,
           batteries: [
@@ -354,6 +391,33 @@ describe('rate limit', () => {
       } finally {
         plugin.stop()
       }
+    })
+
+    it('sends every voltage at once with the limit off', async () => {
+      const app = new Server().app
+      const { n2kSpy, plugin } = startBatteries(app, {
+        SEND_RATE: { limit: false }
+      })
+      try {
+        send(app, 'house', 12.5)
+        await wait(50)
+        send(app, 'house', 12.6)
+        await wait(50)
+        assert.deepEqual(voltages(n2kSpy), { 1: [12.5, 12.6] })
+      } finally {
+        plugin.stop()
+      }
+    })
+
+    it('offers the send rate settings, limited by default', () => {
+      const app = new Server().app
+      const schema = new Sk2n2K(app).schema()
+      const sendRate = schema.properties.SEND_RATE
+      assert.isTrue(sendRate.properties.limit.default)
+      assert.deepEqual(
+        Object.keys(sendRate.properties.intervals.items.properties),
+        ['pgn', 'interval']
+      )
     })
 
     it('does not send a waiting voltage once the plugin stops', async function () {

@@ -12,6 +12,7 @@ const unlimited = {
   send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
     buses.forEach(send),
   cancel() {},
+  configure() {},
   stop() {}
 }
 
