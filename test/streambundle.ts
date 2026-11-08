@@ -6,7 +6,8 @@ import sinon from 'sinon'
 
 // Sends every PGN at once: these tests are not about the rate limit
 const unlimited = {
-  send: (_pgn: unknown, _bus: string, send: () => void) => send(),
+  send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
+    buses.forEach(send),
   cancel() {},
   stop() {}
 }

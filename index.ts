@@ -47,6 +47,8 @@ type RunningConversion = Conversion & {
   preventsNmea2000Echo?: boolean
   // The NMEA 2000 buses its PGNs go to; empty for every bus
   buses?: string[]
+  // Counts the times its output was dropped: output built before is not sent
+  generation?: number
 }
 
 interface Delta {
@@ -112,7 +114,13 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
 
   var outputTypes: Record<
     string,
-    (values: Output, conversion: RunningConversion, exclude: string[]) => void
+    (
+      values: Output,
+      conversion: RunningConversion,
+      exclude: string[],
+      expiresAt: number,
+      generation: number
+    ) => void
   > = {
     'to-n2k': processToN2K
   }
@@ -232,8 +240,12 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     return filled
   }
 
+  // Output that is still being built when the plugin stops is not sent
+  let running = false
+
   plugin.start = function (options: PluginOptions) {
     pluginOptions = options
+    running = true
     conversions.forEach((entry: RunningConversion | RunningConversion[]) => {
       const list = _.isArray(entry) ? entry : [entry]
       list.forEach((conversion) => {
@@ -277,6 +289,7 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
   }
 
   plugin.stop = function () {
+    running = false
     unsubscribes.forEach((f) => f())
     unsubscribes = []
     timers.forEach((timer) => clearInterval(timer))
@@ -312,12 +325,13 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
   // as JSON: a server on canboatjs 3 would read its SI values in the old
   // units and put wrong values on the bus.
   // Each bus gets it no more often than its transmission interval: see
-  // rateLimit.ts. The conversion can drop what waits for that.
+  // rateLimit.ts. What waits for that is not sent once expiresAt passes.
   function emitPgn(
     pgn: PGN,
     chosen: string[] = [],
     exclude: string[] = [],
-    owner?: RunningConversion
+    owner?: RunningConversion,
+    expiresAt = Infinity
   ) {
     let line
     try {
@@ -330,37 +344,41 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
       app.error(`cannot encode PGN ${pgn.pgn}`)
       return
     }
-    busEvents(buses, chosen, exclude).forEach((event) => {
-      limiter.send(
-        pgn,
-        event,
-        // Possibly later, from a timer: not where the caller catches errors
-        () => {
-          try {
-            app.debug(`emit ${event} ${line}`)
-            app.emit(event, line)
-          } catch (err: any) {
-            app.error(`error sending PGN ${pgn.pgn}: ${err.message}`)
-          }
-        },
-        owner
-      )
-    })
+    limiter.send(
+      pgn,
+      busEvents(buses, chosen, exclude),
+      // Possibly later, from a timer: not where the caller catches errors
+      (event) => {
+        try {
+          app.debug(`emit ${event} ${line}`)
+          app.emit(event, line)
+        } catch (err: any) {
+          app.error(`error sending PGN ${pgn.pgn}: ${err.message}`)
+        }
+      },
+      owner,
+      expiresAt
+    )
   }
 
   function processToN2K(
     values: Output,
     conversion: RunningConversion,
-    exclude: string[]
+    exclude: string[],
+    expiresAt: number,
+    generation: number
   ) {
     if (values) {
       Promise.all(values as (PGN | null | Promise<PGN | null>)[]).then(
         (pgns) => {
+          if (!running || (conversion.generation ?? 0) !== generation) {
+            return
+          }
           pgns
             .filter((pgn) => pgn != null)
             .forEach((pgn) => {
               try {
-                emitPgn(pgn, conversion.buses, exclude, conversion)
+                emitPgn(pgn, conversion.buses, exclude, conversion, expiresAt)
               } catch (err: any) {
                 console.error(`error writing pgn ${JSON.stringify(pgn)}`)
                 console.error(err.stack)
@@ -396,6 +414,15 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     // When the first input it was built from times out
     expiresAt = Infinity
   ) {
+    const generation = conversion.generation ?? 0
+    const deliver = (values: Output) =>
+      outputTypes[conversion.outputType!](
+        values,
+        conversion,
+        exclude,
+        expiresAt,
+        generation
+      )
     if (options && options.resend && options.resend > 0) {
       if (conversion.resendTimer) {
         clearResendInterval(conversion.resendTimer)
@@ -413,21 +440,24 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
         ) {
           clearResendInterval(conversion.resendTimer)
           conversion.resendTimer = undefined
-          limiter.cancel(conversion)
+          dropWaiting(conversion)
           return
         }
-        Promise.resolve(output).then((values) => {
-          outputTypes[conversion.outputType!](values, conversion, exclude)
-        })
+        Promise.resolve(output).then(deliver)
         if (Date.now() - startedAt > (options.resendTime || 30) * 1000) {
           clearResendInterval(conversion.resendTimer)
         }
       }, options.resend * 1000)
       timers.push(conversion.resendTimer)
     }
-    Promise.resolve(output).then((values) => {
-      outputTypes[conversion.outputType!](values, conversion, exclude)
-    })
+    Promise.resolve(output).then(deliver)
+  }
+
+  // Drops the conversion's PGNs that wait for their interval, and those
+  // still being built
+  function dropWaiting(conversion: RunningConversion) {
+    limiter.cancel(conversion)
+    conversion.generation = (conversion.generation ?? 0) + 1
   }
 
   function mapBaconjs(
@@ -464,7 +494,7 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
             clearResendInterval(conversion.resendTimer)
             conversion.resendTimer = undefined
           }
-          limiter.cancel(conversion)
+          dropWaiting(conversion)
           return
         }
         processOutput(

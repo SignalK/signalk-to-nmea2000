@@ -20,10 +20,18 @@ interface Pgn {
   getDefinition?: () => Definition
 }
 
+interface Pending {
+  send: () => void
+  owner: unknown
+  // When the first input it was built from times out
+  expiresAt: number
+}
+
 interface Stream {
+  // The stream's PGN and instance, whatever bus it goes to
+  key: string
   sentAt: number
-  // The latest PGN that came too soon, sent when the interval ends
-  pending?: { send: () => void; owner: unknown }
+  pending?: Pending
   timer?: ReturnType<typeof setTimeout>
 }
 
@@ -65,9 +73,17 @@ export function streamOf(
 }
 
 export interface RateLimiter {
-  // Sends now, or when the stream's interval ends; a later PGN of the same
-  // stream replaces one that is waiting. The owner can cancel what waits.
-  send(pgn: Pgn, bus: string, send: () => void, owner?: unknown): void
+  // Sends a PGN to each of its buses, now or when the stream's interval on
+  // that bus ends; a later PGN of the same stream replaces one that waits.
+  // What the owner has waiting for a bus that is not among these is dropped:
+  // the inputs now come from that bus.
+  send(
+    pgn: Pgn,
+    buses: string[],
+    send: (bus: string) => void,
+    owner?: unknown,
+    expiresAt?: number
+  ): void
   // Drops the PGNs of an owner that are waiting
   cancel(owner: unknown): void
   stop(): void
@@ -79,38 +95,57 @@ export function rateLimiter(now: () => number = () => Date.now()): RateLimiter {
   function flush(stream: Stream) {
     stream.timer = undefined
     const pending = stream.pending
-    if (pending) {
-      stream.pending = undefined
+    stream.pending = undefined
+    if (pending && now() < pending.expiresAt) {
       stream.sentAt = now()
       pending.send()
     }
   }
 
+  function sendTo(
+    bus: string,
+    limit: { interval: number; key: string },
+    pending: Pending
+  ) {
+    const id = `${bus} ${limit.key}`
+    const stream = streams.get(id)
+    const at = now()
+    if (stream === undefined || at - stream.sentAt >= limit.interval) {
+      if (stream?.timer) {
+        clearTimeout(stream.timer)
+      }
+      streams.set(id, { key: limit.key, sentAt: at })
+      pending.send()
+      return
+    }
+    stream.pending = pending
+    if (stream.timer === undefined) {
+      stream.timer = setTimeout(
+        () => flush(stream),
+        stream.sentAt + limit.interval - at
+      )
+    }
+  }
+
   return {
-    send(pgn, bus, send, owner) {
+    send(pgn, buses, send, owner, expiresAt = Infinity) {
       const limit = streamOf(pgn)
       if (limit === undefined) {
-        send()
+        buses.forEach((bus) => send(bus))
         return
       }
-      const key = `${bus} ${limit.key}`
-      const stream = streams.get(key)
-      const at = now()
-      if (stream === undefined || at - stream.sentAt >= limit.interval) {
-        if (stream?.timer) {
-          clearTimeout(stream.timer)
+      streams.forEach((stream, id) => {
+        if (
+          stream.key === limit.key &&
+          stream.pending?.owner === owner &&
+          !buses.some((bus) => id === `${bus} ${limit.key}`)
+        ) {
+          stream.pending = undefined
         }
-        streams.set(key, { sentAt: at })
-        send()
-        return
-      }
-      stream.pending = { send, owner }
-      if (stream.timer === undefined) {
-        stream.timer = setTimeout(
-          () => flush(stream),
-          stream.sentAt + limit.interval - at
-        )
-      }
+      })
+      buses.forEach((bus) =>
+        sendTo(bus, limit, { send: () => send(bus), owner, expiresAt })
+      )
     },
     cancel(owner) {
       streams.forEach((stream) => {

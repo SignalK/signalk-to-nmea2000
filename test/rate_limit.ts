@@ -89,7 +89,7 @@ describe('rate limit', () => {
     const send =
       (pgn: any, bus = 'nmea2000out', owner?: unknown) =>
       (label: string) =>
-        limiter.send(pgn, bus, () => sent.push(label), owner)
+        limiter.send(pgn, [bus], () => sent.push(label), owner)
 
     beforeEach(() => {
       clock = sinon.useFakeTimers({ now: 1000000 })
@@ -175,7 +175,6 @@ describe('rate limit', () => {
       limiter.cancel('one')
       clock.tick(1500)
       assert.deepEqual(sent, ['a', 'b', 'd'])
-      // The cancelled stream sends at once again after its interval
       send(battery(1, 12.2), 'nmea2000out', 'one')('e')
       assert.deepEqual(sent, ['a', 'b', 'd', 'e'])
     })
@@ -186,6 +185,51 @@ describe('rate limit', () => {
       limiter.stop()
       clock.tick(5000)
       assert.deepEqual(sent, ['a'])
+    })
+
+    it('drops a waiting PGN once an input it was built from expires', () => {
+      limiter.send(battery(1, 12), ['nmea2000out'], () => sent.push('a'))
+      limiter.send(
+        battery(1, 12.1),
+        ['nmea2000out'],
+        () => sent.push('b'),
+        'one',
+        Date.now() + 1000
+      )
+      clock.tick(1500)
+      assert.deepEqual(sent, ['a'])
+    })
+
+    it('drops what waits for a bus the inputs now come from', () => {
+      const sendTo = (buses: string[], label: string, owner = 'one') =>
+        limiter.send(
+          battery(1, 12),
+          buses,
+          (bus: string) => sent.push(`${label} ${bus}`),
+          owner
+        )
+      sendTo(['can0', 'can1'], 'a')
+      clock.tick(100)
+      sendTo(['can0', 'can1'], 'b')
+      // The inputs now come from can0: the PGN goes to can1 only
+      sendTo(['can1'], 'c')
+      clock.tick(1400)
+      assert.deepEqual(sent, ['a can0', 'a can1', 'c can1'])
+    })
+
+    it("keeps another conversion's PGN that waits for that bus", () => {
+      const sendTo = (buses: string[], label: string, owner: string) =>
+        limiter.send(
+          battery(1, 12),
+          buses,
+          (bus: string) => sent.push(`${label} ${bus}`),
+          owner
+        )
+      sendTo(['can0', 'can1'], 'a', 'one')
+      sendTo(['can0'], 'b', 'two')
+      sendTo(['can1'], 'c', 'one')
+      clock.tick(1500)
+      assert.deepEqual(sent, ['a can0', 'a can1', 'b can0', 'c can1'])
     })
   })
 
@@ -203,10 +247,19 @@ describe('rate limit', () => {
       return byInstance
     }
 
-    function send(app: any, battery: string, voltage: number) {
-      app.handleMessage('testInput', {
+    // A battery monitor on the NMEA 2000 bus
+    const N2K = { label: 'can0', type: 'NMEA2000', pgn: 127508, src: '35' }
+
+    function send(
+      app: any,
+      battery: string,
+      voltage: number,
+      source?: typeof N2K
+    ) {
+      app.handleMessage(source ? source.label : 'testInput', {
         updates: [
           {
+            ...(source ? { source } : {}),
             values: [
               {
                 path: `electrical.batteries.${battery}.voltage`,
@@ -218,12 +271,7 @@ describe('rate limit', () => {
       })
     }
 
-    const wait = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms))
-
-    it('limits each battery on its own, and sends its latest voltage', async function () {
-      this.timeout(5000)
-      const app = new Server().app
+    function startBatteries(app: any) {
       app.providerStatistics = []
       app.debug = () => {}
       const n2kSpy = sinon.spy()
@@ -238,6 +286,16 @@ describe('rate limit', () => {
           ]
         }
       })
+      return { n2kSpy, plugin }
+    }
+
+    const wait = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
+
+    it('limits each battery on its own, and sends its latest voltage', async function () {
+      this.timeout(5000)
+      const app = new Server().app
+      const { n2kSpy, plugin } = startBatteries(app)
       try {
         send(app, 'house', 12.5)
         await wait(50)
@@ -252,6 +310,36 @@ describe('rate limit', () => {
       } finally {
         plugin.stop()
       }
+    })
+
+    it('does not send a waiting voltage once NMEA 2000 sends that battery', async function () {
+      this.timeout(5000)
+      const app = new Server().app
+      const { n2kSpy, plugin } = startBatteries(app)
+      try {
+        send(app, 'house', 12.5)
+        await wait(50)
+        send(app, 'house', 12.6)
+        await wait(50)
+        send(app, 'house', 12.7, N2K)
+        await wait(1600)
+        assert.deepEqual(voltages(n2kSpy), { 1: [12.5] })
+      } finally {
+        plugin.stop()
+      }
+    })
+
+    it('does not send a waiting voltage once the plugin stops', async function () {
+      this.timeout(5000)
+      const app = new Server().app
+      const { n2kSpy, plugin } = startBatteries(app)
+      send(app, 'house', 12.5)
+      await wait(50)
+      send(app, 'house', 12.6)
+      await wait(50)
+      plugin.stop()
+      await wait(1600)
+      assert.deepEqual(voltages(n2kSpy), { 1: [12.5] })
     })
   })
 })
