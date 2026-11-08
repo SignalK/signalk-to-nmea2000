@@ -119,7 +119,8 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
       conversion: RunningConversion,
       exclude: string[],
       expiresAt: number,
-      generation: number
+      // Whether the output is still to be sent
+      current: () => boolean
     ) => void
   > = {
     'to-n2k': processToN2K
@@ -240,12 +241,13 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     return filled
   }
 
-  // Output that is still being built when the plugin stops is not sent
-  let running = false
+  // Counts the starts and stops: output still being built when the plugin
+  // stops is not sent, even once it has started again
+  let run = 0
 
   plugin.start = function (options: PluginOptions) {
     pluginOptions = options
-    running = true
+    run++
     conversions.forEach((entry: RunningConversion | RunningConversion[]) => {
       const list = _.isArray(entry) ? entry : [entry]
       list.forEach((conversion) => {
@@ -289,7 +291,7 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
   }
 
   plugin.stop = function () {
-    running = false
+    run++
     unsubscribes.forEach((f) => f())
     unsubscribes = []
     timers.forEach((timer) => clearInterval(timer))
@@ -366,12 +368,12 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     conversion: RunningConversion,
     exclude: string[],
     expiresAt: number,
-    generation: number
+    current: () => boolean
   ) {
     if (values) {
       Promise.all(values as (PGN | null | Promise<PGN | null>)[]).then(
         (pgns) => {
-          if (!running || (conversion.generation ?? 0) !== generation) {
+          if (!current()) {
             return
           }
           pgns
@@ -415,13 +417,14 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     expiresAt = Infinity
   ) {
     const generation = conversion.generation ?? 0
+    const startedIn = run
     const deliver = (values: Output) =>
       outputTypes[conversion.outputType!](
         values,
         conversion,
         exclude,
         expiresAt,
-        generation
+        () => run === startedIn && (conversion.generation ?? 0) === generation
       )
     if (options && options.resend && options.resend > 0) {
       if (conversion.resendTimer) {

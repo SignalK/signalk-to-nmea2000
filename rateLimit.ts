@@ -110,6 +110,10 @@ export function rateLimiter(now: () => number = () => Date.now()): RateLimiter {
     const id = `${bus} ${limit.key}`
     const stream = streams.get(id)
     const at = now()
+    // The debounce of the inputs can take it past their expiry
+    if (at >= pending.expiresAt) {
+      return
+    }
     if (stream === undefined || at - stream.sentAt >= limit.interval) {
       if (stream?.timer) {
         clearTimeout(stream.timer)

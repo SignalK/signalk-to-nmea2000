@@ -231,6 +231,33 @@ describe('rate limit', () => {
       clock.tick(1500)
       assert.deepEqual(sent, ['a can0', 'a can1', 'b can0', 'c can1'])
     })
+
+    it('does not send a PGN whose input expired before it was sent', () => {
+      limiter.send(
+        battery(1, 12),
+        ['nmea2000out'],
+        () => sent.push('a'),
+        'one',
+        Date.now()
+      )
+      assert.deepEqual(sent, [])
+    })
+
+    it('drops what waits once the PGN goes to no bus at all', () => {
+      const sendTo = (buses: string[], label: string) =>
+        limiter.send(
+          battery(1, 12),
+          buses,
+          (bus: string) => sent.push(`${label} ${bus}`),
+          'one'
+        )
+      sendTo(['can0'], 'a')
+      sendTo(['can0'], 'b')
+      // The inputs now come from can0, the only bus chosen
+      sendTo([], 'c')
+      clock.tick(1500)
+      assert.deepEqual(sent, ['a can0'])
+    })
   })
 
   describe('in the plugin', () => {

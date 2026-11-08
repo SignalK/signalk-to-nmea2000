@@ -698,6 +698,64 @@ describe('a course that came from NMEA 2000', () => {
     }
   })
 
+  // The route conversion waits for the Course API: hold it open
+  function holdCourse(app: any, course: Course) {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    app.courseApi = {
+      getCourse: async () => {
+        await held
+        return course
+      }
+    }
+    return release
+  }
+
+  it('is not sent when the Course API answers after the plugin stops', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course)
+    const release = holdCourse(app, course)
+    publish(app, course, 'courseApi')
+    await settle()
+    plugin.stop()
+    release()
+    await settle()
+    assert.equal(sent(app, 129285).length, 0)
+  })
+
+  it('is not sent when the Course API answers after a restart', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course)
+    const release = holdCourse(app, course)
+    publish(app, course, 'courseApi')
+    await settle()
+    plugin.stop()
+    plugin.start({})
+    release()
+    await settle()
+    assert.equal(sent(app, 129285).length, 0)
+    plugin.stop()
+  })
+
+  it('is sent when the Course API answers late', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course)
+    const release = holdCourse(app, course)
+    try {
+      publish(app, course, 'courseApi')
+      await settle()
+      assert.equal(sent(app, 129285).length, 0)
+      release()
+      await settle()
+      assert.equal(sent(app, 129285).length, 1)
+    } finally {
+      plugin.stop()
+    }
+  })
+
   it('stops a resend once the course turns out to come from NMEA 2000', async () => {
     const app = makeApp()
     let course = goto({ latitude: -35.5, longitude: 138.7 })
