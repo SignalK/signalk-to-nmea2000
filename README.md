@@ -23,6 +23,12 @@ or you can configure your N2K connection to use canboatjs in the server admin us
 
 Note that if you're using an NGT-1 to transmit AIS, then you need to use their Windows [NMEA Reader](https://www.actisense.com/wp-content/uploads/2017/07/Actisense-NMEA-Reader-v1.517-Setup.exe_.zip) software to add the pgns (129794, 129038, 129041, 129793) in the transmitted list.
 
+## How often a PGN is sent
+
+Each PGN is sent no more often than the transmission interval that [canboat](https://github.com/canboat/canboat) gives it, however fast its Signal K data changes: for example 100 ms for Position, Rapid Update (129025), 1.5 s for Battery Status (127508) and 2.5 s for Fluid Level (127505). A value that comes in sooner is not dropped: the latest one is sent when the interval ends. PGNs without a fixed interval, such as AIS reports, are not limited.
+
+The limit holds for what a device on the bus can tell apart. Each battery, tank, engine or temperature has its own limit, because its PGN carries its instance and, for temperatures, its source, and a fuel tank and a water tank with the same instance are limited apart too, as are true and magnetic heading. Each NMEA 2000 bus also has its own limit. Two conversions or Signal K sources that send the same PGN for the same instance share one limit, as a device on the bus could not tell their values apart anyway. Resends count toward the limit too.
+
 ## Data that came from NMEA 2000
 
 Values whose source is NMEA 2000 are not sent. The plugin's output goes to every NMEA 2000 connection, so sending them would echo data back onto the bus it came from, as a second copy competing with the device that sent it. A PGN built from several paths is not sent at all if any of its inputs came from NMEA 2000.

@@ -7,6 +7,13 @@ import { FromPgn } from '@canboat/canboatjs'
 const Sk2n2K = require('../dist')
 const Server = require('signalk-server/dist/')
 
+// Sends every PGN at once: these tests are not about the rate limit
+const unlimited = {
+  send: (_pgn: unknown, _bus: string, send: () => void) => send(),
+  cancel() {},
+  stop() {}
+}
+
 interface Source {
   label: string
   type: string
@@ -484,7 +491,7 @@ describe('Data from NMEA 2000 sources', function () {
         app.debug = () => {}
         const n2kSpy = sinon.spy()
         app.on('nmea2000out', n2kSpy)
-        new Sk2n2K(app).start({ NOTIFICATIONS: { enabled: true } })
+        new Sk2n2K(app, unlimited).start({ NOTIFICATIONS: { enabled: true } })
 
         send(app, { path, value: alarmValue, source })
         await settle()
@@ -554,7 +561,7 @@ describe('Data from NMEA 2000 sources', function () {
       app.debug = () => {}
       const n2kSpy = sinon.spy()
       app.on('nmea2000out', n2kSpy)
-      const plugin = new Sk2n2K(app)
+      const plugin = new Sk2n2K(app, unlimited)
       plugin.start({ NOTIFICATIONS: { enabled: true } })
       const handleMessage = sinon.spy(app, 'handleMessage')
       send(app, {
@@ -610,7 +617,7 @@ function runRaw(
   app.getPath = (path: string) => _.get(app.signalk.retrieve(), path)
   const n2kSpy = sinon.spy()
   app.on('nmea2000out', n2kSpy)
-  new Sk2n2K(app).start(options)
+  new Sk2n2K(app, unlimited).start(options)
   app.handleMessage(delta.updates[0].source ? 'can0' : 'testInput', delta)
   setTimeout(() => {
     try {
@@ -637,7 +644,7 @@ function run(
   app.debug.enabled = true
   const n2kSpy = sinon.spy()
   app.on('nmea2000out', n2kSpy)
-  new Sk2n2K(app).start(options)
+  new Sk2n2K(app, unlimited).start(options)
 
   const [first, ...rest] = deltas
   send(app, first)

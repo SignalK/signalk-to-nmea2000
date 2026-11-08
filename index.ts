@@ -8,6 +8,7 @@ import { isNmea2000Update, sourceConnection } from './nmea2000Source'
 import { Type, type TProperties } from 'typebox'
 import { Value } from 'typebox/value'
 import { App, Conversion, Plugin } from './types'
+import { rateLimiter, type RateLimiter } from './rateLimit'
 import {
   savedBuses,
   bridgeProperty,
@@ -53,7 +54,8 @@ interface Delta {
   [key: string]: unknown
 }
 
-module.exports = function (app: App) {
+// The server passes the app only; a test can pass a limiter of its own
+module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
   var plugin: Plugin = {}
   var unsubscribes: Unsubscribe[] = []
   var timers: ReturnType<typeof setInterval>[] = []
@@ -279,6 +281,7 @@ module.exports = function (app: App) {
     unsubscribes = []
     timers.forEach((timer) => clearInterval(timer))
     timers = []
+    limiter.stop()
   }
 
   return plugin
@@ -308,7 +311,14 @@ module.exports = function (app: App) {
   // A PGN that cannot be encoded here is dropped, not handed to the server
   // as JSON: a server on canboatjs 3 would read its SI values in the old
   // units and put wrong values on the bus.
-  function emitPgn(pgn: PGN, chosen: string[] = [], exclude: string[] = []) {
+  // Each bus gets it no more often than its transmission interval: see
+  // rateLimit.ts. The conversion can drop what waits for that.
+  function emitPgn(
+    pgn: PGN,
+    chosen: string[] = [],
+    exclude: string[] = [],
+    owner?: RunningConversion
+  ) {
     let line
     try {
       line = pgnToActisenseSerialFormat(pgn)
@@ -321,8 +331,20 @@ module.exports = function (app: App) {
       return
     }
     busEvents(buses, chosen, exclude).forEach((event) => {
-      app.debug(`emit ${event} ${line}`)
-      app.emit(event, line)
+      limiter.send(
+        pgn,
+        event,
+        // Possibly later, from a timer: not where the caller catches errors
+        () => {
+          try {
+            app.debug(`emit ${event} ${line}`)
+            app.emit(event, line)
+          } catch (err: any) {
+            app.error(`error sending PGN ${pgn.pgn}: ${err.message}`)
+          }
+        },
+        owner
+      )
     })
   }
 
@@ -338,7 +360,7 @@ module.exports = function (app: App) {
             .filter((pgn) => pgn != null)
             .forEach((pgn) => {
               try {
-                emitPgn(pgn, conversion.buses, exclude)
+                emitPgn(pgn, conversion.buses, exclude, conversion)
               } catch (err: any) {
                 console.error(`error writing pgn ${JSON.stringify(pgn)}`)
                 console.error(err.stack)
@@ -391,6 +413,7 @@ module.exports = function (app: App) {
         ) {
           clearResendInterval(conversion.resendTimer)
           conversion.resendTimer = undefined
+          limiter.cancel(conversion)
           return
         }
         Promise.resolve(output).then((values) => {
@@ -435,11 +458,13 @@ module.exports = function (app: App) {
         bridged(conversion)
       ).onValue((values) => {
         if (values === WITHHELD) {
-          // The last PGN no longer reflects the inputs; stop resending it
+          // The last PGN no longer reflects the inputs; stop resending it,
+          // and do not send one that waits for its interval
           if (conversion.resendTimer) {
             clearResendInterval(conversion.resendTimer)
             conversion.resendTimer = undefined
           }
+          limiter.cancel(conversion)
           return
         }
         processOutput(
