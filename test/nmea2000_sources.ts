@@ -7,6 +7,15 @@ import { FromPgn } from '@canboat/canboatjs'
 const Sk2n2K = require('../dist')
 const Server = require('signalk-server/dist/')
 
+// Sends every PGN at once: these tests are not about the rate limit
+const unlimited = {
+  send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
+    buses.forEach(send),
+  cancel() {},
+  configure() {},
+  stop() {}
+}
+
 interface Source {
   label: string
   type: string
@@ -279,6 +288,24 @@ describe('Data from NMEA 2000 sources', function () {
       )
     })
 
+    it('sends the ripple from voltage.ripple', function (done) {
+      run(
+        batteries([{ signalkId: 'house', source: 'venus.II', instanceId: 1 }]),
+        [{ path: `${VOLTAGE}.ripple`, value: 0.25, source: VENUS }],
+        (n2kSpy) => {
+          const ripples = n2kSpy
+            .getCalls()
+            .map((call) =>
+              new FromPgn({ useCamel: false }).parseString(call.args[0])
+            )
+            .filter((pgn: any) => pgn && pgn.pgn === 127506)
+            .map((pgn: any) => pgn.fields['Ripple Voltage'])
+          ripples.should.deep.equal([0.25])
+        },
+        done
+      )
+    })
+
     it('does not send an NMEA 2000 source back as another instance', function (done) {
       run(
         batteries([{ signalkId: 'house', source: 'can0.35', instanceId: 7 }]),
@@ -484,7 +511,7 @@ describe('Data from NMEA 2000 sources', function () {
         app.debug = () => {}
         const n2kSpy = sinon.spy()
         app.on('nmea2000out', n2kSpy)
-        new Sk2n2K(app).start({ NOTIFICATIONS: { enabled: true } })
+        new Sk2n2K(app, unlimited).start({ NOTIFICATIONS: { enabled: true } })
 
         send(app, { path, value: alarmValue, source })
         await settle()
@@ -554,7 +581,7 @@ describe('Data from NMEA 2000 sources', function () {
       app.debug = () => {}
       const n2kSpy = sinon.spy()
       app.on('nmea2000out', n2kSpy)
-      const plugin = new Sk2n2K(app)
+      const plugin = new Sk2n2K(app, unlimited)
       plugin.start({ NOTIFICATIONS: { enabled: true } })
       const handleMessage = sinon.spy(app, 'handleMessage')
       send(app, {
@@ -610,7 +637,7 @@ function runRaw(
   app.getPath = (path: string) => _.get(app.signalk.retrieve(), path)
   const n2kSpy = sinon.spy()
   app.on('nmea2000out', n2kSpy)
-  new Sk2n2K(app).start(options)
+  new Sk2n2K(app, unlimited).start(options)
   app.handleMessage(delta.updates[0].source ? 'can0' : 'testInput', delta)
   setTimeout(() => {
     try {
@@ -637,7 +664,7 @@ function run(
   app.debug.enabled = true
   const n2kSpy = sinon.spy()
   app.on('nmea2000out', n2kSpy)
-  new Sk2n2K(app).start(options)
+  new Sk2n2K(app, unlimited).start(options)
 
   const [first, ...rest] = deltas
   send(app, first)

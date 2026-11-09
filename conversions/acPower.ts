@@ -10,7 +10,7 @@ import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
 import { mappedInstance } from '../pgn'
 
-// The AC values per phase, as the Signal K specification defines them for
+// The AC values per phase, as @signalk/path-metadata defines them for
 // electrical.ac.<id>.phase.<phase> and electrical.inverters.<id>.ac
 const acKeys = [
   'lineNeutralVoltage',

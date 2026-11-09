@@ -36,14 +36,20 @@ const batteryProperties = (ids: string[], sources: string[]) => ({
 })
 const BatterySettings = Type.Object(batteryProperties([], []))
 
-function sourcesIn(tree: unknown): string[] {
-  if (!_.isPlainObject(tree)) return []
-  return Object.entries(tree as Record<string, any>).flatMap(([key, value]) => {
-    if (key === 'meta' || key === 'values') return []
-    return _.isPlainObject(value) && 'value' in value
-      ? [value.$source, ...Object.keys(value.values ?? {})]
-      : sourcesIn(value)
-  })
+// The sources of the values a battery mapping subscribes to
+function sourcesIn(batteries: unknown, keys: string[]): string[] {
+  if (!_.isPlainObject(batteries)) return []
+  return Object.entries(batteries as Record<string, unknown>).flatMap(
+    ([id, battery]) =>
+      id === 'meta'
+        ? []
+        : keys.flatMap((key) => {
+            const value = _.get(battery, key)
+            return _.isPlainObject(value) && 'value' in value
+              ? [value.$source, ...Object.keys(value.values ?? {})]
+              : []
+          })
+  )
 }
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
@@ -54,7 +60,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     'capacity.stateOfCharge',
     'capacity.timeRemaining',
     'capacity.stateOfHealth',
-    'ripple'
+    'voltage.ripple'
   ]
 
   return {
@@ -69,7 +75,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
       return batteryProperties(
         Object.keys(tree || {}).filter((id) => id !== 'meta'),
         // An NMEA 2000 source would send nothing, so it is not offered
-        _.uniq(sourcesIn(tree))
+        _.uniq(sourcesIn(tree, batteryKeys))
           .filter((source) => typeof source === 'string')
           .filter((source) => !isNmea2000Update(app, { $source: source }))
           .sort()
