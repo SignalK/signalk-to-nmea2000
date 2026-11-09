@@ -288,6 +288,24 @@ describe('Data from NMEA 2000 sources', function () {
       )
     })
 
+    it('sends the ripple from voltage.ripple', function (done) {
+      run(
+        batteries([{ signalkId: 'house', source: 'venus.II', instanceId: 1 }]),
+        [{ path: `${VOLTAGE}.ripple`, value: 0.25, source: VENUS }],
+        (n2kSpy) => {
+          const ripples = n2kSpy
+            .getCalls()
+            .map((call) =>
+              new FromPgn({ useCamel: false }).parseString(call.args[0])
+            )
+            .filter((pgn: any) => pgn && pgn.pgn === 127506)
+            .map((pgn: any) => pgn.fields['Ripple Voltage'])
+          ripples.should.deep.equal([0.25])
+        },
+        done
+      )
+    })
+
     it('does not send an NMEA 2000 source back as another instance', function (done) {
       run(
         batteries([{ signalkId: 'house', source: 'can0.35', instanceId: 7 }]),
