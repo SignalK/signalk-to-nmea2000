@@ -74,7 +74,9 @@ describe('plugin settings', function () {
                 'venus.II': { value: 12.5 },
                 'bmv.II': { value: 12.6 },
                 'can0.35': { value: 12.7 }
-              }
+              },
+              // From a source that sends nothing else
+              ripple: { value: 0.02, $source: 'ripple.II' }
             },
             capacity: { stateOfCharge: { value: 0.9, $source: 'shunt.II' } }
           },
@@ -92,6 +94,7 @@ describe('plugin settings', function () {
     assert.deepEqual(battery.properties.signalkId.examples, ['house', 'start'])
     assert.deepEqual(battery.properties.source.examples, [
       'bmv.II',
+      'ripple.II',
       'shunt.II',
       'venus.II'
     ])

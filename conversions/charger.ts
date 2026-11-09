@@ -1,4 +1,9 @@
-import { PGN_127507, PGN_127508, ChargerState } from '@canboat/ts-pgns'
+import {
+  PGN_127507,
+  PGN_127508,
+  ChargerState,
+  ChargerMode
+} from '@canboat/ts-pgns'
 import { Type } from 'typebox'
 import { App, Plugin, Conversion } from '../types'
 import { type PluginOptions, settingsOf } from '../schema'
@@ -63,8 +68,30 @@ const chargerStates = new Map<string, ChargerState>(
 const chargerState = (mode: unknown): ChargerState | undefined =>
   typeof mode === 'string' ? chargerStates.get(mode.toLowerCase()) : undefined
 
+// Signal K's chargerRole as the charger mode of 127507; master and slave are
+// the specification's older names
+const chargerModes = new Map<string, ChargerMode>(
+  Object.entries({
+    standalone: ChargerMode.Standalone,
+    primary: ChargerMode.Primary,
+    master: ChargerMode.Primary,
+    secondary: ChargerMode.Secondary,
+    slave: ChargerMode.Secondary,
+    echo: ChargerMode.Echo
+  })
+)
+
+const chargerMode = (role: unknown): ChargerMode | undefined =>
+  typeof role === 'string' ? chargerModes.get(role.toLowerCase()) : undefined
+
 module.exports = (app: App, plugin: Plugin): Conversion => {
-  const chargerKeys = ['voltage', 'current', 'temperature', 'chargingMode']
+  const chargerKeys = [
+    'voltage',
+    'current',
+    'temperature',
+    'chargingMode',
+    'chargerRole'
+  ]
 
   return {
     title: 'Charger (127507 & 127508)',
@@ -102,7 +129,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           voltage: number | null,
           current: number | null,
           temperature: number | null,
-          chargingMode: unknown
+          chargingMode: unknown,
+          chargerRole?: unknown
         ): (PGN_127507 | PGN_127508)[] => {
           const res: (PGN_127507 | PGN_127508)[] = []
           if (voltage != null || current != null || temperature != null) {
@@ -116,12 +144,17 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             )
           }
           const operatingState = chargerState(chargingMode)
-          if (charger.chargerInstanceId !== undefined && operatingState) {
+          const chargerModeValue = chargerMode(chargerRole)
+          if (
+            charger.chargerInstanceId !== undefined &&
+            (operatingState || chargerModeValue)
+          ) {
             res.push(
               new PGN_127507({
                 instance: charger.chargerInstanceId,
                 batteryInstance: charger.instanceId,
-                operatingState
+                operatingState,
+                chargeMode: chargerModeValue
               })
             )
           }
@@ -203,6 +236,44 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
                       }
                     }
                   ]
+                },
+                {
+                  // As n2k-signalk writes 127507: canboat's names, lowercased
+                  input: [null, null, null, 'constant vi', 'echo'],
+                  expected: [
+                    {
+                      prio: 6,
+                      pgn: 127507,
+                      dst: 255,
+                      fields: {
+                        Instance: 1,
+                        'Battery Instance': 12,
+                        'Operating State': 'Constant VI',
+                        'Charge Mode': 'Echo'
+                      }
+                    }
+                  ]
+                },
+                {
+                  // The role alone, by the specification's older name
+                  input: [null, null, null, null, 'slave'],
+                  expected: [
+                    {
+                      prio: 6,
+                      pgn: 127507,
+                      dst: 255,
+                      fields: {
+                        Instance: 1,
+                        'Battery Instance': 12,
+                        'Charge Mode': 'Secondary'
+                      }
+                    }
+                  ]
+                },
+                {
+                  // standby has no charger mode in 127507
+                  input: [null, null, null, null, 'standby'],
+                  expected: []
                 },
                 {
                   // A mode is looked up by name, so a name the lookup itself has

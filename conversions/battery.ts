@@ -40,8 +40,13 @@ function sourcesIn(tree: unknown): string[] {
   if (!_.isPlainObject(tree)) return []
   return Object.entries(tree as Record<string, any>).flatMap(([key, value]) => {
     if (key === 'meta' || key === 'values') return []
+    // A value can have values under it too, such as voltage.ripple
     return _.isPlainObject(value) && 'value' in value
-      ? [value.$source, ...Object.keys(value.values ?? {})]
+      ? [
+          value.$source,
+          ...Object.keys(value.values ?? {}),
+          ...sourcesIn(_.omit(value, 'value'))
+        ]
       : sourcesIn(value)
   })
 }
@@ -54,7 +59,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     'capacity.stateOfCharge',
     'capacity.timeRemaining',
     'capacity.stateOfHealth',
-    'ripple'
+    'voltage.ripple'
   ]
 
   return {
