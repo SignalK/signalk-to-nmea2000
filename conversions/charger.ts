@@ -124,7 +124,10 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         keys: chargerKeys.map(
           (key) => `electrical.chargers.${charger.signalkId}.${key}`
         ),
-        timeouts: chargerKeys.map(() => 60000),
+        // The role is configuration, which a charger may report only once
+        timeouts: chargerKeys.map((key) =>
+          key === 'chargerRole' ? undefined : 60000
+        ),
         callback: (
           voltage: number | null,
           current: number | null,
