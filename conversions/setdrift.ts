@@ -38,10 +38,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
     ): PGN_129291[] => {
       const object =
         current != null && typeof current === 'object' ? current : {}
+      // A source picked for a separate path applies to it alone, so those
+      // come first
       const values = {
-        setTrue: number(object.setTrue) ?? number(setTrue),
-        setMagnetic: number(object.setMagnetic) ?? number(setMagnetic),
-        drift: number(object.drift) ?? number(drift)
+        setTrue: number(setTrue) ?? number(object.setTrue),
+        setMagnetic: number(setMagnetic) ?? number(object.setMagnetic),
+        drift: number(drift) ?? number(object.drift)
       }
       const [set, setReference] =
         values.setTrue !== undefined
@@ -125,8 +127,8 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ]
       },
       {
-        // The object's values come first, the separate paths fill in
-        input: [{ setTrue: 2.0944 }, 1.5, null, 0.8],
+        // The separate paths come first, the object fills in
+        input: [{ setTrue: 1.5, drift: 0.8 }, 2.0944, null, null],
         expected: [
           {
             pgn: 129291,
