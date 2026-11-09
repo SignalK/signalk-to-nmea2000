@@ -2,37 +2,60 @@ import { PGN_129291, DirectionReference } from '@canboat/ts-pgns'
 import { App, Plugin, Conversion } from '../types'
 import { NAVIGATION_TIMEOUT } from '../timeouts'
 
-// environment.current is one object, as NMEA 2000 (129291, 130577) and
-// NMEA 0183 (VDR) sources write it
+// NMEA 2000 (129291, 130577) and NMEA 0183 (VDR) sources write the current
+// as one object, environment.current. signalk-derived-data writes its
+// values as separate paths.
 interface Current {
-  setTrue?: number | null
-  setMagnetic?: number | null
-  drift?: number | null
+  setTrue?: unknown
+  setMagnetic?: unknown
+  drift?: unknown
 }
+
+const number = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
 
 module.exports = (app: App, plugin: Plugin): Conversion => {
   return {
     title: 'Set/Drift (129291)',
     optionKey: 'SetDrift',
-    keys: ['environment.current'],
-    timeouts: [NAVIGATION_TIMEOUT],
-    callback: (current: Current | null): PGN_129291[] => {
-      if (current == null || typeof current !== 'object') {
-        return []
+    keys: [
+      'environment.current',
+      'environment.current.setTrue',
+      'environment.current.setMagnetic',
+      'environment.current.drift'
+    ],
+    timeouts: [
+      NAVIGATION_TIMEOUT,
+      NAVIGATION_TIMEOUT,
+      NAVIGATION_TIMEOUT,
+      NAVIGATION_TIMEOUT
+    ],
+    callback: (
+      current: Current | null,
+      setTrue: unknown,
+      setMagnetic: unknown,
+      drift: unknown
+    ): PGN_129291[] => {
+      const object =
+        current != null && typeof current === 'object' ? current : {}
+      const values = {
+        setTrue: number(object.setTrue) ?? number(setTrue),
+        setMagnetic: number(object.setMagnetic) ?? number(setMagnetic),
+        drift: number(object.drift) ?? number(drift)
       }
       const [set, setReference] =
-        current.setTrue != null
-          ? [current.setTrue, DirectionReference.True]
-          : current.setMagnetic != null
-            ? [current.setMagnetic, DirectionReference.Magnetic]
+        values.setTrue !== undefined
+          ? [values.setTrue, DirectionReference.True]
+          : values.setMagnetic !== undefined
+            ? [values.setMagnetic, DirectionReference.Magnetic]
             : [undefined, undefined]
-      if (set === undefined && current.drift == null) {
+      if (set === undefined && values.drift === undefined) {
         return []
       }
       return [
         new PGN_129291({
           set,
-          drift: current.drift ?? undefined,
+          drift: values.drift,
           setReference
         })
       ]
@@ -86,6 +109,38 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
         ]
       },
       {
+        // As signalk-derived-data writes it
+        input: [null, 2.0944, 1.9944, 0.8],
+        expected: [
+          {
+            pgn: 129291,
+            dst: 255,
+            prio: 3,
+            fields: {
+              Drift: 0.8,
+              Set: 2.0944,
+              'Set Reference': 'True'
+            }
+          }
+        ]
+      },
+      {
+        // The object's values come first, the separate paths fill in
+        input: [{ setTrue: 2.0944 }, 1.5, null, 0.8],
+        expected: [
+          {
+            pgn: 129291,
+            dst: 255,
+            prio: 3,
+            fields: {
+              Drift: 0.8,
+              Set: 2.0944,
+              'Set Reference': 'True'
+            }
+          }
+        ]
+      },
+      {
         input: [{ drift: 0.8 }],
         expected: [
           {
@@ -97,6 +152,11 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
             }
           }
         ]
+      },
+      {
+        // A value that is not a number is not sent
+        input: [{ setTrue: '2', drift: true }, null, null, Infinity],
+        expected: []
       },
       {
         input: [{}],
