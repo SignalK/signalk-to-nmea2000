@@ -183,6 +183,75 @@ describe('Data from NMEA 2000 sources', function () {
     })
   })
 
+  describe('set and drift', function () {
+    const CURRENT = 'environment.current'
+    const VDR: Source = { label: 'vdr', type: 'NMEA0183', talker: 'II' }
+    const DERIVED: Source = { label: 'derived', type: 'NMEA0183', talker: 'II' }
+    const OTHER: Source = { label: 'other', type: 'NMEA0183', talker: 'II' }
+    const N2K_CURRENT: Source = { ...N2K_SOURCE, pgn: 129291 }
+
+    it('takes a separate path from the source picked for it', function (done) {
+      run(
+        {
+          SetDrift: { enabled: true, environmentcurrentsetTrue: 'derived.II' }
+        },
+        [
+          { path: CURRENT, value: { setTrue: 1, drift: 0.5 }, source: VDR },
+          { path: `${CURRENT}.setTrue`, value: 2, source: DERIVED },
+          { path: `${CURRENT}.setTrue`, value: 3, source: OTHER }
+        ],
+        (n2kSpy) => {
+          const fields = lastFields(n2kSpy)
+          fields.Set.should.be.closeTo(2, 0.0001)
+          fields.Drift.should.be.closeTo(0.5, 0.01)
+        },
+        done
+      )
+    })
+
+    it('is withheld while the current comes from NMEA 2000', function (done) {
+      run(
+        { SetDrift: { enabled: true } },
+        [
+          {
+            path: CURRENT,
+            value: { setTrue: 1, drift: 0.5 },
+            source: N2K_CURRENT
+          },
+          { path: `${CURRENT}.setTrue`, value: 2, source: DERIVED },
+          { path: `${CURRENT}.drift`, value: 0.7, source: DERIVED }
+        ],
+        (n2kSpy) => {
+          n2kSpy.callCount.should.equal(0)
+        },
+        done
+      )
+    })
+
+    it('is sent from other sources when the current is picked from one', function (done) {
+      run(
+        {
+          SetDrift: { enabled: true, environmentcurrent: 'vdr.II' }
+        },
+        [
+          {
+            path: CURRENT,
+            value: { setTrue: 1, drift: 0.5 },
+            source: N2K_CURRENT
+          },
+          { path: `${CURRENT}.setTrue`, value: 2, source: DERIVED },
+          { path: `${CURRENT}.drift`, value: 0.7, source: DERIVED }
+        ],
+        (n2kSpy) => {
+          const fields = lastFields(n2kSpy)
+          fields.Set.should.be.closeTo(2, 0.0001)
+          fields.Drift.should.be.closeTo(0.7, 0.01)
+        },
+        done
+      )
+    })
+  })
+
   describe('AIS', function () {
     const aisDelta = (source?: Source) => ({
       context: 'vessels.urn:mrn:imo:mmsi:230123456',

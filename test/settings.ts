@@ -48,6 +48,16 @@ describe('plugin settings', function () {
     assert.notProperty(plugin.schema(), 'required')
   })
 
+  it('keeps the saved set and drift sources', function () {
+    const plugin = require('../dist/index.js')(makeApp())
+    const properties = plugin.schema().properties.SetDrift.properties
+    assert.containsAllKeys(properties, [
+      'environmentcurrent',
+      'environmentcurrentsetTrue',
+      'environmentcurrentdrift'
+    ])
+  })
+
   it('keeps the required fields of a solar charger mapping', function () {
     const plugin = require('../dist/index.js')(
       makeApp({ electrical: { solar: { roof: {} } } })
