@@ -183,6 +183,66 @@ describe('Data from NMEA 2000 sources', function () {
     })
   })
 
+  describe('charger role', function () {
+    const VENUS: Source = { label: 'venus', type: 'NMEA0183', talker: 'II' }
+    const N2K_CHARGER: Source = { ...N2K_SOURCE, pgn: 127507 }
+
+    it('stops withholding once an NMEA 2000 role expires', function (done) {
+      const clock = sinon.useFakeTimers({
+        now: Date.now(),
+        toFake: ['Date']
+      })
+      const app = new Server().app
+      app.providerStatistics = []
+      app.debug = () => {}
+      const n2kSpy = sinon.spy()
+      app.on('nmea2000out', n2kSpy)
+      new Sk2n2K(app, unlimited).start({
+        CHARGERS: {
+          enabled: true,
+          chargers: [
+            { signalkId: 'shore', instanceId: 12, chargerInstanceId: 1 }
+          ]
+        }
+      })
+      const MODE = 'electrical.chargers.shore.chargingMode'
+      const finish = (err?: unknown) => {
+        clock.restore()
+        done(err)
+      }
+      send(app, {
+        path: 'electrical.chargers.shore.chargerRole',
+        value: 'standalone',
+        source: N2K_CHARGER
+      })
+      send(app, { path: MODE, value: 'bulk', source: VENUS })
+      setTimeout(() => {
+        try {
+          // The role from NMEA 2000 withholds the charger's PGNs
+          n2kSpy.callCount.should.equal(0)
+        } catch (err) {
+          return finish(err)
+        }
+        clock.tick(61000)
+        send(app, { path: MODE, value: 'float', source: VENUS })
+        setTimeout(() => {
+          try {
+            n2kSpy.callCount.should.equal(1)
+            // Instance 1, battery instance 12, then Operating State Float (5)
+            // with Charge Mode not available (f). canboatjs doesn't decode
+            // this frame, so its bytes are checked.
+            const frame = n2kSpy.lastCall.args[0].split(',')
+            frame[2].should.equal('127507')
+            frame.slice(6, 9).should.deep.equal(['01', '0c', 'f5'])
+            finish()
+          } catch (err) {
+            finish(err)
+          }
+        }, SETTLE_MS)
+      }, SETTLE_MS)
+    })
+  })
+
   describe('AIS', function () {
     const aisDelta = (source?: Source) => ({
       context: 'vessels.urn:mrn:imo:mmsi:230123456',
