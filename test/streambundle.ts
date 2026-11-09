@@ -4,6 +4,15 @@ import chai from 'chai'
 const assert: Chai.AssertStatic = chai.assert
 import sinon from 'sinon'
 
+// Sends every PGN at once: these tests are not about the rate limit
+const unlimited = {
+  send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
+    buses.forEach(send),
+  cancel() {},
+  configure() {},
+  stop() {}
+}
+
 // Runs the plugin against a mock app whose streambundle hands out real Bacon
 // buses, the same way the server's StreamBundle does. Guards the
 // onValueChange path in index.js (timeoutingArrayStream), which is not
@@ -95,7 +104,7 @@ function startEngineParameters(
   } = { signalkId: 'engines.port', instanceId: 0 },
   extraOptions: Record<string, unknown> = {}
 ): any {
-  const plugin = require('../dist/index.js')(app)
+  const plugin = require('../dist/index.js')(app, unlimited)
   plugin.start({
     ENGINE_PARAMETERS: {
       enabled: true,
@@ -136,7 +145,7 @@ describe('onValueChange conversions over the streambundle', () => {
   it('sends an input that stopped updating as not available (#7)', async () => {
     const app = makeApp()
     const clock = sinon.useFakeTimers({ now: Date.now(), toFake: ['Date'] })
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ WINDv2: { enabled: true }, HEADINGv2: { enabled: true } })
     try {
       publish(app, 'environment.wind.angleApparent', 0.5)
@@ -186,7 +195,7 @@ describe('onValueChange conversions over the streambundle', () => {
       now: Date.now(),
       toFake: ['Date', 'setInterval', 'clearInterval']
     })
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ WINDv2: { enabled: true, resend: 1, resendTime: 30 } })
     const lastWind = () =>
       app.emitted.filter((pgn: TestPgn) => pgn.pgn === 130306).pop()
@@ -226,7 +235,7 @@ describe('onValueChange conversions over the streambundle', () => {
   it('emits a PGN from values pushed onto a self bus', async () => {
     const app = makeApp()
     app.debug.enabled = true
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ DEPTHv2: { enabled: true } })
 
     app.buses['environment.depth.belowTransducer'].push({
@@ -409,7 +418,7 @@ describe('onValueChange conversions over the streambundle', () => {
 
   it('exposes selectors for every engine notification in the configuration schema', () => {
     const app = makeApp()
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     const schema = plugin.schema()
     const sourceProperties =
       schema.properties.ENGINE_PARAMETERS.properties.engines.items.properties
@@ -498,7 +507,7 @@ describe('onValueChange conversions over the streambundle', () => {
     const app = makeApp()
     let course = goto({ latitude: -35.5, longitude: 138.7 })
     app.courseApi = { getCourse: async () => course }
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ routewpinformation: { enabled: true } })
 
     const publish = () =>
@@ -578,7 +587,7 @@ describe('a course that came from NMEA 2000', () => {
       calcMethod: { value: 'Rhumbline' }
     }
     app.courseApi = { getCourse: async () => course() }
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({
       navigationdata: { enabled: true, ...options },
       routewpinformation: { enabled: true, ...options },
@@ -685,6 +694,64 @@ describe('a course that came from NMEA 2000', () => {
       await settle(TIMER_WAIT)
       assert.isAbove(sent(app, 129285).length, 0, '129285')
       assert.isAbove(sent(app, 129284).length, 0, '129284')
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  // The route conversion waits for the Course API: hold it open
+  function holdCourse(app: any, course: Course) {
+    let release!: () => void
+    const held = new Promise<void>((resolve) => (release = resolve))
+    app.courseApi = {
+      getCourse: async () => {
+        await held
+        return course
+      }
+    }
+    return release
+  }
+
+  it('is not sent when the Course API answers after the plugin stops', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course)
+    const release = holdCourse(app, course)
+    publish(app, course, 'courseApi')
+    await settle()
+    plugin.stop()
+    release()
+    await settle()
+    assert.equal(sent(app, 129285).length, 0)
+  })
+
+  it('is not sent when the Course API answers after a restart', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course)
+    const release = holdCourse(app, course)
+    publish(app, course, 'courseApi')
+    await settle()
+    plugin.stop()
+    plugin.start({})
+    release()
+    await settle()
+    assert.equal(sent(app, 129285).length, 0)
+    plugin.stop()
+  })
+
+  it('is sent when the Course API answers late', async () => {
+    const app = makeApp()
+    const course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course)
+    const release = holdCourse(app, course)
+    try {
+      publish(app, course, 'courseApi')
+      await settle()
+      assert.equal(sent(app, 129285).length, 0)
+      release()
+      await settle()
+      assert.equal(sent(app, 129285).length, 1)
     } finally {
       plugin.stop()
     }
@@ -805,7 +872,7 @@ describe('man overboard', function () {
   it('leaves repeating to its timer, not the resend option', async function () {
     // A resent snapshot would outlast the MOB it shows
     const app = makeApp()
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ MOB: { enabled: true, resend: 0.02 } })
     try {
       app.subscribers.forEach((subscriber: Subscriber) =>
@@ -820,7 +887,7 @@ describe('man overboard', function () {
 
   it('takes the activation time from the update without a createdAt', async function () {
     const app = makeApp()
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ MOB: { enabled: true } })
     const raise = (timestamp: string, createdAt?: string) => ({
       context: 'vessels.self',
@@ -868,7 +935,7 @@ describe('man overboard', function () {
       toFake: ['Date', 'setInterval', 'clearInterval']
     })
     const app = makeApp()
-    const plugin = require('../dist/index.js')(app)
+    const plugin = require('../dist/index.js')(app, unlimited)
     plugin.start({ MOB: { enabled: true } })
     try {
       const [subscriber] = app.subscribers

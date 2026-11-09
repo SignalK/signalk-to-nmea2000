@@ -5,6 +5,15 @@ import sinon from 'sinon'
 const Sk2n2K = require('../dist')
 const Server = require('signalk-server/dist/')
 
+// Sends every PGN at once: these tests are not about the rate limit
+const unlimited = {
+  send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
+    buses.forEach(send),
+  cancel() {},
+  configure() {},
+  stop() {}
+}
+
 describe('Battery status 127508', function () {
   it('sequence with some missing data works', function (done) {
     const deltas = [
@@ -40,7 +49,7 @@ describe('Battery status 127508', function () {
       // TODO assert proper fastformat output here
       done()
     }, 1500)
-    const sk2n2k = new Sk2n2K(app)
+    const sk2n2k = new Sk2n2K(app, unlimited)
     sk2n2k.start({
       BATTERYv2: {
         enabled: true,
