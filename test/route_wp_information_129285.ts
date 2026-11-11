@@ -64,4 +64,34 @@ describe('Route/WP Information 129285', function () {
     assert.deepEqual(data.slice(9, 12), [3, 1, 'R'.charCodeAt(0)])
     assert.equal(data[12], 0xff, 'the reserved byte after the route name')
   })
+
+  it('lists a reversed route in the order it is sailed, as 129284 numbers it', async function () {
+    const course = await app.courseApi.getCourse()
+    const reversedApp = {
+      ...app,
+      courseApi: {
+        getCourse: async () => ({
+          ...course,
+          activeRoute: { ...course.activeRoute, reverse: true }
+        })
+      }
+    }
+    const conversions: Conversion[] =
+      require('../dist/conversions/navigationdata')(reversedApp, {})
+    const routeWP = conversions.find(
+      (c) => c.optionKey === 'routewpinformation'
+    )!
+    const [conversion] = (
+      routeWP.conversions as (options: unknown) => Conversion[]
+    )({})
+    const [pgn]: any = await conversion.callback!(reversedApp)
+    assert.equal(pgn.fields.navigationDirectionInRoute, 'Forward')
+    assert.deepEqual(
+      pgn.fields.list.map((wp: any) => [wp.wpId, wp.wpLatitude]),
+      [
+        [1, -35.2],
+        [2, -35.1]
+      ]
+    )
+  })
 })
