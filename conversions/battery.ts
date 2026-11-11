@@ -36,7 +36,6 @@ const batteryProperties = (ids: string[], sources: string[]) => ({
 })
 const BatterySettings = Type.Object(batteryProperties([], []))
 
-// The sources of the values a battery mapping subscribes to
 function sourcesIn(batteries: unknown, keys: string[]): string[] {
   if (!_.isPlainObject(batteries)) return []
   return Object.entries(batteries as Record<string, unknown>).flatMap(
