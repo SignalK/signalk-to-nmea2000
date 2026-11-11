@@ -45,6 +45,17 @@ Two settings change this per conversion:
 - **Source for …**: a source chosen here is always used, including an NMEA 2000 one.
 - **Also send data that came from NMEA 2000**: turns the check off. Only useful for bridging between separate NMEA 2000 networks, with each connection's output event configured so data does not go back to the network it came from.
 
+## Sending the active route (130066, 130067)
+
+**Route & WP Service (130066, 130067)** sends the active route or destination from the Course API to chartplotters that store routes from NMEA 2000: 130066 with the route's name and number of waypoints, then 130067 with its waypoints, in the order the route is sailed. It sends each course once, and again when it changes, for example when the route is reversed, but not when the next waypoint is reached.
+
+Leave its **Resend** at 0. A Garmin GPSMAP saves every copy it receives as a new route, shows a "New Route Received" pop-up for it, and keeps at most 100 routes, so repeating the route fills its storage. Each route gets a Route ID of its own, the same each time it is sent, made from its href, or for a single destination from where it is. A Garmin replaces the waypoints of the route it already has under that ID. Route/WP Information (129285) uses the same Route ID.
+
+What we have seen on real chartplotters:
+
+- **Garmin GPSMAP 723xsv**: saves the route and keeps its waypoint order. It may number the route itself (0001, 0002, …) instead of using the name sent. It ignores a route that arrives while its route edit screen is open.
+- **B&G Vulcan**: ignores routes from NMEA 2000.
+
 ## Battery mapping by source
 
 Each entry in **Battery Mapping** can set an optional **Signal K source**, so that the same Signal K battery id published by different sources goes out as different NMEA 2000 battery instances:
