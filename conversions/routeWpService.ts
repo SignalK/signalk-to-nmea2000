@@ -319,7 +319,17 @@ module.exports = (app: App, plugin: Plugin): Conversion => ({
           }
         ]
       },
-      origin.conversion
+      {
+        ...origin.conversion,
+        // A course from NMEA 2000 forgets what was sent at once, not on the
+        // next tick: what was sent may still have waited for its interval,
+        // and been dropped, when a course set here follows before that tick
+        callback: (delta: unknown) => {
+          const result = origin.conversion.callback!(delta)
+          if (origin.withheld()) lastSent = undefined
+          return result
+        }
+      }
     ]
   }
 })

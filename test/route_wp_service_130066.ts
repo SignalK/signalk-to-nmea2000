@@ -336,6 +336,19 @@ describe('Route & WP Service 130066/130067', function () {
       assert.deepEqual(await service.tick(), [])
     })
 
+    it('is sent again when a course set here follows it before the next tick', async function () {
+      // What was sent last may have waited for its interval and been dropped
+      // when the course came from NMEA 2000
+      const { app, state } = makeApp()
+      state.sources = { can0: { type: 'NMEA2000' } }
+      const service = start(app)
+      state.course = routeCourse()
+      assert.equal((await service.tick()).length, 2)
+      fromNmea2000(service, 'can0.3')
+      fromNmea2000(service, 'courseApi')
+      assert.equal((await service.tick()).length, 2)
+    })
+
     it('is sent when the setting allows NMEA 2000 sources', async function () {
       const { app, state } = makeApp()
       state.sources = { can0: { type: 'NMEA2000' } }
