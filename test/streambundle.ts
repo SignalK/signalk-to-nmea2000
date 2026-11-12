@@ -576,7 +576,8 @@ describe('a course that came from NMEA 2000', () => {
     app: any,
     course: () => Course,
     options = {},
-    xteOptions = {}
+    xteOptions = {},
+    limiter: unknown = unlimited
   ) {
     app.sources.can0 = { label: 'can0', type: 'NMEA2000' }
     app.selfData['navigation.course.calcValues'] = {
@@ -587,7 +588,7 @@ describe('a course that came from NMEA 2000', () => {
       calcMethod: { value: 'Rhumbline' }
     }
     app.courseApi = { getCourse: async () => course() }
-    const plugin = require('../dist/index.js')(app, unlimited)
+    const plugin = require('../dist/index.js')(app, limiter)
     plugin.start({
       navigationdata: { enabled: true, ...options },
       routewpinformation: { enabled: true, ...options },
@@ -778,6 +779,38 @@ describe('a course that came from NMEA 2000', () => {
       const before = sent(app, 129283).length
       await settle(300)
       assert.equal(sent(app, 129283).length, before)
+    } finally {
+      plugin.stop()
+    }
+  })
+
+  it('drops what waits for its interval once the course comes from NMEA 2000', async function () {
+    this.timeout(5000)
+    // Holds every PGN until the test lets it go, as the rate limit does
+    // until a PGN's interval ends
+    const waiting: (() => void)[] = []
+    const holding = {
+      send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
+        waiting.push(() => buses.forEach(send)),
+      cancel() {},
+      configure() {},
+      stop() {}
+    }
+    const app = makeApp()
+    let course = goto({ latitude: -35.5, longitude: 138.7 })
+    const plugin = startPlugin(app, () => course, {}, {}, holding)
+    try {
+      publish(app, course, 'courseApi')
+      publishXte(app)
+      await settle(TIMER_WAIT)
+      assert.isAbove(waiting.length, 0)
+      assert.isEmpty(app.emitted)
+
+      course = goto({ latitude: -35.6, longitude: 138.8 })
+      publish(app, course, N2K_DEVICE)
+      await settle()
+      waiting.splice(0).forEach((send) => send())
+      assert.isEmpty(app.emitted)
     } finally {
       plugin.stop()
     }

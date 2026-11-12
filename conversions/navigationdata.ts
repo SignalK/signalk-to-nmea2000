@@ -381,6 +381,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
             // calculated value that has stopped updating is not sent forever.
             interval: 1000,
             sourceType: 'timer',
+            withheld: origin.withheld,
             callback: (app: App) => sendNavigationData(app, false),
             tests: [
               {
@@ -533,6 +534,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
           {
             interval: 2000,
             sourceType: 'timer',
+            withheld: origin.withheld,
             callback: (app: App) =>
               origin.withheld() ? null : routeWPInformation(app),
             tests: [

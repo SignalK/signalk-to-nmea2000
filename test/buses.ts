@@ -327,6 +327,43 @@ describe('NMEA 2000 buses', function () {
       assert.deepEqual(_.uniq(app.events), ['nmea2000out'])
     })
 
+    it('does not bridge a man overboard', async function () {
+      // Its PGNs are built from every MOB it knows, from any bus, and its
+      // timer repeats them: sending one to the other buses would also send
+      // the others' back to the bus they came from
+      const app = makeApp(SERVER_BUSES)
+      const callbacks: ((delta: unknown) => void)[] = []
+      app.subscriptionmanager = {
+        subscribe: (
+          _subscription: unknown,
+          _unsubscribes: unknown,
+          _onError: unknown,
+          callback: (delta: unknown) => void
+        ) => callbacks.push(callback)
+      }
+      const plugin = require('../dist/index.js')(app)
+      plugin.start({ ...BRIDGE, MOB: { enabled: true } })
+      callbacks.forEach((callback) =>
+        callback({
+          context: 'vessels.self',
+          updates: [
+            {
+              ...fromBus('bus1'),
+              values: [
+                {
+                  path: 'notifications.mob.1',
+                  value: { state: 'emergency', createdAt: new Date() }
+                }
+              ]
+            }
+          ]
+        })
+      )
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      plugin.stop()
+      assert.isEmpty(app.events)
+    })
+
     it('does not bridge a PGN that follows the course', async function () {
       // A conversion with a withheld function is not bridged: its NMEA 2000
       // input withholds the PGN instead of sending it to the other buses

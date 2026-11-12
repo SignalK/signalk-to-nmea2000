@@ -139,7 +139,7 @@ module.exports = (app: App, plugin: Plugin): Conversion => {
           sourceType: 'subscription',
           // The timer below repeats a MOB, with its current state: resending
           // what a change gave would repeat a cleared MOB for too long
-          withheld: () => true,
+          stateful: true,
           callback: (delta: any): PGN_127233[] | null => {
             let changed = false
             ;(delta.updates || []).forEach((update: any) =>
