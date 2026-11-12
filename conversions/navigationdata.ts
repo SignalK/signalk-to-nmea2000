@@ -14,6 +14,7 @@ import {
 import type { PluginOptions } from '../schema'
 import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
+import { routeId } from '../routeId'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { courseOrigin } = require('../nmea2000Source')
 
@@ -72,6 +73,7 @@ async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
         new PGN_129285({
           nitems: origin ? 2 : 1,
           databaseId: 0,
+          routeId: routeId(undefined, dest),
           supplementaryRouteWpDataAvailable: OffOn.Off,
           navigationDirectionInRoute: Direction.Forward,
           list: [
@@ -112,7 +114,10 @@ async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
   )
     return null
 
-  const coordinates = _.chunk(routeCoordinates, routeWPDataItemsPerPacket)
+  // In the order the route is sailed, as 129284 numbers its destination
+  // (the Course API's pointIndex counts in that order) and as 130067 lists it
+  const sailed = reverse ? [...routeCoordinates].reverse() : routeCoordinates
+  const coordinates = _.chunk(sailed, routeWPDataItemsPerPacket)
   return coordinates.map((coords: number[][], i: number) => {
     const list = coords.map((coord: number[], j: number) => {
       // Numbered from 1, as 129284's Destination Waypoint Number is
@@ -131,15 +136,14 @@ async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
         startRps: routeWPDataItemsPerPacket * i,
         nitems: coords.length,
         databaseId: 0,
-        routeId: 0,
+        routeId: routeId(course.activeRoute),
         supplementaryRouteWpDataAvailable: OffOn.Off,
         // The reserved bits are left to the encoder, which writes them as all
         // ones.
         routeName: name,
         list: list,
-        navigationDirectionInRoute: reverse
-          ? Direction.Reverse
-          : Direction.Forward
+        // Listed as sailed, so forward whether the route is reversed or not
+        navigationDirectionInRoute: Direction.Forward
       }),
       7
     )
@@ -549,7 +553,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       'Start RPS#': 0,
                       nItems: 3,
                       'Database ID': 0,
-                      'Route ID': 0,
+                      'Route ID': 255,
                       'Route Name': 'Test Route',
                       'Navigation direction in route': 'Forward',
                       'Supplementary Route/WP data available': 'Off',
@@ -583,7 +587,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       'Start RPS#': 3,
                       nItems: 3,
                       'Database ID': 0,
-                      'Route ID': 0,
+                      'Route ID': 255,
                       'Route Name': 'Test Route',
                       'Navigation direction in route': 'Forward',
                       'Supplementary Route/WP data available': 'Off',
@@ -621,6 +625,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     fields: {
                       nItems: 2,
                       'Database ID': 0,
+                      'Route ID': 11749,
                       'Navigation direction in route': 'Forward',
                       'Supplementary Route/WP data available': 'Off',
                       list: [
