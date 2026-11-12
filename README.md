@@ -38,7 +38,7 @@ Two settings under **Send rate** change this:
 
 Values whose source is NMEA 2000 are not sent. The plugin's output goes to every NMEA 2000 connection, so sending them would echo data back onto the bus it came from, as a second copy competing with the device that sent it. A PGN built from several paths is not sent at all if any of its inputs came from NMEA 2000.
 
-The same holds for the active course. When a chartplotter on NMEA 2000 sets the destination, the server's Course API publishes it with that chartplotter as its source, and Cross Track Error (129283), Navigation Data (129284), Route/WP Information (129285) and the Raymarine route and waypoint PGNs (130848, 130918) are not sent until a course from another source replaces it. Servers since 2.12.0 publish this source; on older ones the course is always sent. The plugin learns the source when the course is set or changes, so after the plugin starts with such a course already active, it can be sent until the course next changes.
+The same holds for the active course. When a chartplotter on NMEA 2000 sets the destination, the server's Course API publishes it with that chartplotter as its source, and Cross Track Error (129283), Navigation Data (129284), Route/WP Information (129285), Route & WP Service (130066, 130067) and the Raymarine route and waypoint PGNs (130848, 130918) are not sent until a course from another source replaces it. Servers since 2.12.0 publish this source; on older ones the course is always sent. The plugin learns the source when the course is set or changes, so after the plugin starts with such a course already active, it can be sent until the course next changes.
 
 Two settings change this per conversion:
 
@@ -98,5 +98,5 @@ A bus is chosen by the connection's ID in the server's admin UI. A chosen connec
 - AIS goes to every bus but the one the update came from. Fields missing from the update are filled in from what the server last had for that vessel or AtoN, which may have come from another bus.
 - The PGN goes to the chosen buses, or to every bus that takes broadcasts, minus the buses its data came from. A bus whose **Send broadcast N2K output** is off gets bridged data only when it is chosen.
 - Leave it off when two connections are gateways on the same physical bus: data from one would go back onto that bus through the other.
-- The course PGNs (129283, 129284, 129285, 130848 and 130918) are not bridged: a course set on an NMEA 2000 chartplotter still withholds them everywhere.
+- The course PGNs (129283, 129284, 129285, 130066, 130067, 130848 and 130918) are not bridged: a course set on an NMEA 2000 chartplotter still withholds them everywhere.
 - A source chosen under **Source for …**, and a conversion with **Also send data that came from NMEA 2000**, are sent to every chosen bus as before, including the one the data came from. The exception is an NMEA 2000 source chosen for an engine's notifications or in a battery's mapping: it withholds the PGN as before, and with bridging the PGN goes to the other buses only.

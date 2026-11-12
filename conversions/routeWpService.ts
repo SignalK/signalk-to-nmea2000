@@ -155,7 +155,6 @@ async function activeCourse(
   }
 }
 
-// The waypoints split into 130067 packets of at most FAST_PACKET_BYTES each
 function packets(waypoints: Waypoint[]): Waypoint[][] {
   const result: Waypoint[][] = []
   let packet: Waypoint[] = []
@@ -244,8 +243,17 @@ module.exports = (app: App, plugin: Plugin): Conversion => ({
               app,
               settings?.routeName ?? ROUTE_NAME_DEFAULT
             )
+          } catch (err) {
+            // Tried again on the next tick
+            app.error(`Route & WP Service: ${err}`)
+            return null
           } finally {
             reading = false
+          }
+          // A course from NMEA 2000 can have come in during the read
+          if (origin.withheld()) {
+            lastSent = undefined
+            return null
           }
           if (course === undefined) return null
           if (course === null) {

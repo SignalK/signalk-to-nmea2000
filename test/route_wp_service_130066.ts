@@ -11,7 +11,6 @@ const ROUTE = [
   [-76.3, 38.3]
 ]
 
-// A Signal K server with a course that a test can change
 function makeApp() {
   const state: any = {
     course: null,
@@ -57,7 +56,6 @@ function routeCourse(extra: object = {}) {
   }
 }
 
-// The timer conversion and the one that follows the course's origin
 function start(app: any, settings: object = {}) {
   const conversion: Conversion = require('../dist/conversions/routeWpService')(
     app,
@@ -232,6 +230,22 @@ describe('Route & WP Service 130066/130067', function () {
     )
   })
 
+  it('tries the course again when reading it fails', async function () {
+    const { app, state } = makeApp()
+    const errors: string[] = []
+    app.error = (msg: string) => errors.push(msg)
+    const getCourse = app.courseApi.getCourse
+    app.courseApi.getCourse = async () => {
+      throw new Error('no course API')
+    }
+    const service = start(app)
+    state.course = routeCourse()
+    assert.deepEqual(await service.tick(), [])
+    assert.equal(errors.length, 1)
+    app.courseApi.getCourse = getCourse
+    assert.equal((await service.tick()).length, 2)
+  })
+
   it('leaves out a route that stopped being active while it was read', async function () {
     const { app, state } = makeApp()
     const service = start(app)
@@ -310,6 +324,15 @@ describe('Route & WP Service 130066/130067', function () {
       state.course = routeCourse()
       fromNmea2000(service, 'can0.3')
       assert.isTrue(service.timer.withheld && (service.timer.withheld as any)())
+      assert.deepEqual(await service.tick(), [])
+    })
+
+    it('is not sent when it comes in while the route is read', async function () {
+      const { app, state } = makeApp()
+      state.sources = { can0: { type: 'NMEA2000' } }
+      const service = start(app)
+      state.course = routeCourse()
+      state.onRead = () => fromNmea2000(service, 'can0.3')
       assert.deepEqual(await service.tick(), [])
     })
 
