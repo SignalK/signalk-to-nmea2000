@@ -593,7 +593,8 @@ describe('a course that came from NMEA 2000', () => {
       navigationdata: { enabled: true, ...options },
       routewpinformation: { enabled: true, ...options },
       xte: { enabled: true, ...options, ...xteOptions },
-      RAYMARINENAV: { enabled: true, ...options }
+      RAYMARINENAV: { enabled: true, ...options },
+      ROUTEWPSERVICE: { enabled: true, ...options }
     })
     return plugin
   }
@@ -789,9 +790,16 @@ describe('a course that came from NMEA 2000', () => {
     // Holds every PGN until the test lets it go, as the rate limit does
     // until a PGN's interval ends
     const waiting: (() => void)[] = []
+    const held: number[] = []
     const holding = {
-      send: (_pgn: unknown, buses: string[], send: (bus: string) => void) =>
-        waiting.push(() => buses.forEach(send)),
+      send: (
+        pgn: { pgn: number },
+        buses: string[],
+        send: (bus: string) => void
+      ) => {
+        held.push(pgn.pgn)
+        waiting.push(() => buses.forEach(send))
+      },
       cancel() {},
       configure() {},
       stop() {}
@@ -803,7 +811,7 @@ describe('a course that came from NMEA 2000', () => {
       publish(app, course, 'courseApi')
       publishXte(app)
       await settle(TIMER_WAIT)
-      assert.isAbove(waiting.length, 0)
+      assert.includeMembers(held, [129283, 129284, 129285, 130066, 130067])
       assert.isEmpty(app.emitted)
 
       course = goto({ latitude: -35.6, longitude: 138.8 })
