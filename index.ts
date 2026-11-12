@@ -44,6 +44,7 @@ type Unsubscribe = () => void
 type RunningConversion = Conversion & {
   resendTimer?: ReturnType<typeof setInterval>
   withheld?: () => boolean
+  stateful?: boolean
   interval?: number
   timeouts?: (number | undefined)[]
   withholdingKeys?: string[]
@@ -104,8 +105,11 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     buses, NMEA 2000 data that would withhold a PGN sends it to the other
     buses instead: never to the bus the data came from.
     A conversion whose output depends on more than its inputs gives a
-    withheld function; resending stops once it returns true. It is not
-    bridged: the buses the rest of its output came from are not known.
+    withheld function: while it returns true, nothing the conversion gave is
+    sent, including a PGN that waits for its interval, and resending stops.
+    A conversion whose output depends on its earlier inputs is stateful: it
+    is not resent, as a resend would repeat an outdated snapshot. Neither is
+    bridged: the buses the rest of their output came from are not known.
    */
 
   var sourceTypes: Record<
@@ -362,6 +366,9 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
       busEvents(buses, chosen, exclude),
       // Possibly later, from a timer: not where the caller catches errors
       (event) => {
+        // What the conversion gave can have been withheld since: the course
+        // turned out to come from NMEA 2000 while the PGN waited
+        if (owner?.withheld?.()) return
         try {
           app.debug(`emit ${event} ${line}`)
           app.emit(event, line)
@@ -437,7 +444,12 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
         expiresAt,
         () => run === startedIn && (conversion.generation ?? 0) === generation
       )
-    if (options && options.resend && options.resend > 0) {
+    if (
+      options &&
+      options.resend &&
+      options.resend > 0 &&
+      !conversion.stateful
+    ) {
       if (conversion.resendTimer) {
         clearResendInterval(conversion.resendTimer)
       }
@@ -586,10 +598,10 @@ module.exports = function (app: App, limiter: RateLimiter = rateLimiter()) {
     return inputs
   }
 
-  // A conversion with a withheld function is not bridged: the buses the rest
-  // of its output came from are not known
+  // A conversion with a withheld function, or a stateful one, is not
+  // bridged: the buses the rest of its output came from are not known
   function bridged(conversion: RunningConversion) {
-    return bridging() && !conversion.withheld
+    return bridging() && !conversion.withheld && !conversion.stateful
   }
 
   function mapTimer(

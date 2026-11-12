@@ -282,6 +282,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
             // server has nulled as stale is not sent forever.
             interval: 1000,
             sourceType: 'timer',
+            withheld: origin.withheld,
             callback: (app: App) => sendRouteWP(app, false),
             tests: [
               {
@@ -334,6 +335,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
           {
             interval: 1000,
             sourceType: 'timer',
+            withheld: origin.withheld,
             callback: (app: App) => sendRouteInfo(app, false),
             tests: [
               {
