@@ -298,6 +298,15 @@ describe('Route & WP Service 130066/130067', function () {
     assert.equal(pgns[0].fields['Navigation Method'], 'Rhumb Line')
   })
 
+  it('is not sent again when the navigation method comes in after the course', async function () {
+    const { app, state } = makeApp()
+    const service = start(app)
+    state.course = routeCourse()
+    assert.equal((await service.tick()).length, 2)
+    state.calcMethod = { value: 'Rhumbline' }
+    assert.deepEqual(await service.tick(), [])
+  })
+
   it('sends the course again after the plugin restarts', async function () {
     const { app, state } = makeApp()
     state.course = routeCourse()

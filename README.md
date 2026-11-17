@@ -55,6 +55,7 @@ What we have seen on real chartplotters:
 
 - **Garmin GPSMAP 723xsv**: saves the route and keeps its waypoint order. It may number the route itself (0001, 0002, …) instead of using the name sent. It ignores a route that arrives while its route edit screen is open.
 - **B&G Vulcan**: ignores routes from NMEA 2000.
+- **Raymarine Axiom+**: navigates to the course, but does not save the route or its waypoints.
 
 ## Battery mapping by source
 

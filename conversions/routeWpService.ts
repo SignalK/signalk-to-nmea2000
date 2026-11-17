@@ -260,9 +260,12 @@ module.exports = (app: App, plugin: Plugin): Conversion => ({
             lastSent = undefined
             return null
           }
-          // Reaching the next waypoint changes nothing that is sent
-          if (_.isEqual(course, lastSent)) return null
-          lastSent = course
+          // Reaching the next waypoint changes nothing that is sent. Nor does
+          // the navigation method on its own: the server works it out a moment
+          // after the course is set, and a Garmin saves each copy as a route.
+          const sent = _.omit(course, 'navigationMethod')
+          if (_.isEqual(sent, lastSent)) return null
+          lastSent = sent
           return routeWpService(course)
         },
         tests: [
