@@ -26,7 +26,7 @@
   ],
   "license": "ISC",
   "dependencies": {
-    "@canboat/canboatjs": "^4.0.0-beta.6",
+    "@canboat/canboatjs": "^4.0.0-beta.7",
     "@canboat/ts-pgns": "^5.0.0",
     "geolib": "^4.0.1",
     "lodash": "^4.17.4",
