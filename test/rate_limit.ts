@@ -4,6 +4,7 @@ import {
   PGN_127505,
   PGN_127508,
   PGN_129038,
+  PGN_130067,
   PGN_130312,
   DirectionReference,
   TankType,
@@ -33,6 +34,23 @@ describe('rate limit', () => {
           })
         ).interval,
         2000
+      )
+    })
+
+    it('tells the packets of a route apart, with an interval set for 130067', () => {
+      const packet = (startRps: number) =>
+        new PGN_130067({
+          startRps,
+          nitems: 1,
+          numberOfWpsInTheRouteWpList: 32,
+          databaseId: 0,
+          routeId: 7,
+          list: []
+        })
+      const intervals = { 130067: 1000 }
+      assert.notEqual(
+        streamOf(packet(0), intervals).key,
+        streamOf(packet(16), intervals).key
       )
     })
 

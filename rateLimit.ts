@@ -11,7 +11,9 @@ const MORE_KEY_FIELDS: Record<number, string[]> = {
   // True and magnetic heading come from separate conversions
   127250: ['reference'],
   // A fuel tank and a water tank can share an instance
-  127505: ['type']
+  127505: ['type'],
+  // A long route takes several packets, each from its own first waypoint
+  130067: ['databaseId', 'routeId', 'startRps']
 }
 
 // A PGN as the conversions give it: a ts-pgns class, or a plain object
