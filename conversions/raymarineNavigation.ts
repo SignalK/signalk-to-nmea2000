@@ -29,6 +29,18 @@ function toRadians(value: number): number {
   return (value * Math.PI) / 180
 }
 
+function routePointAt(
+  route: any,
+  index: number,
+  reverse: boolean
+): [number, number] {
+  const coordinates = route.feature.geometry.coordinates
+  return coordinates[reverse ? coordinates.length - 1 - index : index] as [
+    number,
+    number
+  ]
+}
+
 // The leaf's timestamp in milliseconds, whether the tree stores it as a number
 // or as the ISO string a delta carries.
 function leafTimestamp(update: any): number | undefined {
@@ -120,6 +132,7 @@ async function raymarineRouteInfo(
     course.activeRoute && typeof course.activeRoute.pointIndex === 'number'
       ? course.activeRoute.pointIndex
       : undefined
+  const reverse = Boolean(course.activeRoute?.reverse)
 
   let currentWaypointId = 1
   let currentWaypointName = 'Destination'
@@ -161,7 +174,7 @@ async function raymarineRouteInfo(
 
     nextWaypointId = currentWaypointId + 1
     nextWaypointName = 'Waypoint ' + nextWaypointId.toString()
-    const nextWaypointLatLng = coordinates[pointIndex + 1]
+    const nextWaypointLatLng = routePointAt(route, pointIndex + 1, reverse)
 
     // A stale position is nulled by the server; without one the position-to-next
     // bearing and distance stay unset rather than throwing in geolib.
@@ -175,7 +188,7 @@ async function raymarineRouteInfo(
       )
     }
 
-    const currentWaypointLatLng = coordinates[pointIndex]
+    const currentWaypointLatLng = routePointAt(route, pointIndex, reverse)
     bearingCurrentToNext = toRadians(
       geolib.getGreatCircleBearing(currentWaypointLatLng, nextWaypointLatLng)
     )
@@ -361,6 +374,28 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                 ]
               },
               {
+                input: [mockReverseApp],
+                expected: [
+                  {
+                    prio: 7,
+                    pgn: 130918,
+                    dst: 255,
+                    fields: {
+                      'Industry Code': 'Marine Industry',
+                      'Manufacturer Code': 'Raymarine',
+                      'Current Waypoint Name': 'Waypoint 1',
+                      'Current Waypoint Sequence': 1,
+                      'Next Waypoint Name': 'Waypoint 2',
+                      'Next Waypoint Sequence': 2,
+                      Unknown: 0,
+                      'Bearing, Current Waypoint to Next Waypoint, True': 6.2151,
+                      'Bearing, Position to Next Waypoint, True': 4.9131,
+                      'Distance, Position to Next Waypoint': 143516
+                    }
+                  }
+                ]
+              },
+              {
                 // a stale position is nulled by the server: the position-to-next
                 // bearing and distance are left unset rather than throwing
                 input: [mockNoPositionApp],
@@ -497,6 +532,20 @@ var mockApp = {
       latitude: 26.51859369671446
     }
   })
+}
+
+// The same route sailed in reverse.
+var mockReverseApp = {
+  ...mockApp,
+  courseApi: {
+    getCourse: () => ({
+      ...mockApp.courseApi.getCourse(),
+      activeRoute: {
+        ...mockApp.courseApi.getCourse().activeRoute,
+        reverse: true
+      }
+    })
+  }
 }
 
 // No navigation.position: the server has nulled a stale position.

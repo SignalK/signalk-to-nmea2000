@@ -11,6 +11,7 @@ import {
   ResidualMode,
   MagneticVariation
 } from '@canboat/ts-pgns'
+import { pgnToActisenseSerialFormat } from '@canboat/canboatjs'
 import type { PluginOptions } from '../schema'
 import { App, Plugin, Conversion } from '../types'
 import { withPriority } from '../pgn'
@@ -18,7 +19,8 @@ import { routeId } from '../routeId'
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { courseOrigin } = require('../nmea2000Source')
 
-const routeWPDataItemsPerPacket = 3
+// A 129285 message is a fast packet, with a maximum payload of 223 bytes.
+const maxRouteWPPayload = 223
 
 // A course notification counts while it is raised; the course provider clears
 // it by setting the value to null.
@@ -58,42 +60,134 @@ function freshValue(node: any, timeout?: number): any {
   return node.value
 }
 
-// The route or single destination of the active course as 129285 messages,
-// null without one
+type RouteWaypoint = {
+  wpId: number
+  wpName: string
+  wpLatitude: number
+  wpLongitude: number
+}
+
+function routeWaypoint(
+  coord: number[],
+  id: number,
+  name?: string
+): RouteWaypoint {
+  return {
+    wpId: id,
+    wpName: name || 'Waypoint ' + id.toString(),
+    // GeoJSON coordinates are [longitude, latitude]
+    wpLatitude: coord[1],
+    wpLongitude: coord[0]
+  }
+}
+
+function routePointName(
+  route: any,
+  coordIndex: number,
+  reverse: boolean,
+  id: number
+): string | undefined {
+  const coordinates = route?.feature?.geometry?.coordinates
+  if (!Array.isArray(coordinates)) return undefined
+  const originalIndex = reverse
+    ? coordinates.length - 1 - coordIndex
+    : coordIndex
+  return route?.feature?.properties?.coordinatesMeta?.[originalIndex]?.name
+}
+
+function originWaypoint(
+  course: any,
+  pointIndex: number
+): RouteWaypoint | undefined {
+  const point = course?.previousPoint
+  if (!point?.position) return undefined
+  // At the start of a route the origin is the vessel; after a waypoint it is
+  // the previous route point, whose route sequence number is pointIndex.
+  const id = point.type === 'RoutePoint' && pointIndex > 0 ? pointIndex : 0
+  return {
+    wpId: id,
+    wpName: point.name || (id === 0 ? 'ORIGIN' : 'Waypoint ' + id.toString()),
+    wpLatitude: point.position.latitude,
+    wpLongitude: point.position.longitude
+  }
+}
+
+function routeWPMessage({
+  list,
+  startRps,
+  name,
+  reverse,
+  route,
+  destination
+}: {
+  list: RouteWaypoint[]
+  startRps: number
+  name: string | undefined
+  reverse: boolean
+  route: { href?: string } | undefined
+  destination?: { latitude: number; longitude: number }
+}): PGN_129285 {
+  return withPriority(
+    new PGN_129285({
+      startRps,
+      nitems: list.length,
+      databaseId: 0,
+      routeId: routeId(route, destination),
+      supplementaryRouteWpDataAvailable: OffOn.Off,
+      // The reserved bits are left to the encoder, which writes them as all
+      // ones.
+      routeName: name,
+      list: list.map((waypoint) => ({ ...waypoint })),
+      // Listed as sailed, so forward whether the route is reversed or not
+      navigationDirectionInRoute: Direction.Forward
+    }),
+    7
+  )
+}
+
+function routeWPFits(pgn: PGN_129285): boolean {
+  try {
+    const line = pgnToActisenseSerialFormat(pgn)
+    if (!line) return false
+    const dataLength = parseInt(line.split(',')[5], 10)
+    return dataLength <= maxRouteWPPayload
+  } catch {
+    return false
+  }
+}
+
+// Keep one packet for the active leg: changing the waypoint set can make
+// autopilots treat the update as a route change.
 async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
-  var course = await app.courseApi.getCourse()
+  const course = await app.courseApi.getCourse()
   if (!course?.nextPoint?.position) return null
+
+  const nextPoint = course.nextPoint
   if (!course.activeRoute?.href) {
-    // A single destination goes out as waypoint 1; the course's previous
-    // point, when there is one, precedes it as the origin.
-    const origin = course.previousPoint?.position
-    const dest = course.nextPoint.position
-    return [
-      withPriority(
-        new PGN_129285({
-          nitems: origin ? 2 : 1,
-          databaseId: 0,
-          routeId: routeId(undefined, dest),
-          supplementaryRouteWpDataAvailable: OffOn.Off,
-          navigationDirectionInRoute: Direction.Forward,
-          list: [
-            ...(origin
-              ? [{ wpLatitude: origin.latitude, wpLongitude: origin.longitude }]
-              : []),
-            {
-              wpId: 1,
-              wpName: course.nextPoint.name || 'Waypoint 1',
-              wpLatitude: dest.latitude,
-              wpLongitude: dest.longitude
-            }
-          ]
-        }),
-        7
-      )
-    ]
+    const origin = originWaypoint(course, 0)
+    const target = {
+      wpId: 1,
+      wpName: nextPoint.name || 'Waypoint 1',
+      wpLatitude: nextPoint.position.latitude,
+      wpLongitude: nextPoint.position.longitude
+    }
+    const list = origin ? [origin, target] : [target]
+    const startRps = origin ? origin.wpId : target.wpId
+    const message = routeWPMessage({
+      list,
+      startRps,
+      name: undefined,
+      reverse: false,
+      route: undefined,
+      destination: nextPoint.position
+    })
+    return routeWPFits(message) ? [message] : null
   }
 
   const { href, name, reverse } = course.activeRoute
+  const pointIndex = Number.isInteger(course.activeRoute.pointIndex)
+    ? course.activeRoute.pointIndex
+    : 0
   // A route resource can be missing or unreadable; without its coordinates
   // there is no route to send.
   let route: any
@@ -110,44 +204,84 @@ async function routeWPInformation(app: App): Promise<PGN_129285[] | null> {
   if (
     activeRoute?.href !== href ||
     activeRoute.name !== name ||
+    (Number.isInteger(activeRoute.pointIndex) ? activeRoute.pointIndex : 0) !==
+      pointIndex ||
     Boolean(activeRoute.reverse) !== Boolean(reverse)
   )
     return null
 
   // In the order the route is sailed, as 129284 numbers its destination
   // (the Course API's pointIndex counts in that order) and as 130067 lists it
-  const sailed = reverse ? [...routeCoordinates].reverse() : routeCoordinates
-  const coordinates = _.chunk(sailed, routeWPDataItemsPerPacket)
-  return coordinates.map((coords: number[][], i: number) => {
-    const list = coords.map((coord: number[], j: number) => {
-      // Numbered from 1, as 129284's Destination Waypoint Number is
-      const waypointId = routeWPDataItemsPerPacket * i + j + 1
-      return {
-        wpId: waypointId,
-        wpName: 'Waypoint ' + waypointId.toString(),
-        // GeoJSON coordinates are [longitude, latitude]
-        wpLatitude: coord[1],
-        wpLongitude: coord[0]
-      }
-    })
+  const coordinates = reverse
+    ? [...routeCoordinates].reverse()
+    : routeCoordinates
+  const targetId = pointIndex + 1
+  const origin = originWaypoint(course, pointIndex)
+  const targetCoord = coordinates[pointIndex] || [
+    nextPoint.position.longitude,
+    nextPoint.position.latitude
+  ]
+  const target = {
+    wpId: targetId,
+    wpName:
+      nextPoint.name ||
+      routePointName(route, pointIndex, reverse, targetId) ||
+      'Waypoint ' + targetId.toString(),
+    wpLatitude: targetCoord[1],
+    wpLongitude: targetCoord[0]
+  }
+  const list = origin ? [origin, target] : [target]
+  const startRps = origin ? origin.wpId : targetId
 
-    return withPriority(
-      new PGN_129285({
-        startRps: routeWPDataItemsPerPacket * i,
-        nitems: coords.length,
-        databaseId: 0,
-        routeId: routeId(course.activeRoute),
-        supplementaryRouteWpDataAvailable: OffOn.Off,
-        // The reserved bits are left to the encoder, which writes them as all
-        // ones.
-        routeName: name,
-        list: list,
-        // Listed as sailed, so forward whether the route is reversed or not
-        navigationDirectionInRoute: Direction.Forward
-      }),
-      7
+  // Keep the active leg's forward waypoints within the fast-packet limit.
+  for (let i = pointIndex + 1; i < coordinates.length; i++) {
+    const id = targetId + (i - pointIndex)
+    list.push(
+      routeWaypoint(coordinates[i], id, routePointName(route, i, reverse, id))
     )
+    if (
+      !routeWPFits(
+        routeWPMessage({ list, startRps, name, reverse, route: activeRoute })
+      )
+    ) {
+      list.pop()
+      break
+    }
+  }
+
+  // If the origin and target do not fit together, keep the target rather than
+  // dropping navigation data entirely.
+  const message = routeWPMessage({
+    list,
+    startRps,
+    name,
+    reverse,
+    route: activeRoute
   })
+  if (!routeWPFits(message)) {
+    if (!origin) return null
+    list.shift()
+    let targetOnly = routeWPMessage({
+      list,
+      startRps: targetId,
+      name,
+      reverse,
+      route: activeRoute
+    })
+    while (list.length > 1 && !routeWPFits(targetOnly)) {
+      list.pop()
+      targetOnly = routeWPMessage({
+        list,
+        startRps: targetId,
+        name,
+        reverse,
+        route: activeRoute
+      })
+    }
+    return routeWPFits(targetOnly) ? [targetOnly] : null
+  }
+
+  return [message]
 }
 
 // An incrementing SID so that a receiver can tell one 129284 from the next.
@@ -550,8 +684,8 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     pgn: 129285,
                     dst: 255,
                     fields: {
-                      'Start RPS#': 0,
-                      nItems: 3,
+                      'Start RPS#': 1,
+                      nItems: 6,
                       'Database ID': 0,
                       'Route ID': 255,
                       'Route Name': 'Test Route',
@@ -575,23 +709,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                           'WP Latitude': 38.9780512,
                           'WP Longitude': -76.4726708,
                           'WP Name': 'Waypoint 3'
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    prio: 7,
-                    pgn: 129285,
-                    dst: 255,
-                    fields: {
-                      'Start RPS#': 3,
-                      nItems: 3,
-                      'Database ID': 0,
-                      'Route ID': 255,
-                      'Route Name': 'Test Route',
-                      'Navigation direction in route': 'Forward',
-                      'Supplementary Route/WP data available': 'Off',
-                      list: [
+                        },
                         {
                           'WP ID': 4,
                           'WP Latitude': 38.9749677,
@@ -623,6 +741,7 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                     pgn: 129285,
                     dst: 255,
                     fields: {
+                      'Start RPS#': 0,
                       nItems: 2,
                       'Database ID': 0,
                       'Route ID': 11749,
@@ -630,6 +749,8 @@ module.exports = (app: App, plugin: Plugin): Conversion[] => {
                       'Supplementary Route/WP data available': 'Off',
                       list: [
                         {
+                          'WP ID': 0,
+                          'WP Name': 'ORIGIN',
                           'WP Latitude': 38.9749677,
                           'WP Longitude': -76.4818398
                         },

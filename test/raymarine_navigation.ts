@@ -32,7 +32,12 @@ interface MockOptions {
   distance?: number
   position?: { longitude: number; latitude: number } | null
   route?: typeof ROUTE | null
-  activeRoute?: { href: string; pointIndex: number; pointTotal: number }
+  activeRoute?: {
+    href: string
+    pointIndex: number
+    pointTotal: number
+    reverse?: boolean
+  }
 }
 
 function mockApp({
@@ -131,6 +136,39 @@ describe('Raymarine navigation 130848/130918', function () {
     pgn.fields['Current Waypoint Name'].should.equal('Waypoint 1')
     pgn.fields['Next Waypoint Name'].should.equal('Waypoint 2')
     pgn.fields['Distance, Position to Next Waypoint'].should.equal(374)
+  })
+
+  it('uses the next point in the route direction when reversed', async function () {
+    const nextPosition = {
+      longitude: ROUTE.feature.geometry.coordinates[10][0],
+      latitude: ROUTE.feature.geometry.coordinates[10][1]
+    }
+    const app = mockApp({
+      position: nextPosition,
+      activeRoute: {
+        href: 'mock',
+        pointIndex: 0,
+        pointTotal: 12,
+        reverse: true
+      }
+    })
+    const subs = subConversions(app)
+    const onChange = subs[3].callback
+
+    const messages = await onChange(
+      { href: 'mock', pointIndex: 0, pointTotal: 12, reverse: true },
+      nextPosition,
+      null
+    )
+
+    const [pgn] = parse(messages)
+    pgn.pgn.should.equal(130918)
+    pgn.fields['Current Waypoint Sequence'].should.equal(1)
+    pgn.fields['Next Waypoint Sequence'].should.equal(2)
+    pgn.fields['Distance, Position to Next Waypoint'].should.equal(0)
+    pgn.fields['Bearing, Current Waypoint to Next Waypoint, True'].should.equal(
+      6.2151
+    )
   })
 
   it('does not throw when the route resource is missing', async function () {
